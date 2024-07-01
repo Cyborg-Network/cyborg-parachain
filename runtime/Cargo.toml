@@ -1,5 +1,5 @@
 [package]
-name = "parachain-template-runtime"
+name = "cyborg-runtime"
 description = "A parachain runtime template built with Substrate and Cumulus, part of Polkadot Sdk. (polkadot v1.13.0)"
 version = "0.1.0"
 license = "Unlicense"
@@ -28,6 +28,10 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 smallvec = "1.11.0"
 docify = "0.2.8"
 
+# Orml 
+orml-oracle = { workspace = true }
+orml-traits = { workspace = true }
+
 # Local
 pallet-parachain-template = { path = "../pallets/template", default-features = false, version = "0.1.0" }
 
@@ -51,6 +55,7 @@ pallet-sudo = { version = "35.0.0", default-features = false }
 pallet-timestamp = { version = "34.0.0", default-features = false }
 pallet-transaction-payment = { version = "35.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "35.0.0", default-features = false }
+pallet-membership = { version = "35.0.0", default-features = false }
 
 # Substrate	Primitives
 sp-api = { version = "33.0.0", default-features = false }
@@ -92,6 +97,8 @@ parachain-info = { version = "0.14.0", package = "staging-parachain-info", defau
 default = ["std"]
 std = [
 	"codec/std",
+	"orml-oracle/std",
+	"orml-traits/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -122,6 +129,7 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-xcm/std",
+	"pallet-membership/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"polkadot-parachain-primitives/std",
@@ -163,6 +171,7 @@ runtime-benchmarks = [
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"pallet-membership/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -191,6 +200,7 @@ try-runtime = [
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-xcm/try-runtime",
+	"pallet-membership/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"sp-runtime/try-runtime",

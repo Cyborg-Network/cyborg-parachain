@@ -8,7 +8,7 @@ RUN cargo build --locked --release
 
 FROM docker.io/parity/base-bin:latest
 
-COPY --from=builder /polkadot/target/release/parachain-template-node /usr/local/bin
+COPY --from=builder /polkadot/target/release/cyborg-node /usr/local/bin
 
 USER root
 RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
@@ -18,11 +18,11 @@ RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
 # unclutter and minimize the attack surface
 	rm -rf /usr/bin /usr/sbin && \
 # check if executable works in this container
-	/usr/local/bin/parachain-template-node --version
+	/usr/local/bin/cyborg-node --version
 
 USER polkadot
 
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/parachain-template-node"]
+ENTRYPOINT ["/usr/local/bin/cyborg-node"]

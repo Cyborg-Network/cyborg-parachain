@@ -7,8 +7,11 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod apis;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarks;
 mod configs;
 mod weights;
+mod oracle;
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -23,10 +26,11 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use frame_support::{
-	construct_runtime,
+	parameter_types,
+	traits::ConstU32,
 	weights::{
-		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient,
-		WeightToFeeCoefficients, WeightToFeePolynomial,
+	constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+	WeightToFeePolynomial,
 	},
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -36,6 +40,11 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 pub use sp_runtime::BuildStorage;
 
 use weights::ExtrinsicBaseWeight;
+
+pub use frame_system::EnsureRoot;
+
+use oracle::{ProcessStatus, ProcessId, DummyCombineData};
+
 
 /// Import the template pallet.
 pub use pallet_parachain_template;
@@ -157,10 +166,48 @@ impl_opaque_keys! {
 	}
 }
 
+parameter_types! {
+	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
+}
+
+impl orml_oracle::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+	type OnNewData = ();
+    type CombineData = DummyCombineData<Runtime>;
+    type Time = Timestamp;
+    type OracleKey = ProcessId;
+    type OracleValue = ProcessStatus;
+	type RootOperatorAccountId = RootOperatorAccountId;
+    type Members = OracleMembership;
+    type MaxHasDispatchedSize = ConstU32<8>;
+    type WeightInfo = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type MaxFeedValues = ConstU32<2>;
+    #[cfg(not(feature = "runtime-benchmarks"))]
+    type MaxFeedValues = ConstU32<1>;
+}
+
+// pub type OracleMembershipInstance = pallet_membership::Instance1;
+// impl pallet_membership::Config<OracleMembershipInstance> for Runtime {
+	impl pallet_membership::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type AddOrigin = EnsureRoot<AccountId>;
+    type RemoveOrigin = EnsureRoot<AccountId>;
+    type SwapOrigin = EnsureRoot<AccountId>;
+    type ResetOrigin = EnsureRoot<AccountId>;
+    type PrimeOrigin = EnsureRoot<AccountId>;
+
+    type MembershipInitialized = ();
+    type MembershipChanged = ();
+    type MaxMembers = ConstU32<16>;
+    type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
+
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("parachain-template-runtime"),
-	impl_name: create_runtime_str!("parachain-template-runtime"),
+	spec_name: create_runtime_str!("cyborg-runtime"),
+	impl_name: create_runtime_str!("cyborg-runtime"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
@@ -232,43 +279,75 @@ pub fn native_version() -> NativeVersion {
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
-construct_runtime!(
-	pub enum Runtime {
-		// System support stuff.
-		System: frame_system = 0,
-		ParachainSystem: cumulus_pallet_parachain_system = 1,
-		Timestamp: pallet_timestamp = 2,
-		ParachainInfo: parachain_info = 3,
+#[frame_support::runtime]
+mod runtime {
+	#[runtime::runtime]
+	#[runtime::derive(
+		RuntimeCall,
+		RuntimeEvent,
+		RuntimeError,
+		RuntimeOrigin,
+		RuntimeFreezeReason,
+		RuntimeHoldReason,
+		RuntimeSlashReason,
+		RuntimeLockId,
+		RuntimeTask
+	)]
+	pub struct Runtime;
 
-		// Monetary stuff.
-		Balances: pallet_balances = 10,
-		TransactionPayment: pallet_transaction_payment = 11,
+	#[runtime::pallet_index(0)]
+	pub type System = frame_system;
+	#[runtime::pallet_index(1)]
+	pub type ParachainSystem = cumulus_pallet_parachain_system;
+	#[runtime::pallet_index(2)]
+	pub type Timestamp = pallet_timestamp;
+	#[runtime::pallet_index(3)]
+	pub type ParachainInfo = parachain_info;
 
-		// Governance
-		Sudo: pallet_sudo = 15,
+	// Monetary stuff.
+	#[runtime::pallet_index(10)]
+	pub type Balances = pallet_balances;
+	#[runtime::pallet_index(11)]
+	pub type TransactionPayment = pallet_transaction_payment;
 
-		// Collator support. The order of these 4 are important and shall not change.
-		Authorship: pallet_authorship = 20,
-		CollatorSelection: pallet_collator_selection = 21,
-		Session: pallet_session = 22,
-		Aura: pallet_aura = 23,
-		AuraExt: cumulus_pallet_aura_ext = 24,
+	// Governance
+	#[runtime::pallet_index(15)]
+	pub type Sudo = pallet_sudo;
 
-		// XCM helpers.
-		XcmpQueue: cumulus_pallet_xcmp_queue = 30,
-		PolkadotXcm: pallet_xcm = 31,
-		CumulusXcm: cumulus_pallet_xcm = 32,
-		MessageQueue: pallet_message_queue = 33,
+	// Collator support. The order of these 4 are important and shall not change.
+	#[runtime::pallet_index(20)]
+	pub type Authorship = pallet_authorship;
+	#[runtime::pallet_index(21)]
+	pub type CollatorSelection = pallet_collator_selection;
+	#[runtime::pallet_index(22)]
+	pub type Session = pallet_session;
+	#[runtime::pallet_index(23)]
+	pub type Aura = pallet_aura;
+	#[runtime::pallet_index(24)]
+	pub type AuraExt = cumulus_pallet_aura_ext;
 
-		// Template
-		TemplatePallet: pallet_parachain_template = 50,
-	}
-);
+	// XCM helpers.
+	#[runtime::pallet_index(30)]
+	pub type XcmpQueue = cumulus_pallet_xcmp_queue;
+	#[runtime::pallet_index(31)]
+	pub type PolkadotXcm = pallet_xcm;
+	#[runtime::pallet_index(32)]
+	pub type CumulusXcm = cumulus_pallet_xcm;
+	#[runtime::pallet_index(33)]
+	pub type MessageQueue = pallet_message_queue;
+
+	#[runtime::pallet_index(40)]
+	pub type Oracle = orml_oracle;
+
+	#[runtime::pallet_index(41)]
+	pub type OracleMembership = pallet_membership;
+
+	// Template
+	#[runtime::pallet_index(50)]
+	pub type TemplatePallet = pallet_parachain_template;
+}
 
 cumulus_pallet_parachain_system::register_validate_block! {
 	Runtime = Runtime,
 	BlockExecutor = cumulus_pallet_aura_ext::BlockExecutor::<Runtime, Executive>,
 }
-
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarks;
