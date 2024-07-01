@@ -1,0 +1,19 @@
+[workspace.package]
+license = "MIT-0"
+authors = ["Parity Technologies <admin@parity.io>"]
+homepage = "https://substrate.io"
+repository = "https://github.com/paritytech/polkadot-sdk-parachain-template.git"
+edition = "2021"
+
+[workspace]
+members = [
+    "node",
+    "pallets/template",
+    "runtime",
+]
+resolver = "2"
+
+[workspace.dependencies]
+log = { version = "0.4.21", default-features = false }
+serde = { version = "1.0.197", default-features = false }
+serde_json = { version = "1.0.114", default-features = false }
