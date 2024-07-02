@@ -8,6 +8,7 @@ repository = "https://github.com/Cyborg-Network/cyborg-node/"
 members = [
     "node",
     "pallets/template",
+    "pallets/worker-clusters",
     "runtime",
     "orml/oracle",
     "orml/traits",
