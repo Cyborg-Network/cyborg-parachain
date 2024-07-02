@@ -13,42 +13,9 @@ pub mod weights;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use scale_info::{ TypeInfo };
-use frame_support::sp_runtime::RuntimeDebug;
-use codec::{ Encode, Decode, MaxEncodedLen };
+mod types;
 
-pub type WorkerId = u64;
-
-pub type Domain = u8;
-
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
-pub enum WorkerStatusType {
-	Active,
-	Busy,
-	Inactive,
-}
-
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct Ip {
-	pub ipv4: Option<u8>,
-	pub ipv6: Option<u8>,
-	pub port: u32,
-}
-
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen )]
-pub struct WorkerAPI {
-	pub ip : Option<Ip>,
-	pub domain: Option<Domain>,
-}
-
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct Worker<AccountId, BlockNumber> {
-	pub id: WorkerId,
-	pub owner: AccountId,
-	pub start_block: BlockNumber,
-	pub status: WorkerStatusType,
-	pub api: WorkerAPI,
-}
+use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -118,7 +85,7 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			// check ip or domain exists
-			ensure!(ip.clone().unwrap().ipv4.is_some() || ip.clone().unwrap().ipv6.is_some() || domain.is_some(), Error::<T>::WorkerRegisterMissingIpOrDomain);
+			ensure!(ip.clone().and_then(|ip| ip.ipv4).is_some() || ip.clone().and_then(|ip| ip.ipv6).is_some() || domain.is_some(), Error::<T>::WorkerRegisterMissingIpOrDomain);
 			
 			//check cluster
 			ensure!(AccountWorkers::<T>::contains_key(creator.clone()) == false, 

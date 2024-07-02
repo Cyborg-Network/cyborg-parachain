@@ -3,33 +3,37 @@
 use super::*;
 
 #[allow(unused)]
-use crate::Pallet as Template;
+use crate::Pallet as WorkerClustersPallet;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
+use frame_support::sp_runtime::traits::One;
 
 #[benchmarks]
 mod benchmarks {
 	use super::*;
 
 	#[benchmark]
-	fn do_something() {
-		let value = 100u32;
+	fn register_worker() {
 		let caller: T::AccountId = whitelisted_caller();
-		#[extrinsic_call]
-		do_something(RawOrigin::Signed(caller), value);
 
-		assert_eq!(Something::<T>::get(), Some(value));
+		let api_info = WorkerAPI {
+			ip: None,
+			domain: Some(100)
+		};
+
+		let worker = Worker {
+			id: 0,
+			owner: caller.clone(),
+			start_block: One::one(),
+			status: WorkerStatusType::Inactive,
+			api: api_info.clone()
+		};
+
+		#[extrinsic_call]
+		register_worker(RawOrigin::Signed(caller.clone()), api_info.ip, api_info.domain);
+
+		assert_eq!(WorkerClustersPallet::<T>::get_worker_clusters((caller.clone(),0)), Some(worker));
 	}
 
-	#[benchmark]
-	fn cause_error() {
-		Something::<T>::put(100u32);
-		let caller: T::AccountId = whitelisted_caller();
-		#[extrinsic_call]
-		cause_error(RawOrigin::Signed(caller));
-
-		assert_eq!(Something::<T>::get(), Some(101u32));
-	}
-
-	impl_benchmark_test_suite!(Template, crate::mock::new_test_ext(), crate::mock::Test);
+	impl_benchmark_test_suite!(WorkerClustersPallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

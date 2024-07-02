@@ -34,6 +34,7 @@ orml-traits = { workspace = true }
 
 # Local
 pallet-parachain-template = { path = "../pallets/template", default-features = false, version = "0.1.0" }
+pallet-worker-clusters = { path = "../pallets/worker-clusters", default-features = false, version = "0.1.0" }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -123,6 +124,7 @@ std = [
 	"pallet-collator-selection/std",
 	"pallet-message-queue/std",
 	"pallet-parachain-template/std",
+	"pallet-worker-clusters/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -168,6 +170,7 @@ runtime-benchmarks = [
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-parachain-template/runtime-benchmarks",
+	"pallet-worker-clusters/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -195,6 +198,7 @@ try-runtime = [
 	"pallet-collator-selection/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-parachain-template/try-runtime",
+#	"pallet-worker-clusters/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",

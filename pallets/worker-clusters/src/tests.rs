@@ -1,23 +1,29 @@
-use crate::{mock::*, Error, Something};
+
+use crate::{mock::*, types::*, Error};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
-fn it_works_for_default_value() {
+fn it_works_for_registering_domain() {
 	new_test_ext().execute_with(|| {
-		// Dispatch a signed extrinsic.
-		assert_ok!(TemplateModule::do_something(RuntimeOrigin::signed(1), 42));
-		// Read pallet storage and assert an expected result.
-		assert_eq!(Something::<Test>::get(), Some(42));
-	});
-}
+		
+		System::set_block_number(10);
+		let alice = 0;
+		let api_info = WorkerAPI {
+			ip: None,
+			domain: Some(100)
+		};
 
-#[test]
-fn correct_error_for_none_value() {
-	new_test_ext().execute_with(|| {
-		// Ensure the expected error is thrown when no value is present.
-		assert_noop!(
-			TemplateModule::cause_error(RuntimeOrigin::signed(1)),
-			Error::<Test>::NoneValue
-		);
+		let worker = Worker {
+			id: 0,
+			owner: alice,
+			start_block: 10,
+			status: WorkerStatusType::Inactive,
+			api: api_info.clone()
+		};
+		
+		// Dispatch a signed extrinsic.
+		assert_ok!(WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
+		// Read pallet storage and assert an expected result.
+		assert_eq!(WorkerClustersModule::get_worker_clusters((alice,0)), Some(worker));
 	});
 }
