@@ -34,8 +34,13 @@ use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
 /// Weight functions for `pallet_worker_clusters`.
-pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_worker_clusters::WeightInfo for WeightInfo<T> {
+pub struct SubstrateWeight<T>(PhantomData<T>);
+
+pub trait WeightInfo {
+	fn register_worker() -> Weight;
+}
+
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `WorkerClusters::AccountWorkers` (r:1 w:1)
 	/// Proof: `WorkerClusters::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `WorkerClusters::WorkerClusters` (r:0 w:1)

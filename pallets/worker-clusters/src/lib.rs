@@ -20,7 +20,7 @@ use types::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-	use frame_system::pallet_prelude::*;
+	use frame_system::{WeightInfo, pallet_prelude::*};
 	use super::*;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -31,7 +31,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// A type representing the weights required by the dispatchables of this pallet.
-		type WeightInfo: crate::weights::WeightInfo;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
