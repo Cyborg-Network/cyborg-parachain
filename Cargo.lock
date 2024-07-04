@@ -2416,6 +2416,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-worker-clusters",
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
@@ -7458,6 +7459,20 @@ dependencies = [
  "sp-api",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-worker-clusters"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

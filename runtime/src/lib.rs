@@ -49,6 +49,8 @@ use oracle::{ProcessStatus, ProcessId, DummyCombineData};
 /// Import the template pallet.
 pub use pallet_parachain_template;
 
+pub use pallet_worker_clusters;
+
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
 
@@ -185,11 +187,11 @@ impl orml_oracle::Config for Runtime {
     type MaxFeedValues = ConstU32<2>;
     #[cfg(not(feature = "runtime-benchmarks"))]
     type MaxFeedValues = ConstU32<1>;
+	// #[cfg(not(feature = "runtime-benchmarks"))]
+	// type BenchmarkHelper = ();
 }
 
-// pub type OracleMembershipInstance = pallet_membership::Instance1;
-// impl pallet_membership::Config<OracleMembershipInstance> for Runtime {
-	impl pallet_membership::Config for Runtime {
+impl pallet_membership::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type AddOrigin = EnsureRoot<AccountId>;
     type RemoveOrigin = EnsureRoot<AccountId>;
@@ -203,6 +205,10 @@ impl orml_oracle::Config for Runtime {
     type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_worker_clusters::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -341,6 +347,9 @@ mod runtime {
 
 	#[runtime::pallet_index(41)]
 	pub type OracleMembership = pallet_membership;
+
+	#[runtime::pallet_index(42)]
+	pub type WorkerClusters = pallet_worker_clusters;
 
 	// Template
 	#[runtime::pallet_index(50)]
