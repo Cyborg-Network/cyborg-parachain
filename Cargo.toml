@@ -9,6 +9,7 @@ members = [
     "node",
     "pallets/template",
     "pallets/worker-clusters",
+    "pallets/task-management",
     "runtime",
     "orml/oracle",
     "orml/traits",
@@ -24,6 +25,9 @@ parity-scale-codec = { version = "3.6.12", default-features = false, features = 
 
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
+
+# Local
+pallet-worker-clusters = { path = "pallets/worker-clusters", default-features = false, version = "0.1.0" }
 
 cumulus-pallet-xcm = { version = "0.14.0", default-features = false }
 cumulus-primitives-core = { version = "0.14.0", default-features = false }

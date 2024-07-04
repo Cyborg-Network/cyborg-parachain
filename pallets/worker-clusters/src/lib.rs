@@ -13,14 +13,15 @@ pub mod weights;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod types;
+pub mod types;
 
-use types::*;
+pub use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::{WeightInfo, pallet_prelude::*};
+	use scale_info::prelude::vec::Vec;
 	use super::*;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -42,7 +43,7 @@ pub mod pallet {
         0
     }
 
-	/// Keeps track of workers per account if any
+	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
 	#[pallet::getter(fn account_workers)]
 	pub type AccountWorkers<T: Config> = 
@@ -144,6 +145,20 @@ pub mod pallet {
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		pub fn get_active_workers() -> Option<Vec<((T::AccountId, WorkerId),Worker<T::AccountId, BlockNumberFor<T>>)>> {
+			let workers = WorkerClusters::<T>::iter()
+			.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active)
+			.collect::<Vec<_>>();
+	
+			if workers.is_empty() {
+				None
+			} else {
+				Some(workers)
+			}
 		}
 	}
 }
