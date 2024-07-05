@@ -24,6 +24,8 @@ frame-benchmarking = { version = "35.0.0", default-features = false, optional = 
 frame-support = { version = "35.0.0", default-features = false }
 frame-system = { version = "35.0.0", default-features = false }
 
+sp-std = { version = "14.0.0", default-features = false }
+
 [dev-dependencies]
 sp-core = { version = "34.0.0" }
 sp-io = { version = "37.0.0" }
