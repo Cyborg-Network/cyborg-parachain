@@ -35,6 +35,7 @@ orml-traits = { workspace = true }
 # Local
 pallet-parachain-template = { path = "../pallets/template", default-features = false, version = "0.1.0" }
 pallet-worker-clusters = { workspace = true }
+pallet-task-management = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -125,6 +126,7 @@ std = [
 	"pallet-message-queue/std",
 	"pallet-parachain-template/std",
 	"pallet-worker-clusters/std",
+	"pallet-task-management/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",

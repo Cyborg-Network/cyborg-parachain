@@ -2413,6 +2413,7 @@ dependencies = [
  "pallet-parachain-template",
  "pallet-session",
  "pallet-sudo",
+ "pallet-task-management",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -7477,6 +7478,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

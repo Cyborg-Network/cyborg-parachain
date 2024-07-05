@@ -50,6 +50,7 @@ use oracle::{ProcessStatus, ProcessId, DummyCombineData};
 pub use pallet_parachain_template;
 
 pub use pallet_worker_clusters;
+pub use pallet_task_management;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;

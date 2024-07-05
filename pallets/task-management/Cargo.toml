@@ -46,6 +46,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",
+	"pallet-worker-clusters/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
