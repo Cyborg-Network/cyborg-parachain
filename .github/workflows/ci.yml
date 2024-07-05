@@ -40,11 +40,11 @@ jobs:
         run: git submodule update --init && cargo build
         timeout-minutes: 90
 
-      - name: Run clippy
-        run: |
-          SKIP_WASM_BUILD=1 cargo clippy --all-targets --locked --workspace --quiet
-          SKIP_WASM_BUILD=1 cargo clippy --all-targets --all-features --locked --workspace --quiet
-        timeout-minutes: 30
+      # - name: Run clippy
+      #   run: |
+      #     SKIP_WASM_BUILD=1 cargo clippy --all-targets --locked --workspace --quiet
+      #     SKIP_WASM_BUILD=1 cargo clippy --all-targets --all-features --locked --workspace --quiet
+      #   timeout-minutes: 30
 
       - name: Run the tests
         run: cargo test

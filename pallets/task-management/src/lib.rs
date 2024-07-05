@@ -2,8 +2,14 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 pub use pallet_worker_clusters;
-use scale_info::{ TypeInfo };
+use scale_info::{ TypeInfo, prelude::vec::Vec };
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, pallet_prelude::ConstU32 };
 use codec::{ Encode, Decode, MaxEncodedLen };
 use sp_core::hash::H256;
@@ -128,6 +134,7 @@ pub mod pallet {
 		RequireAssignedResolver,
 		NoWorkersAvailable,
 		TaskVerificationNotFound,
+		NotEnoughAvailableWorkers,
 	}
 
 	#[pallet::hooks]
@@ -206,9 +213,11 @@ pub mod pallet {
 				resolver: None,
 			};
 
-			let workers: Vec<_> = WorkerClusters::<T>::iter()
-			.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active && worker.owner != who.clone())
+			let workers: Vec<_> = WorkerClusters::<T>::iter() 
+			.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Inactive && worker.owner != who.clone()) // TODO: change Inactive to Active with oracle
 			.collect::<Vec<_>>();
+
+			ensure!(workers.len() > 0, Error::<T>::NotEnoughAvailableWorkers);
 
 			let random_index = (sp_io::hashing::blake2_256(&ver.encode())[0] as usize) % workers.len();
 			let assigned_verifier: (T::AccountId, WorkerId) = workers[random_index].0.clone();

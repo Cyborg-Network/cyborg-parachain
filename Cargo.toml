@@ -26,7 +26,7 @@ parity-scale-codec = { version = "3.6.12", default-features = false, features = 
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
 
-# Local
+# Local 
 pallet-worker-clusters = { path = "pallets/worker-clusters", default-features = false, version = "0.1.0" }
 pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 
