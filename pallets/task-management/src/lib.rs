@@ -112,6 +112,8 @@ pub mod pallet {
 		SubmittedCompletedTask{ task_id: TaskId, assigned_verifier: (T::AccountId, WorkerId) },
 		VerifierResolverAssigned{ task_id: TaskId, assigned_resolver: (T::AccountId, WorkerId) },
 		VerifiedCompletedTask{ task_id: TaskId },
+		ResolvedCompletedTask{ task_id: TaskId },
+		TaskReassigned { task_id: TaskId, assigned_executor: (T::AccountId, WorkerId) },
 	}
 
 	/// Errors inform users that something went wrong.
@@ -122,6 +124,7 @@ pub mod pallet {
 		InvalidTaskOwner,
 		RequireAssignedTask,
 		RequireAssignedVerifier,
+		RequireAssignedVerifierCompletedHash,
 		RequireAssignedResolver,
 		NoWorkersAvailable,
 		TaskVerificationNotFound,
@@ -220,27 +223,26 @@ pub mod pallet {
 			Ok(())
 		} 
 
-		/// Verifies completed task once a threshold of verifiers have succussfully validate correct completed task
+		/// Verifies completed task once an assignedverifier have succussfully validate correct completed task
 		/// Can only be called from root
-		/// Assign new verifier as resolver if verification does not match. Resolver will determine correct result.
+		/// Assign new verifier as resolver if verification fails. Resolver will determine correct result.
 		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
 		pub fn verify_completed_task(
 			origin: OriginFor<T>,
-			account: T::AccountId,
+			verifier_account: T::AccountId,
 			task_id: TaskId,
 			completed_hash: H256,
 		) -> DispatchResult
 		{
-			let who = ensure_root(origin)?;
+			ensure_root(origin)?;
 			ensure!(TaskStatus::<T>::get(task_id) == Some(TaskStatusType::PendingValidation), Error::<T>::RequireAssignedTask);
-			let taskVerification = TaskVerifications::<T>::get(task_id);
-			// ensure!(taskVerification.is_some(), Error::<T>::TaskVerificationNotFound);
-		
+			let task_verification = TaskVerifications::<T>::get(task_id);
+
 			// check completed hashes are the same
-			match taskVerification {
+			match task_verification {
                 Some(ref verification) => {
-					ensure!(verification.verifier.as_ref().map_or(false, |v| v.account == account), Error::<T>::RequireAssignedVerifier);
+					ensure!(verification.verifier.as_ref().map_or(false, |v| v.account == verifier_account), Error::<T>::RequireAssignedVerifier);
                     // Hashes Match
 					if verification.executor.completed_hash == Some(completed_hash){
 						TaskStatus::<T>::insert(task_id, TaskStatusType::Completed);
@@ -257,8 +259,11 @@ pub mod pallet {
 							&& worker.owner != verification.executor.account.clone())
 						.collect::<Vec<_>>();
 
-						// .extend(&<frame_system::Pallet<T>>::block_number().encode())
-						let random_index = (sp_io::hashing::blake2_256(&taskVerification.encode())[0] as usize) % workers.len();
+						let mut task_verification_encoded = task_verification.encode();
+						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
+						task_verification_encoded.extend(block_number_encoded);
+
+						let random_index = (sp_io::hashing::blake2_256(&task_verification_encoded)[0] as usize) % workers.len();
 						let assigned_resolver: (T::AccountId, WorkerId) = workers[random_index].0.clone();
 
 						new_verification.resolver = Some(VerificationHashes {
@@ -276,5 +281,68 @@ pub mod pallet {
             };
 			Ok(())
 		} 
+
+		/// Checks whether resolver matches the executor or verifier.
+		/// If it matches one, the task is resolved and award is split between the matching pair. The failing worker is slashed.
+		/// If no matches, the task is reassigned to a new executor and cycle repeats
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn resolve_completed_task(
+			origin: OriginFor<T>,
+			resolver_account: T::AccountId,
+			task_id: TaskId,
+			completed_hash: H256,
+		) -> DispatchResult
+		{
+			ensure_root(origin)?;
+			ensure!(TaskStatus::<T>::get(task_id) == Some(TaskStatusType::PendingValidation), Error::<T>::RequireAssignedTask);
+			let task_verification = TaskVerifications::<T>::get(task_id);
+
+			// check completed hashes are the same
+			match task_verification {
+				Some(ref verification) => {
+					let Verifications {
+						ref executor,
+						ref verifier,
+						ref resolver,
+					} = verification;
+					ensure!(verifier.as_ref().map_or(false, |v| v.completed_hash.is_some()), Error::<T>::RequireAssignedVerifierCompletedHash);
+					ensure!(resolver.as_ref().map_or(false, |v| v.account == resolver_account), Error::<T>::RequireAssignedResolver);
+
+					if executor.completed_hash == Some(completed_hash) || verifier.as_ref().map_or(false, |v| v.completed_hash == Some(completed_hash)) {
+						TaskStatus::<T>::insert(task_id, TaskStatusType::Completed);
+						// Emit an event.
+						Self::deposit_event(Event::ResolvedCompletedTask { task_id });
+						// TODO! Reward and Slash disputing completed_hash (require implement tokenomics)
+					} else {
+						// reassign task to new executor
+						// reassign task to T::AccountId that is neither of the current executor or verifier or resolver for the next cycle
+						let workers: Vec<_> = WorkerClusters::<T>::iter()
+						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active 
+							&& worker.owner != resolver_account
+							&& verifier.as_ref().map_or(false, |v| v.account != worker.owner)
+							&& worker.owner != executor.account.clone())
+						.collect::<Vec<_>>();
+
+						let mut task_verification_encoded = task_verification.encode();
+						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
+						task_verification_encoded.extend(block_number_encoded);
+
+						let random_index = (sp_io::hashing::blake2_256(&task_verification_encoded)[0] as usize) % workers.len();
+						let assigned_new_executor: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+
+						TaskVerifications::<T>::remove(task_id);
+	
+						// Emit an event.
+						Self::deposit_event(Event::TaskReassigned { task_id, assigned_executor: assigned_new_executor });
+					}
+
+				},
+				None => {
+					return Err(Error::<T>::TaskVerificationNotFound.into());
+				}
+			}
+			Ok(())
+		}
 	}
 }
