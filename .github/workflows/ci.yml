@@ -52,4 +52,4 @@ jobs:
 
       - name: Build the docs
         run: cargo doc --all-features --workspace --no-deps
-        timeout-minutes: 15
+        timeout-minutes: 45

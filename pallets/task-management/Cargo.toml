@@ -29,6 +29,7 @@ pallet-worker-clusters = { workspace = true }
 
 sp-io = { version = "37.0.0", default-features = false }
 sp-core = { version = "34.0.0", default-features = false }
+log = { workspace = true }
 
 [dev-dependencies]
 sp-runtime = { version = "38.0.0" }

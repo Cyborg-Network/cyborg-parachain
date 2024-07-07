@@ -8,6 +8,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 pub use pallet_worker_clusters;
 use scale_info::{ TypeInfo, prelude::vec::Vec };
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, pallet_prelude::ConstU32 };
@@ -134,7 +137,7 @@ pub mod pallet {
 		RequireAssignedResolver,
 		NoWorkersAvailable,
 		TaskVerificationNotFound,
-		NotEnoughAvailableWorkers,
+		NoNewWorkersAvailable,
 	}
 
 	#[pallet::hooks]
@@ -217,7 +220,7 @@ pub mod pallet {
 			.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Inactive && worker.owner != who.clone()) // TODO: change Inactive to Active with oracle
 			.collect::<Vec<_>>();
 
-			ensure!(workers.len() > 0, Error::<T>::NotEnoughAvailableWorkers);
+			ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
 
 			let random_index = (sp_io::hashing::blake2_256(&ver.encode())[0] as usize) % workers.len();
 			let assigned_verifier: (T::AccountId, WorkerId) = workers[random_index].0.clone();
@@ -239,12 +242,13 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn verify_completed_task(
 			origin: OriginFor<T>,
-			verifier_account: T::AccountId,
+			// verifier_account: T::AccountId, // Change if using oracle
 			task_id: TaskId,
 			completed_hash: H256,
 		) -> DispatchResult
 		{
-			ensure_root(origin)?;
+			// ensure_root(origin)?;
+			let verifier_account = ensure_signed(origin)?;
 			ensure!(TaskStatus::<T>::get(task_id) == Some(TaskStatusType::PendingValidation), Error::<T>::RequireAssignedTask);
 			let task_verification = TaskVerifications::<T>::get(task_id);
 
@@ -263,10 +267,12 @@ pub mod pallet {
 						
 						// Find available workers that are not the executor or current verifier
 						let workers: Vec<_> = WorkerClusters::<T>::iter()
-						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active 
+						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Inactive // TODO: change Inactive to Active with oracle 
 							&& verification.verifier.as_ref().map_or(false, |v| v.account != worker.owner)
 							&& worker.owner != verification.executor.account.clone())
 						.collect::<Vec<_>>();
+
+						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
 
 						let mut task_verification_encoded = task_verification.encode();
 						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
@@ -275,6 +281,9 @@ pub mod pallet {
 						let random_index = (sp_io::hashing::blake2_256(&task_verification_encoded)[0] as usize) % workers.len();
 						let assigned_resolver: (T::AccountId, WorkerId) = workers[random_index].0.clone();
 
+						new_verification.verifier = Some(VerificationHashes {
+							account: verifier_account.clone(), completed_hash: Some(completed_hash),
+						});
 						new_verification.resolver = Some(VerificationHashes {
 							account: assigned_resolver.0.clone(), completed_hash: None,
 						});
@@ -298,12 +307,13 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn resolve_completed_task(
 			origin: OriginFor<T>,
-			resolver_account: T::AccountId,
+			// resolver_account: T::AccountId,
 			task_id: TaskId,
 			completed_hash: H256,
 		) -> DispatchResult
 		{
-			ensure_root(origin)?;
+			// ensure_root(origin)?;
+			let resolver_account = ensure_signed(origin)?;
 			ensure!(TaskStatus::<T>::get(task_id) == Some(TaskStatusType::PendingValidation), Error::<T>::RequireAssignedTask);
 			let task_verification = TaskVerifications::<T>::get(task_id);
 
@@ -315,6 +325,7 @@ pub mod pallet {
 						ref verifier,
 						ref resolver,
 					} = verification;
+					
 					ensure!(verifier.as_ref().map_or(false, |v| v.completed_hash.is_some()), Error::<T>::RequireAssignedVerifierCompletedHash);
 					ensure!(resolver.as_ref().map_or(false, |v| v.account == resolver_account), Error::<T>::RequireAssignedResolver);
 
@@ -327,12 +338,14 @@ pub mod pallet {
 						// reassign task to new executor
 						// reassign task to T::AccountId that is neither of the current executor or verifier or resolver for the next cycle
 						let workers: Vec<_> = WorkerClusters::<T>::iter()
-						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active 
+						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Inactive // change Inactive to Active with oracle 
 							&& worker.owner != resolver_account
 							&& verifier.as_ref().map_or(false, |v| v.account != worker.owner)
 							&& worker.owner != executor.account.clone())
 						.collect::<Vec<_>>();
 
+						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
+						
 						let mut task_verification_encoded = task_verification.encode();
 						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
 						task_verification_encoded.extend(block_number_encoded);
@@ -341,7 +354,8 @@ pub mod pallet {
 						let assigned_new_executor: (T::AccountId, WorkerId) = workers[random_index].0.clone();
 
 						TaskVerifications::<T>::remove(task_id);
-	
+						TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
+						TaskAllocations::<T>::insert(task_id, assigned_new_executor.clone());
 						// Emit an event.
 						Self::deposit_event(Event::TaskReassigned { task_id, assigned_executor: assigned_new_executor });
 					}
