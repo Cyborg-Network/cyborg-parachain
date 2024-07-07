@@ -1,5 +1,4 @@
 //! Benchmarking setup for pallet-task-management
-
 use super::*;
 use crate::{Pallet as TaskManagementModule, Config};
 use frame_benchmarking::{benchmarks, account, whitelisted_caller};
@@ -95,7 +94,7 @@ benchmarks! {
         let completed_hash = H256([123; 32]);
         TaskManagementModule::<T>::submit_completed_task(RawOrigin::Signed(executor.clone()).into(), task_id, completed_hash)?;
 
-    }: _(RawOrigin::Root, verifier, task_id, completed_hash)
+    }: _(RawOrigin::Signed(verifier.clone()), task_id, completed_hash)
     verify {
         let task_status = TaskManagementModule::<T>::task_status(task_id).unwrap();
         assert_eq!(task_status, TaskStatusType::Completed);
@@ -129,7 +128,7 @@ benchmarks! {
         pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
         
         // Submit completed task by the executor
-        let completed_hash = H256::random();
+        let completed_hash = H256([4; 32]);
         TaskManagementModule::<T>::submit_completed_task(RawOrigin::Signed(executor.clone()).into(), task_id, completed_hash)?;
 
         // Register a worker for the resolver
@@ -141,15 +140,15 @@ benchmarks! {
 
         let completed_differing_hash = H256([123; 32]);
         // Verify completed task by the verifier
-        TaskManagementModule::<T>::verify_completed_task(RawOrigin::Root.into(), verifier.clone(), task_id, completed_differing_hash)?;
+        TaskManagementModule::<T>::verify_completed_task(RawOrigin::Signed(verifier.clone()).into(), task_id, completed_differing_hash)?;
 
         let verifications = TaskManagementModule::<T>::task_verifications(task_id).unwrap();
         assert_eq!(verifications.executor.account, executor);
         assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
         assert_eq!(verifications.verifier.clone().unwrap().account, verifier);
         assert_eq!(verifications.verifier.clone().unwrap().completed_hash, Some(completed_differing_hash));
-        
-    }: _(RawOrigin::Root, resolver, task_id, completed_differing_hash)
+
+    }: _(RawOrigin::Signed(resolver.clone()), task_id, completed_differing_hash)
     verify {
         let task_status = TaskManagementModule::<T>::task_status(task_id).unwrap();
         assert_eq!(task_status, TaskStatusType::Completed);
