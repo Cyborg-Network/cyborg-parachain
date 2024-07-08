@@ -7,7 +7,6 @@ repository = "https://github.com/Cyborg-Network/cyborg-node/"
 [workspace]
 members = [
     "node",
-    "pallets/template",
     "pallets/worker-clusters",
     "pallets/task-management",
     "runtime",

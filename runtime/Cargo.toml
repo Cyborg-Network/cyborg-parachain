@@ -33,7 +33,6 @@ orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 
 # Local
-pallet-parachain-template = { path = "../pallets/template", default-features = false, version = "0.1.0" }
 pallet-worker-clusters = { workspace = true }
 pallet-task-management = { workspace = true }
 
@@ -124,7 +123,6 @@ std = [
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-message-queue/std",
-	"pallet-parachain-template/std",
 	"pallet-worker-clusters/std",
 	"pallet-task-management/std",
 	"pallet-session/std",
@@ -171,7 +169,6 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
-	"pallet-parachain-template/runtime-benchmarks",
 	"pallet-worker-clusters/runtime-benchmarks",
 	"pallet-task-management/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
@@ -200,7 +197,6 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-message-queue/try-runtime",
-	"pallet-parachain-template/try-runtime",
 #	"pallet-worker-clusters/try-runtime",
 #	"pallet-task-management/try-runtime",
 	"pallet-session/try-runtime",

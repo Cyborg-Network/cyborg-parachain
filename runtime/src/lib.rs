@@ -45,10 +45,6 @@ pub use frame_system::EnsureRoot;
 
 use oracle::{ProcessStatus, ProcessId, DummyCombineData};
 
-
-/// Import the template pallet.
-pub use pallet_parachain_template;
-
 pub use pallet_worker_clusters;
 pub use pallet_task_management;
 
@@ -359,9 +355,6 @@ mod runtime {
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;
-	// Template
-	#[runtime::pallet_index(50)]
-	pub type TemplatePallet = pallet_parachain_template;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
