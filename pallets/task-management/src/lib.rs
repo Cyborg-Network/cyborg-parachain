@@ -267,7 +267,7 @@ pub mod pallet {
 						// Assign new verifier as resolver if verification does not match
 						let mut new_verification = verification.clone();
 						
-						// Find available workers that are not the executor or current verifier
+						// Find available workers that are not the executor or current verifier (TODO: may be redesigned into a hook)
 						let workers: Vec<_> = WorkerClusters::<T>::iter()
 						.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Inactive // TODO: change Inactive to Active with oracle 
 							&& verification.verifier.as_ref().map_or(false, |v| v.account != worker.owner)

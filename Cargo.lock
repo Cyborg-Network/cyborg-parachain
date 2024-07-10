@@ -2410,7 +2410,6 @@ dependencies = [
  "pallet-collator-selection",
  "pallet-membership",
  "pallet-message-queue",
- "pallet-parachain-template",
  "pallet-session",
  "pallet-sudo",
  "pallet-task-management",
@@ -6982,20 +6981,6 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-parachain-template"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]

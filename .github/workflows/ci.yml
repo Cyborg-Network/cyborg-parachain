@@ -36,7 +36,7 @@ jobs:
           large-packages: false
           swap-storage: false
 
-      - name: Build the template
+      - name: Build the chain
         run: git submodule update --init && cargo build
         timeout-minutes: 90
 

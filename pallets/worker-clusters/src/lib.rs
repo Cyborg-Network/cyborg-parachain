@@ -9,6 +9,7 @@ mod mock;
 mod tests;
 
 pub mod weights;
+pub use weights::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -77,6 +78,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
+		// #[pallet::weight(T::WeightInfo::register_worker())]
 		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
 		pub fn register_worker(
 			origin: OriginFor<T>, 
@@ -87,10 +89,24 @@ pub mod pallet {
 
 			// check ip or domain exists
 			ensure!(ip.clone().and_then(|ip| ip.ipv4).is_some() || ip.clone().and_then(|ip| ip.ipv6).is_some() || domain.is_some(), Error::<T>::WorkerRegisterMissingIpOrDomain);
-			
-			//check cluster
-			ensure!(AccountWorkers::<T>::contains_key(creator.clone()) == false, 
-			Error::<T>::WorkerExists);
+
+			let api = WorkerAPI {
+				ip, domain
+			};
+			let worker_keys = AccountWorkers::<T>::get(creator.clone());
+
+			match worker_keys {
+				Some(keys) => {
+			        for id in 0..=keys {
+						// Get the Worker associated with the creator and worker_id
+						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
+							// Check if the API matches and throw an error if it does
+							ensure!(api != worker.api, Error::<T>::WorkerExists);
+						}
+					}
+				},
+				None => {}
+			}
 
 			let worker_id: WorkerId = match AccountWorkers::<T>::get(creator.clone()) {
 				Some(id) => {
@@ -108,9 +124,7 @@ pub mod pallet {
 				owner: creator.clone(),
 				start_block: <frame_system::Pallet<T>>::block_number(),
 				status: WorkerStatusType::Inactive,
-				api: WorkerAPI {
-					ip, domain
-				},
+				api: api,
 			};
 
 			// update storage
@@ -126,7 +140,8 @@ pub mod pallet {
 
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		// #[pallet::weight(T::WeightInfo::remove_worker())]
+		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]		
 		pub fn remove_worker(
 			origin: OriginFor<T>, 
 			worker_id: WorkerId, 
