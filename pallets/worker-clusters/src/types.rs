@@ -1,10 +1,10 @@
 use scale_info::{ TypeInfo };
-use frame_support::sp_runtime::RuntimeDebug;
+use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, pallet_prelude::ConstU32 };
 use codec::{ Encode, Decode, MaxEncodedLen };
 
 pub type WorkerId = u64;
 
-pub type Domain = u8;
+pub type Domain = BoundedVec<u8, ConstU32<128>>;
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum WorkerStatusType {

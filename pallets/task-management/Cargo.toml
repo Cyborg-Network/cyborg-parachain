@@ -1,0 +1,56 @@
+[package]
+name = "pallet-task-management"
+description = "Creation and management of tasks for workers to consume"
+version = "0.1.0"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.11.1", default-features = false, features = [
+	"derive",
+] }
+
+# frame deps
+frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
+frame-support = { version = "35.0.0", default-features = false }
+frame-system = { version = "35.0.0", default-features = false }
+
+# Local
+pallet-worker-clusters = { workspace = true }
+
+sp-io = { version = "37.0.0", default-features = false }
+sp-core = { version = "34.0.0", default-features = false }
+log = { workspace = true }
+
+[dev-dependencies]
+sp-runtime = { version = "38.0.0" }
+sp-std = { version = "14.0.0" }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+]
+std = [
+	"codec/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+	"pallet-worker-clusters/std",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+]

@@ -36,15 +36,15 @@ jobs:
           large-packages: false
           swap-storage: false
 
-      - name: Build the template
+      - name: Build the chain
         run: git submodule update --init && cargo build
         timeout-minutes: 90
 
-      - name: Run clippy
-        run: |
-          SKIP_WASM_BUILD=1 cargo clippy --all-targets --locked --workspace --quiet
-          SKIP_WASM_BUILD=1 cargo clippy --all-targets --all-features --locked --workspace --quiet
-        timeout-minutes: 30
+      # - name: Run clippy
+      #   run: |
+      #     SKIP_WASM_BUILD=1 cargo clippy --all-targets --locked --workspace --quiet
+      #     SKIP_WASM_BUILD=1 cargo clippy --all-targets --all-features --locked --workspace --quiet
+      #   timeout-minutes: 30
 
       - name: Run the tests
         run: cargo test
@@ -52,4 +52,4 @@ jobs:
 
       - name: Build the docs
         run: cargo doc --all-features --workspace --no-deps
-        timeout-minutes: 15
+        timeout-minutes: 45

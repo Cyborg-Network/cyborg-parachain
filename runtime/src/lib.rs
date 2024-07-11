@@ -45,11 +45,8 @@ pub use frame_system::EnsureRoot;
 
 use oracle::{ProcessStatus, ProcessId, DummyCombineData};
 
-
-/// Import the template pallet.
-pub use pallet_parachain_template;
-
 pub use pallet_worker_clusters;
+pub use pallet_task_management;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -208,6 +205,11 @@ impl pallet_membership::Config for Runtime {
 impl pallet_worker_clusters::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+} 
+
+impl pallet_task_management::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 #[sp_version::runtime_version]
@@ -351,9 +353,8 @@ mod runtime {
 	#[runtime::pallet_index(42)]
 	pub type WorkerClusters = pallet_worker_clusters;
 
-	// Template
-	#[runtime::pallet_index(50)]
-	pub type TemplatePallet = pallet_parachain_template;
+	#[runtime::pallet_index(43)]
+	pub type TaskManagement = pallet_task_management;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

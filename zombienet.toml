@@ -1,11 +1,17 @@
 [relaychain]
 default_command = "polkadot"
-chain = "dev"
+default_args = ["-lparachain=debug"]
+chain = "rococo-local"
 
 [[relaychain.nodes]]
 name = "alice"
 validator = true
 ws_port = 9944
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+ws_port = 9955
 
 [[parachains]]
 id = 1000
@@ -14,3 +20,4 @@ id = 1000
 name = "alice"
 ws_port = 9988
 command = "cyborg-node"
+args = ["-lparachain=debug"]
