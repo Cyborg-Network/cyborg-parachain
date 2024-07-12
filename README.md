@@ -162,41 +162,8 @@ zombienet --provider native spawn ./zombienet.toml
 npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 ```
 
-Development chains:
+## Task Examples:
 
-* 🧹 Do not persist the state.
-* 💰 Are preconfigured with a genesis state that includes several prefunded development accounts.
-* 🧑‍⚖️ Development accounts are used as validators, collators, and `sudo` accounts.
+1. hello-world - Prints the docker hello world message 
+2. cyborgnetwork/simple-python - A sample python program with arithmetic functions
 
-### Connect with the Polkadot-JS Apps Front-End
-
-* 🌐 You can interact with your local node using the
-hosted version of the Polkadot/Substrate Portal:
-[relay chain](https://polkadot.js.org/apps/#/explorer?rpc=ws://localhost:9944)
-and [parachain](https://polkadot.js.org/apps/#/explorer?rpc=ws://localhost:9988).
-
-* 🪐 A hosted version is also
-available on [IPFS](https://dotapps.io/).
-
-* 🧑‍🔧 You can also find the source code and instructions for hosting your own instance in the
-[`polkadot-js/apps`](https://github.com/polkadot-js/apps) repository.
-
-## Contributing
-
-* 🔄 This template is automatically updated after releases in the main [Polkadot SDK monorepo](https://github.com/paritytech/polkadot-sdk).
-
-* ➡️ Any pull requests should be directed to this [source](https://github.com/paritytech/polkadot-sdk/tree/master/templates/parachain).
-
-* 😇 Please refer to the monorepo's
-[contribution guidelines](https://github.com/paritytech/polkadot-sdk/blob/master/docs/contributor/CONTRIBUTING.md) and
-[Code of Conduct](https://github.com/paritytech/polkadot-sdk/blob/master/docs/contributor/CODE_OF_CONDUCT.md).
-
-## Getting Help
-
-* 🧑‍🏫 To learn about Polkadot in general, [Polkadot.network](https://polkadot.network/) website is a good starting point.
-
-* 🧑‍🔧 For technical introduction, [here](https://github.com/paritytech/polkadot-sdk#-documentation) are
-the Polkadot SDK documentation resources.
-
-* 👥 Additionally, there are [GitHub issues](https://github.com/paritytech/polkadot-sdk/issues) and
-[Substrate StackExchange](https://substrate.stackexchange.com/).
