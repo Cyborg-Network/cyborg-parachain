@@ -1,8 +1,10 @@
 <div align="center">
+  
+![Emblem Green](https://github.com/user-attachments/assets/16067543-6de0-4f62-9a03-d82da38f001a)
 
 # Cyborg Network Parachain Implementation
 
->![Twitter Cover](https://github.com/user-attachments/assets/0256bf2e-c897-4317-9427-0fef3b59ed25)
+![Twitter Cover](https://github.com/user-attachments/assets/0256bf2e-c897-4317-9427-0fef3b59ed25)
 
 > This template is automatically updated after releases in the main [Polkadot SDK monorepo](https://github.com/paritytech/polkadot-sdk).
 
