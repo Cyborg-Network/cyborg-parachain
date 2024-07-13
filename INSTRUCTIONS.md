@@ -4,7 +4,7 @@ Test instructions
 
 ## Chain Workflow
 
-The worker-clusters pallet provides functionalities to manage connected workers within the system. It provides functionality that registers `register_worker` and removes `remove_worker` workers associated with user accounts. 
+The edge-connect pallet provides functionalities to manage connected workers within the system. It provides functionality that registers `register_worker` and removes `remove_worker` workers associated with user accounts. 
 There is a storage map that tracks worker details including status, IP, domain, availability status, specs and creation block.
 
 This information is then used by the task-management pallet to issue tasks to connected workers. 
@@ -58,7 +58,7 @@ Go to the [`Polkadotjs Apps`](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9
 <img width="1160" alt="Zombienet terminal view" src="assets/zombinet-collator.png">
 <br></br>
 
-Once your parachain node starts producing blocks, navigate to the extrinsics tab and select the `worker-clusters`.
+Once your parachain node starts producing blocks, navigate to the extrinsics tab and select the `edge-connect`.
 
 <img width="1160" alt="Polkadotjs App extrinsic workerClusters" src="assets/workerClusters.png">
 

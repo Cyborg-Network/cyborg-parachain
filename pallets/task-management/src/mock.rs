@@ -1,7 +1,7 @@
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use sp_runtime::{traits::ConstU64, BuildStorage};
-use pallet_worker_clusters;
+use pallet_edge_connect;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -24,7 +24,7 @@ mod test_runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
-	pub type WorkerClustersModule = pallet_worker_clusters;
+	pub type edgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(2)]
 	pub type TaskManagementModule = crate;
@@ -38,7 +38,7 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
-impl pallet_worker_clusters::Config for Test {
+impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }

@@ -2408,6 +2408,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
  "pallet-session",
@@ -2416,7 +2417,6 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
- "pallet-worker-clusters",
  "pallet-xcm",
  "parachains-common",
  "parity-scale-codec",
@@ -6635,6 +6635,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-edge-connect"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "34.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7287,7 +7302,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-worker-clusters",
+ "pallet-edge-connect",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -7449,21 +7464,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-api",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-worker-clusters"
-version = "0.1.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]

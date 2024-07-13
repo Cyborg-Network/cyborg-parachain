@@ -12,11 +12,11 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
         
         // Register a worker for the caller
-        let api_info = pallet_worker_clusters::types::WorkerAPI {
+        let api_info = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(caller.clone()).into(), api_info.ip, api_info.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(caller.clone()).into(), api_info.ip, api_info.domain)?;
 
         let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
     }: _(RawOrigin::Signed(caller.clone()), task_data.clone())
@@ -33,11 +33,11 @@ benchmarks! {
 
         // Register a worker for the executor
         let executor: T::AccountId = account("executor", 0, 0);
-        let api_info = pallet_worker_clusters::types::WorkerAPI {
+        let api_info = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info.ip, api_info.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info.ip, api_info.domain)?;
 
         // Create a task data
         let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -45,11 +45,11 @@ benchmarks! {
 
         // Register a worker for the verifier
         let verifier: T::AccountId = account("verifier", 0, 0);
-        let api_info_verifier = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
 
         let task_id = TaskManagementModule::<T>::next_task_id() - 1;
         let completed_hash = H256([123; 32]);
@@ -72,22 +72,22 @@ benchmarks! {
         let verifier: T::AccountId = account("verifier", 0, 0);
 
         // Register a worker for the executor
-        let api_info_executor = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_executor = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.ip, api_info_executor.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.ip, api_info_executor.domain)?;
 
         // Create a task data
         let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
         TaskManagementModule::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone())?;
 
         // Register a worker for the verifier
-        let api_info_verifier = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
 
         let task_id = TaskManagementModule::<T>::next_task_id() - 1;
 
@@ -109,11 +109,11 @@ benchmarks! {
         let resolver: T::AccountId = account("resolver", 0, 0);
 
         // Register a worker for the executor
-        let api_info_executor = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_executor = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.ip, api_info_executor.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.ip, api_info_executor.domain)?;
         
         // Create a task data
         let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -121,22 +121,22 @@ benchmarks! {
         let task_id = TaskManagementModule::<T>::next_task_id() - 1;
 
         // Register a worker for the verifier
-        let api_info_verifier = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.ip, api_info_verifier.domain)?;
         
         // Submit completed task by the executor
         let completed_hash = H256([4; 32]);
         TaskManagementModule::<T>::submit_completed_task(RawOrigin::Signed(executor.clone()).into(), task_id, completed_hash)?;
 
         // Register a worker for the resolver
-        let api_info_resolver = pallet_worker_clusters::types::WorkerAPI {
+        let api_info_resolver = pallet_edge_connect::types::WorkerAPI {
             ip: None,
             domain: Some(BoundedVec::try_from(b"https://api-worker3.testing".to_vec()).unwrap())
         };
-        pallet_worker_clusters::Pallet::<T>::register_worker(RawOrigin::Signed(resolver.clone()).into(), api_info_resolver.ip, api_info_resolver.domain)?;
+        pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(resolver.clone()).into(), api_info_resolver.ip, api_info_resolver.domain)?;
 
         let completed_differing_hash = H256([123; 32]);
         // Verify completed task by the verifier

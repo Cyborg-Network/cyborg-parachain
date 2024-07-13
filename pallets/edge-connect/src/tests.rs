@@ -29,9 +29,9 @@ fn it_works_for_registering_domain() {
 		};
 		
 		// Dispatch a signed extrinsic.
-		assert_ok!(WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
+		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
 		// Read pallet storage and assert an expected result.
-		assert_eq!(WorkerClustersModule::get_worker_clusters((alice,0)), Some(worker));
+		assert_eq!(edgeConnectModule::get_worker_clusters((alice,0)), Some(worker));
 	});
 }
 
@@ -54,9 +54,9 @@ fn it_works_for_registering_ip() {
 		};
 		
 		// Dispatch a signed extrinsic.
-		assert_ok!(WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
+		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
 		// Read pallet storage and assert an expected result.
-		assert_eq!(WorkerClustersModule::get_worker_clusters((alice, 0)), Some(worker));
+		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), Some(worker));
 	});
 }
 
@@ -67,7 +67,7 @@ fn it_fails_for_registering_without_ip_or_domain() {
 
 		// Dispatch a signed extrinsic.
 		assert_noop!(
-			WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), None, None),
+			edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), None, None),
 			Error::<Test>::WorkerRegisterMissingIpOrDomain
 		);
 	});
@@ -83,10 +83,10 @@ fn it_fails_for_registering_duplicate_worker() {
 		};
 
 		// Register the first worker
-		assert_ok!(WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
 		// Try to register the same worker again
 		assert_noop!(
-			WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain),
+			edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain),
 			Error::<Test>::WorkerExists
 		);
 	});
@@ -102,12 +102,12 @@ fn it_works_for_removing_worker() {
 		};
 
 		// Register a worker first
-		assert_ok!(WorkerClustersModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
 
 		// Remove the worker
-		assert_ok!(WorkerClustersModule::remove_worker(RuntimeOrigin::signed(alice), 0));
+		assert_ok!(edgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0));
 		// Assert that the worker no longer exists
-		assert_eq!(WorkerClustersModule::get_worker_clusters((alice, 0)), None);
+		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), None);
 	});
 }
 
@@ -118,7 +118,7 @@ fn it_fails_for_removing_non_existent_worker() {
 
 		// Attempt to remove a worker that doesn't exist
 		assert_noop!(
-			WorkerClustersModule::remove_worker(RuntimeOrigin::signed(alice), 0),
+			edgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0),
 			Error::<Test>::WorkerDoesNotExist
 		);
 	});
