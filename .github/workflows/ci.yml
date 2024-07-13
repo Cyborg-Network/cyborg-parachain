@@ -49,7 +49,3 @@ jobs:
       - name: Run the tests
         run: cargo test
         timeout-minutes: 15
-
-      - name: Build the docs
-        run: cargo doc --all-features --workspace --no-deps
-        timeout-minutes: 45
