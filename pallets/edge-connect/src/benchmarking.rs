@@ -3,7 +3,7 @@
 use super::*;
 
 #[allow(unused)]
-use crate::Pallet as WorkerClustersPallet;
+use crate::Pallet as edgeConnectPallet;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 use frame_support::sp_runtime::traits::One;
@@ -38,7 +38,7 @@ mod benchmarks {
 		#[extrinsic_call]
 		register_worker(RawOrigin::Signed(caller.clone()), api_info.ip, api_info.domain);
 
-		assert_eq!(WorkerClustersPallet::<T>::get_worker_clusters((caller.clone(),0)), Some(worker));
+		assert_eq!(edgeConnectPallet::<T>::get_worker_clusters((caller.clone(),0)), Some(worker));
 	}
 
 	#[benchmark]
@@ -59,7 +59,7 @@ mod benchmarks {
 			api: api_info.clone()
 		};
 
-		WorkerClustersPallet::<T>::register_worker(
+		edgeConnectPallet::<T>::register_worker(
 			RawOrigin::Signed(caller.clone()).into(),
 			api_info.ip,
 			api_info.domain,
@@ -68,8 +68,8 @@ mod benchmarks {
 		#[extrinsic_call]
 		remove_worker(RawOrigin::Signed(caller.clone()), 0);
 
-		assert_eq!(WorkerClustersPallet::<T>::get_worker_clusters((caller.clone(), 0)), None);
+		assert_eq!(edgeConnectPallet::<T>::get_worker_clusters((caller.clone(), 0)), None);
 	}
 
-	impl_benchmark_test_suite!(WorkerClustersPallet, crate::mock::new_test_ext(), crate::mock::Test);
+	impl_benchmark_test_suite!(edgeConnectPallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

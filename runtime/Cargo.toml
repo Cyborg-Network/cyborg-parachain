@@ -33,7 +33,7 @@ orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 
 # Local
-pallet-worker-clusters = { workspace = true }
+pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
 
 # Substrate / FRAME
@@ -123,7 +123,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-message-queue/std",
-	"pallet-worker-clusters/std",
+	"pallet-edge-connect/std",
 	"pallet-task-management/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
@@ -169,7 +169,7 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
-	"pallet-worker-clusters/runtime-benchmarks",
+	"pallet-edge-connect/runtime-benchmarks",
 	"pallet-task-management/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -197,7 +197,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-message-queue/try-runtime",
-#	"pallet-worker-clusters/try-runtime",
+#	"pallet-edge-connect/try-runtime",
 #	"pallet-task-management/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
@@ -208,6 +208,10 @@ try-runtime = [
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"sp-runtime/try-runtime",
+#    "pallet-assets/try-runtime"
+#    "pallet-contracts/try-runtime",
+#    "pallet-randomness-collective-flip/try-runtime",
+#	"pallet-utility/try-runtime",
 ]
 
 # Enable the metadata hash generation.

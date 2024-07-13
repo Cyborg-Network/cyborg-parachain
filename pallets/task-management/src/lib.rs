@@ -13,7 +13,7 @@ pub mod weights;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub use pallet_worker_clusters;
+pub use pallet_edge_connect;
 use scale_info::{ TypeInfo, prelude::vec::Vec };
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, pallet_prelude::ConstU32 };
 use codec::{ Encode, Decode, MaxEncodedLen };
@@ -21,7 +21,7 @@ use sp_core::hash::H256;
 
 pub type TaskId = u64;
 
-use pallet_worker_clusters::types::{WorkerId, WorkerStatusType};
+use pallet_edge_connect::types::{WorkerId, WorkerStatusType};
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskStatusType {
@@ -65,11 +65,11 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::{WeightInfo, pallet_prelude::*};
 	use super::*;
-	use pallet_worker_clusters::{Pallet as PalletWorkerClusters, AccountWorkers, WorkerClusters};
+	use pallet_edge_connect::{Pallet as PalletEdgeConnect, AccountWorkers, WorkerClusters};
 	
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_worker_clusters::Config {
+	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;

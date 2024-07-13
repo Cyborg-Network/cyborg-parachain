@@ -38,12 +38,12 @@ pub trait WeightInfo {
 }
 
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	/// Storage: `WorkerClusters::AccountWorkers` (r:2 w:0)
-	/// Proof: `WorkerClusters::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::AccountWorkers` (r:2 w:0)
+	/// Proof: `EdgeConnect::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// Storage: `TaskManagement::NextTaskId` (r:1 w:1)
 	/// Proof: `TaskManagement::NextTaskId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
-	/// Storage: `WorkerClusters::WorkerClusters` (r:2 w:0)
-	/// Proof: `WorkerClusters::WorkerClusters` (`max_values`: None, `max_size`: Some(233), added: 2708, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::WorkerClusters` (r:2 w:0)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(233), added: 2708, mode: `MaxEncodedLen`)
 	/// Storage: `TaskManagement::TaskStatus` (r:0 w:1)
 	/// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
 	/// Storage: `TaskManagement::TaskAllocations` (r:0 w:1)
@@ -69,8 +69,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
 	/// Storage: `TaskManagement::TaskStatus` (r:1 w:1)
 	/// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
-	/// Storage: `WorkerClusters::WorkerClusters` (r:3 w:0)
-	/// Proof: `WorkerClusters::WorkerClusters` (`max_values`: None, `max_size`: Some(233), added: 2708, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::WorkerClusters` (r:3 w:0)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(233), added: 2708, mode: `MaxEncodedLen`)
 	/// Storage: `TaskManagement::TaskVerifications` (r:0 w:1)
 	/// Proof: `TaskManagement::TaskVerifications` (`max_values`: None, `max_size`: Some(221), added: 2696, mode: `MaxEncodedLen`)
 	/// The range of component `s` is `[0, 100]`.

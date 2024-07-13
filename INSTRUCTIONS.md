@@ -4,7 +4,7 @@ Test instructions
 
 ## Chain Workflow
 
-The worker-clusters pallet provides functionalities to manage connected workers within the system. It provides functionality that registers `register_worker` and removes `remove_worker` workers associated with user accounts. 
+The edge-connect pallet provides functionalities to manage connected workers within the system. It provides functionality that registers `register_worker` and removes `remove_worker` workers associated with user accounts. 
 There is a storage map that tracks worker details including status, IP, domain, availability status, specs and creation block.
 
 This information is then used by the task-management pallet to issue tasks to connected workers. 
@@ -49,12 +49,6 @@ npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 
 ## Demo
 
-### Prerequisite
-
-Ensure that you have a master node setup with at least one worker node in your k3s worker instance from the [`Worker Repository`](https://github.com/Cyborg-Network/Worker)
-
-Keep track of the IP/Port or Domain used to access the API endpoints. This will be used to register your k3s worker on chain.
-
 ### Onchain Interaction
 
 #### Register a Worker
@@ -64,7 +58,7 @@ Go to the [`Polkadotjs Apps`](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9
 <img width="1160" alt="Zombienet terminal view" src="assets/zombinet-collator.png">
 <br></br>
 
-Once your parachain node starts producing blocks, navigate to the extrinsics tab and select the `worker-clusters`.
+Once your parachain node starts producing blocks, navigate to the extrinsics tab and select the `edge-connect`.
 
 <img width="1160" alt="Polkadotjs App extrinsic workerClusters" src="assets/workerClusters.png">
 
@@ -116,3 +110,74 @@ Check chain state in `taskManagment` for `taskStatus` call of the `taskId` that 
 <img width="1160" alt="Completed task" src="assets/completed-task.png">
 
 Should the hash from both workers `verifier` and `executor` differ, then a worker will be assigned as `resolver`. You can check for this in the explorer section of the events for `VerifierResolverAssigned` event to find the `resolver`. Following the similar steps as above, you will enter into the `taskManagement` extrinsic and select the `resolveCompletedTask` method to enter in the `taskId` and a output hash.
+
+
+### Testing with k3s Worker and Frontend
+
+#### Setup Workers
+
+##### Step 1
+In a seperate terminal or IDE window clone the Worker repository:
+```
+git clone https://github.com/Cyborg-Network/Worker.git
+```
+Make sure to checkout the branch for the parachain
+```
+git fetch && git branch -a
+```
+```
+git checkout -b updated-parachain remotes/origin/updated-parachain
+```
+Then follow the rest of the instructions from the Worker repository.
+Ensure that you have a master node setup with at least one worker node in your k3s worker instance from the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
+
+Keep track of the IP/Port or Domain used to access the API endpoints. This will be used to register your k3s worker on chain.
+
+Note: Make sure to have at least one worker node per master node.
+
+##### Step 2
+Repeat the above 2 more times to setup 3 workers in total
+
+##### Step 3
+
+Follow the steps in `Onchain Interaction` about the `Register a Worker` section above to register all 3 workers.
+
+#### Setup Frontend
+
+##### Step 1
+In a seperate terminal or IDE window clone the frontend repository [`Cyborg-Connect`](https://github.com/Cyborg-Network/cyborg-connect/tree/parachain-updates):
+```
+https://github.com/Cyborg-Network/cyborg-connect.git
+```
+Make sure to checkout the branch for the parachain
+```
+git fetch && git branch -a
+```
+```
+git checkout -b parachain-updates remotes/origin/parachain-updates
+```
+##### Step 2
+
+1) Compile and run Cyborg Connect 
+2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
+3) Switch to Cyborg hosted in the bottom bar
+4) In the docker image url section enter any one of the following file names
+https://github.com/docker-library/official-images/tree/master/library
+Eg. hello-world (prints hello world message)
+
+#### Test Workflow
+
+1) Connect wallet and choose the ‘Access Compute’ option
+    <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
+2) Choose CyberDock from the list of product lines
+    <img width="1160" alt="Choose Service" src="assets/frontend/2.png">
+3) Enter the docker image name (e.g. hello-world)
+    <img width="1160" alt="Enter docker image" src="assets/frontend/3.png">
+4) Pay the fees
+    <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
+5) Loader Screen
+    <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
+6) Node List Screen
+    <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
+7) Deployment dashboard 
+    <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">

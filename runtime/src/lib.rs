@@ -45,7 +45,7 @@ pub use frame_system::EnsureRoot;
 
 use oracle::{ProcessStatus, ProcessId, DummyCombineData};
 
-pub use pallet_worker_clusters;
+pub use pallet_edge_connect;
 pub use pallet_task_management;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -202,7 +202,7 @@ impl pallet_membership::Config for Runtime {
     type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_worker_clusters::Config for Runtime {
+impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 } 
@@ -351,7 +351,7 @@ mod runtime {
 	pub type OracleMembership = pallet_membership;
 
 	#[runtime::pallet_index(42)]
-	pub type WorkerClusters = pallet_worker_clusters;
+	pub type WorkerClusters = pallet_edge_connect;
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;

@@ -1,5 +1,5 @@
 [package]
-name = "pallet-worker-clusters"
+name = "pallet-edge-connect"
 description = "Pallet for managing connected workers"
 version = "0.1.0"
 authors.workspace = true

@@ -7,7 +7,7 @@ repository = "https://github.com/Cyborg-Network/cyborg-node/"
 [workspace]
 members = [
     "node",
-    "pallets/worker-clusters",
+    "pallets/edge-connect",
     "pallets/task-management",
     "runtime",
     "orml/oracle",
@@ -26,7 +26,7 @@ orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
 
 # Local 
-pallet-worker-clusters = { path = "pallets/worker-clusters", default-features = false, version = "0.1.0" }
+pallet-edge-connect = { path = "pallets/edge-connect", default-features = false, version = "0.1.0" }
 pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 
 cumulus-pallet-xcm = { version = "0.14.0", default-features = false }

@@ -33,6 +33,6 @@ frame_benchmarking::define_benchmarks!(
 	[pallet_collator_selection, CollatorSelection]
 	[cumulus_pallet_parachain_system, ParachainSystem]
 	[cumulus_pallet_xcmp_queue, XcmpQueue]
-	[pallet_worker_clusters, WorkerClusters]
+	[pallet_edge_connect, WorkerClusters]
 	[pallet_task_management, TaskManagement]
 );
