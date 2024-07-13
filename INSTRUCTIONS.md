@@ -13,10 +13,28 @@ A task can be submitted by any account to a `task_scheduler` extrinsic. The task
 
 ## Setup 
 
+Clone the repository with:
+
+```bash
+git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
+```
+
+or run:
+
+```bash
+git clone https://github.com/Cyborg-Network/cyborg-parachain.git
+git submodule update --init
+```
+
 Compile the node:
 
 ```bash
 cargo build --release
+```
+🐳 Alternatively, build the docker image:
+
+```sh
+docker build . -t polkadot-sdk-cyborg
 ```
 
 ### Local Development Chain
