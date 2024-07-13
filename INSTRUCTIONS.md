@@ -133,6 +133,8 @@ Ensure that you have a master node setup with at least one worker node in your k
 
 Keep track of the IP/Port or Domain used to access the API endpoints. This will be used to register your k3s worker on chain.
 
+Note: Make sure to have at least one worker node per master node.
+
 ##### Step 2
 Repeat the above 2 more times to setup 3 workers in total
 
