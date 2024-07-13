@@ -131,7 +131,7 @@ cargo build --release
 🐳 Alternatively, build the docker image:
 
 ```sh
-docker build . -t polkadot-sdk-cyborg
+docker build . -t cyborg-parachain
 ```
 
 ### Local Development Chain
