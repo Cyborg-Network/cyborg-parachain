@@ -167,8 +167,8 @@ git checkout -b parachain-updates remotes/origin/parachain-updates
 1) Compile and run Cyborg Connect 
 2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
 3) Switch to Cyborg hosted in the bottom bar
-4) In the docker image url section enter any one of the following file names
-https://github.com/docker-library/official-images/tree/master/library
+4) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/tree/master?tab=readme-ov-file#task-examples). 
+Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
 Eg. hello-world (prints hello world message)
 
 #### Test Workflow
