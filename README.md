@@ -168,5 +168,5 @@ npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 
 1. hello-world - Prints the docker hello world message 
 2. cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
-3. cyborgnetwork/floglaoder:latest - a loader app to test logs
+3. cyborgnetwork/flog_loader:latest - a loader app to test logs
 
