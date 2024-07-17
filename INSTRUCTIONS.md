@@ -49,6 +49,12 @@ npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 
 ## Demo
 
+### K3s Setup
+
+Follow the instructions in the [k3s worker repository](https://github.com/Cyborg-Network/Worker/blob/main/README.md) to setup a k3s cluster for testing the full flow of this appchain.
+
+Upon Successful setup proceed to start registering clusters onchain
+
 ### Onchain Interaction
 
 #### Register a Worker
