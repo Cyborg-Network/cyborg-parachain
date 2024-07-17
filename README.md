@@ -164,6 +164,9 @@ npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 
 ## Task Examples:
 
+(Just enter the name of the docker images in the UI to Execute)
+
 1. hello-world - Prints the docker hello world message 
-2. cyborgnetwork/simple-python - A sample python program with arithmetic functions
+2. cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
+3. cyborgnetwork/floglaoder:latest - a loader app to test logs
 
