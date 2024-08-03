@@ -111,7 +111,7 @@ In order for the task to be successfully verified as complete, two more workers 
 
 Now, from the same account that was assigned the task, navigate to `taskManagement` extrinsic to the method `submitCompletedTask`. Use the `taskId` and enter in a hash value.
 
-<img width="1160" alt="Submit completed task" src="assets/assigned-worker">
+<img width="1160" alt="Submit completed task" src="assets/assigned-worker.png">
 
 Once submitted, navigate to the explorer section to view which worker was assigned as `verifier`.
 
@@ -212,7 +212,7 @@ kubectl get nodes
 ```
 You should see that there is a master node and one worker node. Upon Successful setup proceed to start registering clusters onchain.
 
-<img width="800" alt="worker nodes" src="kubnodes.png">
+<img width="800" alt="worker nodes" src="assets/kubnodes.png">
 <br></br>
 
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
