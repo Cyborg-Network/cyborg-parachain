@@ -13,13 +13,38 @@ A task can be submitted by any account to a `task_scheduler` extrinsic. The task
 
 ## Setup 
 
+Clone the repository with:
+
+```bash
+git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
+```
+
+or run:
+
+```bash
+git clone https://github.com/Cyborg-Network/cyborg-parachain.git
+git submodule update --init
+```
+
 Compile the node:
 
 ```bash
 cargo build --release
 ```
 
-### Local Development Chain
+
+🐳 Alternatively, build the docker image:
+
+```sh
+docker build . -t cyborg-parachain
+```
+
+## Run Tests
+
+```bash
+cargo test
+```
+## Local Development Chain
 
 🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
 You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
@@ -47,17 +72,9 @@ zombienet --provider native spawn ./zombienet.toml
 npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
 ```
 
-## Demo
+## Onchain Interaction
 
-### K3s Setup
-
-Follow the instructions in the [k3s worker repository](https://github.com/Cyborg-Network/Worker/blob/main/README.md) to setup a k3s cluster for testing the full flow of this appchain.
-
-Upon Successful setup proceed to start registering clusters onchain
-
-### Onchain Interaction
-
-#### Register a Worker
+### Register a Worker
 
 Go to the [`Polkadotjs Apps`](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9988#/) with the correct websocket port set for the parachain (should be port 9988). This should also appear in the terminal for zombienet for `alice-1` in the Direct Link section:
 
@@ -74,7 +91,7 @@ Tick the option to include domain and enter in your domain, or you can tick the 
 
 Then sign and submit the transaction. Congrats, you've registered your worker on chain!
 
-#### Task Creation
+### Task Creation
 
 Anyone can register a task onchain. The task at this point will have to be a valid docker image that is publically accessable. For a task to be created, at least one worker must be registered.
 
@@ -88,7 +105,7 @@ Go to the explorer section to view which worker called `executor` was assigned t
 
 Congrats! A task was successfully scheduled!
 
-#### Task Completion and Verification
+### Task Completion and Verification
 
 In order for the task to be successfully verified as complete, two more workers need to be registered. One worker to verify task output correctness and the second in case the first fails the verification. Follow the steps above to register two more workers.
 
@@ -117,38 +134,101 @@ Check chain state in `taskManagment` for `taskStatus` call of the `taskId` that 
 
 Should the hash from both workers `verifier` and `executor` differ, then a worker will be assigned as `resolver`. You can check for this in the explorer section of the events for `VerifierResolverAssigned` event to find the `resolver`. Following the similar steps as above, you will enter into the `taskManagement` extrinsic and select the `resolveCompletedTask` method to enter in the `taskId` and a output hash.
 
+# Integrated Demo
 
-### Testing with k3s Worker and Frontend
+## Testing with k3s Worker and Frontend
 
-#### Setup Workers
+### Setup K3s Workers
 
-##### Step 1
-In a seperate terminal or IDE window clone the Worker repository:
-```
+K3s Workers are service providers to the network. These workers read from the RPC endpoint of the chain in order to receive updates and info regarding task execution. Each K3s worker has only one `master node` and at least one `worker node`. The `master node` supplies its `IP` or `domain name` to the blockchain so that the chain can distribute tasks to them. 
+
+Once the `master node` receives instructions from the chain, it assigns its `worker nodes` to execute the task. Due to the networking nature of Kubernetes, `master node` and `worker nodes` must be created on different machines ideally within the same local network. 
+
+Below is an example setup of a k3s Worker that connects to our blockchain.
+### Master Node Setup
+
+#### 1. Clone and Install Node.js Dependencies
+
+Clone the worker repository
+
+```bash
 git clone https://github.com/Cyborg-Network/Worker.git
 ```
-Make sure to checkout the branch for the parachain
+
+Navigate to your project directory:
+
+```bash
+cd Worker
 ```
+
+Make sure to checkout the branch for the parachain
+```bash
 git fetch && git branch -a
 ```
-```
+```bash
 git checkout -b updated-parachain remotes/origin/updated-parachain
 ```
-Then follow the rest of the instructions from the Worker repository.
-Ensure that you have a master node setup with at least one worker node in your k3s worker instance from the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
 
-Keep track of the IP/Port or Domain used to access the API endpoints. This will be used to register your k3s worker on chain.
+Install the required Node.js dependencies:
 
-Note: Make sure to have at least one worker node per master node.
+```bash
+npm install
+```
 
-##### Step 2
-Repeat the above 2 more times to setup 3 workers in total
+#### 2. Run Master Setup Script
+Execute the MasterSetup.sh script:
+```bash
+sh MasterSetup.sh
+```
+This script performs the following actions:
 
-##### Step 3
+Installs k3s on the master node.
+Saves the k3s node join token to `k3s-node-token.txt`
+Starts the Node.js application that listens for deployment requests on port 3000.
 
-Follow the steps in `Onchain Interaction` about the `Register a Worker` section above to register all 3 workers.
+### Worker Node Setup
+After setting up the master node, add worker nodes to the cluster using the join token from `k3s-node-token.txt`. Now on another machine within the same network as the master node, clone the same repository. You do not need to `npm install` or execute the `MasterSetup.sh`. keep track of the `local ip address` of your `master node`. You will need both the `local ip address` and join token in `k3s-node-token.txt` to setup the worker.
+
+#### 1. Execute Worker Setup Script
+On each worker node, run the WorkerSetup.sh script with the worker's name, master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
+
+```
+sh WorkerSetup.sh <worker-name> <master-ip> <token>
+```
+Replace <worker-name>, <master-ip>, and <token> with your specific details.
+
+Example: 
+
+```
+# replace these values with your own ip and token
+sh WorkerSetup.sh worker-one 10.0.0.1 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
+```
+
+#### 2. Check Worker connected
+Go back to your master node and execute:
+
+```bash
+kubectl get nodes
+```
+You should see that there is a master node and one worker node. Upon Successful setup proceed to start registering clusters onchain.
+
+<img width="800" alt="worker nodes" src="kubnodes.png">
+<br></br>
+
+For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
+
+#### Step 3 Register k3s Workers On Chain
+
+Make sure you have the domain or IP address of your worker node. You will use this to register the worker on chain so that the blockchain can assign tasks to the IP or domain.
+Follow the steps in `Onchain Interaction` about the `Register a Worker` section above to register the worker(s).
 
 #### Setup Frontend
+
+Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account.
+Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
+```
+bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
+```
 
 ##### Step 1
 In a seperate terminal or IDE window clone the frontend repository [`Cyborg-Connect`](https://github.com/Cyborg-Network/cyborg-connect/tree/parachain-updates):
