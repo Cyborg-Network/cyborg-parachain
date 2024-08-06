@@ -190,7 +190,7 @@ Starts the Node.js application that listens for deployment requests on port 3000
 After setting up the master node, add worker nodes to the cluster using the join token from `k3s-node-token.txt`. Now on another machine within the same network as the master node, clone the same repository. You do not need to `npm install` or execute the `MasterSetup.sh`. keep track of the `local ip address` of your `master node`. You will need both the `local ip address` and join token in `k3s-node-token.txt` to setup the worker.
 
 #### 1. Execute Worker Setup Script
-On each worker node, run the WorkerSetup.sh script with the worker's name, master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
+On each worker node, run the WorkerSetup.sh script with the worker's name (use any name of your choice), master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
 
 ```
 sh WorkerSetup.sh <worker-name> <master-ip> <token>
