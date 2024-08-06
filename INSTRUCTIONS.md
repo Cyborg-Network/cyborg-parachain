@@ -220,7 +220,7 @@ You should see that there is a master node and one worker node. Upon Successful 
 
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
 
-#### Step 3 Register k3s Workers On Chain
+#### 3. Register k3s Workers On Chain
 
 Make sure you have the domain or IP address of your worker node. You will use this to register the worker on chain so that the blockchain can assign tasks to the IP or domain.
 Follow the steps in `Onchain Interaction` about the `Register a Worker` section above to register the worker(s).
