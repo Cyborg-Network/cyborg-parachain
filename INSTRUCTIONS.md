@@ -144,6 +144,8 @@ K3s Workers are service providers to the network. These workers read from the RP
 
 Once the `master node` receives instructions from the chain, it assigns its `worker nodes` to execute the task. Due to the networking nature of Kubernetes, `master node` and `worker nodes` must be created on different machines ideally within the same local network. 
 
+While setting up servers for the K3s workers, please ensure that you use two unique Ubuntu VMs deployed within the same virtual network to enable seamless connectivity through their local IP addresses. Use a VPC in the case of AWS, and deploy both servers under the same virtual network in the case of Azure.
+
 Below is an example setup of a k3s Worker that connects to our blockchain.
 ### Master Node Setup
 
