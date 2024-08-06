@@ -174,8 +174,16 @@ Install the required Node.js dependencies:
 ```bash
 npm install
 ```
+#### 2. Environment
 
-#### 2. Run Master Setup Script
+Make sure to copy the `.env.example` and replace the contents `WORKER_ADDRESS` to the address you register this worker on the Cyborg Network chain and `RPC_ENDPOINT` to the correct rpc endpoint of the chain you are testing on.
+
+```
+cp .env.example .env
+
+```
+
+#### 3. Run Master Setup Script
 Execute the MasterSetup.sh script:
 ```bash
 sh MasterSetup.sh
@@ -195,7 +203,7 @@ On each worker node, run the WorkerSetup.sh script with the worker's name, maste
 ```
 sh WorkerSetup.sh <worker-name> <master-ip> <token>
 ```
-Replace <worker-name>, <master-ip>, and <token> with your specific details.
+Replace `worker-name`, `master-ip`, and `token` with your specific details.
 
 Example: 
 
