@@ -144,6 +144,8 @@ K3s Workers are service providers to the network. These workers read from the RP
 
 Once the `master node` receives instructions from the chain, it assigns its `worker nodes` to execute the task. Due to the networking nature of Kubernetes, `master node` and `worker nodes` must be created on different machines ideally within the same local network. 
 
+While setting up servers for the K3s workers, please ensure that you use two unique Ubuntu VMs deployed within the same virtual network to enable seamless connectivity through their local IP addresses. Use a VPC in the case of AWS, and deploy both servers under the same virtual network in the case of Azure.
+
 Below is an example setup of a k3s Worker that connects to our blockchain.
 ### Master Node Setup
 
@@ -198,12 +200,12 @@ Starts the Node.js application that listens for deployment requests on port 3000
 After setting up the master node, add worker nodes to the cluster using the join token from `k3s-node-token.txt`. Now on another machine within the same network as the master node, clone the same repository. You do not need to `npm install` or execute the `MasterSetup.sh`. keep track of the `local ip address` of your `master node`. You will need both the `local ip address` and join token in `k3s-node-token.txt` to setup the worker.
 
 #### 1. Execute Worker Setup Script
-On each worker node, run the WorkerSetup.sh script with the worker's name, master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
+On each worker node, run the WorkerSetup.sh script with the worker's name (use any name of your choice), master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
 
 ```
 sh WorkerSetup.sh <worker-name> <master-ip> <token>
 ```
-Replace `worker-name`, `master-ip`, and `token` with your specific details.
+Replace `<worker-name>`, `<master-ip>`, and `<token>` with your specific details.
 
 Example: 
 
@@ -211,6 +213,9 @@ Example:
 # replace these values with your own ip and token
 sh WorkerSetup.sh worker-one 10.0.0.1 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
 ```
+We have to use the private IP of the master node to connect worker nodes. Private IP can be fetched in the properties tab of the cloud server deployment
+
+<img width="624" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/45e9657c-4bc3-4fb9-8d15-aea988b7e54c">
 
 #### 2. Check Worker connected
 Go back to your master node and execute:
@@ -223,20 +228,55 @@ You should see that there is a master node and one worker node. Upon Successful 
 <img width="800" alt="worker nodes" src="assets/kubnodes.png">
 <br></br>
 
+Keep in mind that the port 3000 of the master node should accept inbound requests. You will need this for registering the K3s workers on the blockchain along with the IP address.
+
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
 
-#### Step 3 Register k3s Workers On Chain
+#### 3. Register k3s Workers On Chain
 
-Make sure you have the domain or IP address of your worker node. You will use this to register the worker on chain so that the blockchain can assign tasks to the IP or domain.
-Follow the steps in `Onchain Interaction` about the `Register a Worker` section above to register the worker(s).
-
-#### Setup Frontend
-
-Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account.
+##### Prerequisite: Wallets and Account
+Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account. This wallet will be used to interact with the frontend as well.
 Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
 ```
 bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
 ```
+Here is an example adding the Alice account to polkadotjs wallet 
+extension using the seed phrase:
+* click the plus icon to reveal a drop down.
+* select import account from pre-existing seed
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png">
+
+* paste the alice seed phrase and select next
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png">
+* add a name and password and add the account
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png">
+* once successful you should see this account
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png">
+
+##### Register on k3s
+
+Make sure you have the domain or IP address of your worker node. You will use this to register the worker on chain so that the blockchain can assign tasks to the IP or domain.
+
+* Head over to our [[Hosted Chain]](https://polkadot.js.org/apps/?rpc=wss://fraa-flashbox-3239-rpc.a.stagenet.tanssi.network#/extrinsics)
+
+* Then navigate to the extrinsics tab and select the `edge-connect`.
+* Once there, go to domain and tick the option to include it
+* enter your domain along with a port 3000 which is used by the K3s Worker node like so `yourIpAddress:3000`. replace `yourIpAddress` your you master node's public Ip address. If you register a domain for your master node, you can use a domain name (e.g. yourWorker-cloud.com).
+
+<img width="1160" alt="Choose Service" src="assets/add-ip-and-port.png">
+* Submit and sign the transaction with a funded account
+<img width="1160" alt="Choose Service" src="assets/sign-submit.png">
+
+Wait for the transaction to succeed and view it at the block explorer. Congrats, you've registered your worker on chain!
+
+
+#### Setup Frontend
+
+Note: Also make sure to use a prefunded account to interact with the frontend. Use the above example to import the Alice account to your wallet if you have not already.
 
 ##### Step 1
 In a seperate terminal or IDE window clone the frontend repository [`Cyborg-Connect`](https://github.com/Cyborg-Network/cyborg-connect/tree/parachain-updates):
@@ -261,17 +301,19 @@ Eg. hello-world (prints hello world message)
 
 #### Test Workflow
 
-1) Connect wallet and choose the ‘Access Compute’ option
+1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
     <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
+2) Select the hosted chain
+    <img width="1160" alt="Access Compute" src="assets/frontend/select-hosted.png">
 2) Choose CyberDock from the list of product lines
-    <img width="1160" alt="Choose Service" src="assets/frontend/2.png">
+    <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
 3) Enter the docker image name (e.g. hello-world)
-    <img width="1160" alt="Enter docker image" src="assets/frontend/3.png">
+    <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
 4) Pay the fees
     <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
 5) Loader Screen
     <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
-6) Node List Screen
+6) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
     <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
 7) Deployment dashboard 
     <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
