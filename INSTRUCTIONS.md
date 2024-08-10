@@ -38,7 +38,7 @@ A task can be submitted by any account to a `task_scheduler` extrinsic. The task
 
 ## 1. Testing the hosted version
 
-##### Prerequisite: Wallets and Account
+##### a) Prerequisite: Wallets and Account
 Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account. This wallet will be used to interact with the frontend as well.
 Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
 ```
@@ -61,7 +61,7 @@ extension using the seed phrase:
 <br></br>
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png">
 
-#### Run the App
+#### b) Run the App
 
 1) Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) 
 2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
@@ -71,23 +71,30 @@ extension using the seed phrase:
 Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
 Eg. hello-world (prints hello world message)
 
-#### Test Workflow
+#### c) Test Workflow
 
 1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
     <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
+    
 2) Select the hosted chain
     <img width="1160" alt="Access Compute" src="assets/frontend/select-hosted.png">
-2) Choose CyberDock from the list of product lines
+    
+3) Choose CyberDock from the list of product lines
     <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
-3) Enter the docker image name (e.g. hello-world)
+    
+4) Enter the docker image name (e.g. hello-world)
     <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
-4) Pay the fees
+    
+5) Pay the fees
     <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
-5) Loader Screen
+    
+6) Loader Screen
     <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
-6) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
+    
+7) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
     <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
-7) Deployment dashboard 
+    
+8) Deployment dashboard 
     <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
    
 ## 2. Local Testing
