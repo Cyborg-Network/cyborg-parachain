@@ -15,7 +15,7 @@ However, to simplify the process of testing the setup of K3S workers and their c
 
 ## Code Repositories:
 
-* [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - ([The Cyborg Substrate Parachain](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#prerequisite-wallets-and-account))
+* [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
 * [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
 * [Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
 
@@ -38,10 +38,35 @@ A task can be submitted by any account to a `task_scheduler` extrinsic. The task
 
 ## 1. Testing the hosted version
 
+##### Prerequisite: Wallets and Account
+Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account. This wallet will be used to interact with the frontend as well.
+Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
+```
+bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
+```
+Here is an example adding the Alice account to polkadotjs wallet 
+extension using the seed phrase:
+* click the plus icon to reveal a drop down.
+* select import account from pre-existing seed
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png">
+
+* paste the alice seed phrase and select next
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png">
+* add a name and password and add the account
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png">
+* once successful you should see this account
+<br></br>
+<img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png">
+
+#### Run the App
+
 1) Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) 
 2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
 3) Switch to Cyborg hosted in the bottom bar
-4) Shift your polkadotjs wallet address to match the Alice keypair, which is a prefunded account (The instrcutions can be found here)
+4) Shift your polkadotjs wallet address to Alice (Prefunded)
 5) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/tree/master?tab=readme-ov-file#task-examples). 
 Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
 Eg. hello-world (prints hello world message)
@@ -294,28 +319,6 @@ For more info regarding the worker nodes, you can visit the [`Worker Repository`
 
 #### 3. Register k3s Workers On Chain
 
-##### Prerequisite: Wallets and Account
-Only accounts with minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens. If you are testing either locally or using the hosted version of our chain, you will need to use the Alice account. This wallet will be used to interact with the frontend as well.
-Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
-```
-bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
-```
-Here is an example adding the Alice account to polkadotjs wallet 
-extension using the seed phrase:
-* click the plus icon to reveal a drop down.
-* select import account from pre-existing seed
-<br></br>
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png">
-
-* paste the alice seed phrase and select next
-<br></br>
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png">
-* add a name and password and add the account
-<br></br>
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png">
-* once successful you should see this account
-<br></br>
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png">
 
 ##### Register on k3s
 
