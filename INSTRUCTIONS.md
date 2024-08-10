@@ -150,6 +150,66 @@ Deploy the second server
 
 ## Setup 
 
+### Cyborg Parachain
+
+Clone the parachain repository with:
+
+```bash
+git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
+```
+
+or run:
+
+```bash
+git clone https://github.com/Cyborg-Network/cyborg-parachain.git
+git submodule update --init
+```
+
+Compile the node:
+
+```bash
+cargo build --release
+```
+
+🐳 Alternatively, build the docker image:
+
+```sh
+docker build . -t cyborg-parachain
+```
+
+## Run Tests
+
+```bash
+cargo test
+```
+## Local Development Chain
+
+🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
+You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
+
+This template produces a parachain node.
+You still need a relaychain node - you can download the `polkadot`
+(and the accompanying `polkadot-prepare-worker` and `polkadot-execute-worker`)
+binaries from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases/latest).
+
+Make sure to bring the parachain node - as well as `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`,
+and `zombienet` - into `PATH` like so:
+
+```sh
+export PATH="./target/release/:$PATH"
+```
+
+This way, we can conveniently use them un the following steps.
+
+👥 The following command starts a local development chain, with a single relay chain node and a single parachain collator:
+
+```sh
+zombienet --provider native spawn ./zombienet.toml
+
+# Alternatively, the npm version:
+npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
+```
+
 ### Setup K3s Workers
 
 K3s Workers are service providers to the network. These workers read from the RPC endpoint of the chain in order to receive updates and info regarding task execution. Each K3s worker has only one `master node` and at least one `worker node`. The `master node` supplies its `IP` or `domain name` to the blockchain so that the chain can distribute tasks to them. 
@@ -158,7 +218,8 @@ Once the `master node` receives instructions from the chain, it assigns its `wor
 
 While setting up servers for the K3s workers, please ensure that you use two unique Ubuntu VMs deployed within the same virtual network to enable seamless connectivity through their local IP addresses. Use a VPC in the case of AWS, and deploy both servers under the same virtual network in the case of Azure.
 
-Below is an example setup of a k3s Worker that connects to our blockchain.
+Below is an example setup of a k3s Worker that connects to the local blockchain.
+
 ### Master Node Setup
 
 #### 1. Clone and Install Node.js Dependencies
@@ -246,9 +307,6 @@ Keep in mind that the port 3000 of the master node should accept inbound request
 
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
 
-#### 3. Register k3s Workers On Chain
-
-
 ##### Register on k3s
 
 Make sure you have the domain or IP address of your worker node. You will use this to register the worker on chain so that the blockchain can assign tasks to the IP or domain.
@@ -264,64 +322,6 @@ Make sure you have the domain or IP address of your worker node. You will use th
 <img width="1160" alt="Choose Service" src="assets/sign-submit.png">
 
 Wait for the transaction to succeed and view it at the block explorer. Congrats, you've registered your worker on chain!
-
-Clone the parachain repository with:
-
-```bash
-git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
-```
-
-or run:
-
-```bash
-git clone https://github.com/Cyborg-Network/cyborg-parachain.git
-git submodule update --init
-```
-
-Compile the node:
-
-```bash
-cargo build --release
-```
-
-🐳 Alternatively, build the docker image:
-
-```sh
-docker build . -t cyborg-parachain
-```
-
-## Run Tests
-
-```bash
-cargo test
-```
-## Local Development Chain
-
-🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
-You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
-
-This template produces a parachain node.
-You still need a relaychain node - you can download the `polkadot`
-(and the accompanying `polkadot-prepare-worker` and `polkadot-execute-worker`)
-binaries from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases/latest).
-
-Make sure to bring the parachain node - as well as `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`,
-and `zombienet` - into `PATH` like so:
-
-```sh
-export PATH="./target/release/:$PATH"
-```
-
-This way, we can conveniently use them un the following steps.
-
-👥 The following command starts a local development chain, with a single relay chain node and a single parachain collator:
-
-```sh
-zombienet --provider native spawn ./zombienet.toml
-
-# Alternatively, the npm version:
-npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
-```
 
 ## Onchain Interaction
 
