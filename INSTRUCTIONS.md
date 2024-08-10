@@ -67,7 +67,7 @@ extension using the seed phrase:
 2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
 3) Switch to Cyborg hosted in the bottom bar
 4) Shift your polkadotjs wallet address to Alice (Prefunded)
-5) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/tree/master?tab=readme-ov-file#task-examples). 
+5) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples). 
 Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
 Eg. hello-world (prints hello world message)
 
