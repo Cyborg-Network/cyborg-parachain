@@ -6,17 +6,15 @@ The baseline infrastructure layer of the Cyborg Network parachain is delivered a
 
 ## Code Repositories:
 
-[Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
-[Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
-[Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
+* [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
+* [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
+* [Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
 
 ## Task Examples: 
 
 * hello-world - Prints the docker hello world message 
 * cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
 * cyborgnetwork/flog_loader:latest - A loader app to test logs
-
-# Testing Guide
 
 ## Chain Workflow
 
@@ -27,9 +25,11 @@ This information is then used by the task-management pallet to issue tasks to co
 
 A task can be submitted by any account to a `task_scheduler` extrinsic. The task assigned an account with a registered worker called the `executor`. Once a task is completed, the `executor` submits an extrinsic call `submit_completed_task` with the `TaskId` it was assigned and a hash output of the task. This information is used to then verify the task by another different assigned account with a registered worker called `verifier` which will perform the given task and sumbit its own hash output of the task along with the `TaskId` to an extrinsic call `verify_completed_task`. If the hashes are the same, the task is complete. If they differ, another different account with a registered worker is assigned as the `resolver` role. This account will perform the task and also sumbit a hash output of the task with the same `TaskId` to an extrinsic called `resolve_completed_task`. The matching hash with either of the `executor` or `verifier` is the correct task output. Should the resolver also fail, the task is reassigned to a new executor different from all three participating accounts in this task verification.
 
+# Testing Guide
+
 ## Setup 
 
-Clone the repository with:
+Clone the parachain repository with:
 
 ```bash
 git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
