@@ -1,4 +1,4 @@
-# Cyborg Network - Milestone 1 Delivery
+<img width="1069" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/f6bf8ea0-74a9-4e47-9918-d03c04176df8"># Cyborg Network - Milestone 1 Delivery
 
 ## Introduction:
 
@@ -119,10 +119,34 @@ We need a local linux machine and 2 servers hosted under the same virtual networ
 
 #### b) Networking Considerations
 
-When deploying servers from cloud provider there will be an option to add new servers into a pre existing network
+When deploying servers from a cloud provider, you have the option to add new servers to an existing network. The key idea is that both the K3S master node and worker node must be connected within the same network. This setup is essential to ensure seamless load distribution, particularly when managing heavier data loads such as ML data models.
 
-<img width="624" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/45e9657c-4bc3-4fb9-8d15-aea988b7e54c">
+We have shown the setup example for Azure
 
+1. Under create a VM section choose ubuntu 20.04 0r 22.04 LTS
+   
+ <img width="1220" alt="Screenshot 2024-08-10 at 5 57 20 PM" src="https://github.com/user-attachments/assets/99999800-03b8-490c-8e23-bf88e172928c">
+
+2. In the customization dashboard - create a new resource group
+   
+<img width="1069" alt="Screenshot 2024-08-10 at 6 02 25 PM" src="https://github.com/user-attachments/assets/0f6ca8ba-ad2b-41b6-997f-e254ab1d4235">
+
+Deploy the master node server and create a new deployment for worker node
+
+3. Now choose the same resource group that was created for the first server
+
+<img width="1069" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/9e661c00-3b5b-4139-ac4b-9185a60f0ca1">
+
+4. In the Networking tab we can check the Vnet to be same as that of the master node
+
+<img width="1069" alt="Screenshot 2024-08-10 at 6 16 37 PM" src="https://github.com/user-attachments/assets/54b6ddb3-3004-4b91-9028-97d82d177932">
+
+Deploy the second server
+
+5. let's cross verify the vnet of both the deployed servers
+
+<img width="1568" alt="Screenshot 2024-08-10 at 7 28 27 PM" src="https://github.com/user-attachments/assets/a0137e1f-a23d-456d-9cad-45b8b34a5ae4">
+<img width="1568" alt="Screenshot 2024-08-10 at 7 27 49 PM" src="https://github.com/user-attachments/assets/0c049fd2-5125-461a-94bd-c57c70d32f75">
 
 ## Setup 
 
@@ -189,6 +213,10 @@ After setting up the master node, add worker nodes to the cluster using the join
 
 #### 1. Execute Worker Setup Script
 On each worker node, run the WorkerSetup.sh script with the worker's name (use any name of your choice), master node's private IP address, and the join token present in the `k3s-node-token.txt` file:
+
+In the master node dashboard get the private ip of the master node, and use it in the command
+
+<img width="624" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/45e9657c-4bc3-4fb9-8d15-aea988b7e54c">
 
 ```
 sh WorkerSetup.sh <worker-name> <master-ip> <token>
