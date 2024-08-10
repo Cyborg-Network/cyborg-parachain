@@ -15,7 +15,7 @@ However, to simplify the process of testing the setup of K3S workers and their c
 
 ## Code Repositories:
 
-* [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
+* [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - ([The Cyborg Substrate Parachain](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#prerequisite-wallets-and-account))
 * [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
 * [Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
 
@@ -92,7 +92,6 @@ Compile the node:
 ```bash
 cargo build --release
 ```
-
 
 🐳 Alternatively, build the docker image:
 
@@ -195,7 +194,7 @@ Check chain state in `taskManagment` for `taskStatus` call of the `taskId` that 
 
 Should the hash from both workers `verifier` and `executor` differ, then a worker will be assigned as `resolver`. You can check for this in the explorer section of the events for `VerifierResolverAssigned` event to find the `resolver`. Following the similar steps as above, you will enter into the `taskManagement` extrinsic and select the `resolveCompletedTask` method to enter in the `taskId` and a output hash.
 
-# Integrated Demo
+
 
 ## Testing with k3s Worker and Frontend
 
