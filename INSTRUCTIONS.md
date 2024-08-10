@@ -4,6 +4,15 @@
 
 The baseline infrastructure layer of the Cyborg Network parachain is delivered as part of this grant. This includes a sample product line called CyberDock, which allows users to deploy publicized Docker images into our network of edge servers. The executed container results will be verified by parallel execution and Hash equations.
 
+We have submitted 2 pallets: 
+
+  * Edge Connect - Connection and management of offchain workers (K3S clusters)
+  * Task Management - To manage scheduling of tasks into remote K3s clusters based on availability and specifications.
+
+Since this is a prototype for a blockchain-based ML training module with on-chain verification and settlement, the system involves using more than two virtual machines to accurately recreate the real-world scenario of the blockchain and the off-chain components (K3S clusters). These components interact with the blockchain to execute tasks, submit results, and update task execution status in a coordinated manner.
+
+However, to simplify the process of testing the setup of K3S workers and their connection to the Substrate blockchain, we have a pre-hosted version of the Cyborg parachain on the Tanssi Dancebox testnet. This setup includes an active K3S cluster, allowing you to directly test the application's workflow. We will discuss both methods of testing to provide better clarity regarding the delivery
+
 ## Code Repositories:
 
 * [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
@@ -26,6 +35,42 @@ A task can be submitted by any account to a `task_scheduler` extrinsic. The task
 * cyborgnetwork/flog_loader:latest - A loader app to test logs
   
 # Testing Guide
+
+## 1. Testing the hosted version
+
+1) Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) 
+2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
+3) Switch to Cyborg hosted in the bottom bar
+4) Shift your polkadotjs wallet address to match the Alice keypair, which is a prefunded account (The instrcutions can be found here)
+5) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/tree/master?tab=readme-ov-file#task-examples). 
+Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
+Eg. hello-world (prints hello world message)
+
+#### Test Workflow
+
+1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
+    <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
+2) Select the hosted chain
+    <img width="1160" alt="Access Compute" src="assets/frontend/select-hosted.png">
+2) Choose CyberDock from the list of product lines
+    <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
+3) Enter the docker image name (e.g. hello-world)
+    <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
+4) Pay the fees
+    <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
+5) Loader Screen
+    <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
+6) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
+    <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
+7) Deployment dashboard 
+    <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
+   
+## 2. Local Testing
+
+## Infrastructure setup
+
+
+
 
 ## Setup 
 
@@ -308,31 +353,7 @@ git checkout -b parachain-updates remotes/origin/parachain-updates
 ```
 ##### Step 2
 
-1) Compile and run Cyborg Connect 
-2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
-3) Switch to Cyborg hosted in the bottom bar
-4) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/tree/master?tab=readme-ov-file#task-examples). 
-Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
-Eg. hello-world (prints hello world message)
 
-#### Test Workflow
-
-1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
-    <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
-2) Select the hosted chain
-    <img width="1160" alt="Access Compute" src="assets/frontend/select-hosted.png">
-2) Choose CyberDock from the list of product lines
-    <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
-3) Enter the docker image name (e.g. hello-world)
-    <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
-4) Pay the fees
-    <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
-5) Loader Screen
-    <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
-6) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
-    <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
-7) Deployment dashboard 
-    <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
 
 
 # Worker Logs:
