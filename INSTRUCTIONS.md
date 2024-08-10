@@ -1,4 +1,4 @@
-<img width="1069" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/f6bf8ea0-74a9-4e47-9918-d03c04176df8"># Cyborg Network - Milestone 1 Delivery
+# Cyborg Network - Milestone 1 Delivery
 
 ## Introduction:
 
