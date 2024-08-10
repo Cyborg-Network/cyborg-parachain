@@ -6,15 +6,15 @@ The baseline infrastructure layer of the Cyborg Network parachain is delivered a
 
 ## Code Repositories:
 
-    [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
-    [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
-    [Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
+[Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - (The Cyborg Substrate Parachain)
+[Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - (The Front end for our App)
+[Worker](https://github.com/Cyborg-Network/Worker) - (The K3S worker configuration for execution of docker images)
 
 ## Task Examples: 
 
-hello-world - Prints the docker hello world message 
-cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
-cyborgnetwork/flog_loader:latest - A loader app to test logs
+* hello-world - Prints the docker hello world message 
+* cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
+* cyborgnetwork/flog_loader:latest - A loader app to test logs
 
 # Testing Guide
 
