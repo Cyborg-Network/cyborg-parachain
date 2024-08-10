@@ -74,34 +74,54 @@ Eg. hello-world (prints hello world message)
 #### c) Test Workflow
 
 1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
+   
     <img width="1160" alt="Access Compute" src="assets/frontend/1.png">
     
 2) Select the hosted chain
+
     <img width="1160" alt="Access Compute" src="assets/frontend/select-hosted.png">
     
 3) Choose CyberDock from the list of product lines
+   
     <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
     
 4) Enter the docker image name (e.g. hello-world)
+   
     <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
     
 5) Pay the fees
+    
     <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
     
 6) Loader Screen
+    
     <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
     
 7) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
+ 
     <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
     
-8) Deployment dashboard 
+8) Deployment dashboard
+    
     <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
    
 ## 2. Local Testing
 
 ## Infrastructure setup
 
+#### a) OS: Ubuntu Debian 20.04 or Higher 
 
+We need a local linux machine and 2 servers hosted under the same virtual network (VPC in case of AWS)
+
+*  Local machine - Parachain and Front end
+*  Server 1 - K3s master node
+*  Server 2 -K3s worker node
+
+#### b) Networking Considerations
+
+When deploying servers from cloud provider there will be an option to add new servers into a pre existing network
+
+<img width="624" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/45e9657c-4bc3-4fb9-8d15-aea988b7e54c">
 
 
 ## Setup 
@@ -306,8 +326,6 @@ Example:
 sh WorkerSetup.sh worker-one 10.0.0.1 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
 ```
 We have to use the private IP of the master node to connect worker nodes. Private IP can be fetched in the properties tab of the cloud server deployment
-
-<img width="624" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/45e9657c-4bc3-4fb9-8d15-aea988b7e54c">
 
 #### 2. Check Worker connected
 Go back to your master node and execute:
