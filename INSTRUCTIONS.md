@@ -65,11 +65,6 @@ extension using the seed phrase:
 
 1) Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) 
 2) Open http://127.0.0.1:8000/cyborg-connect/ in a web browser
-3) Switch to Cyborg hosted in the bottom bar
-4) Shift your polkadotjs wallet address to Alice (Prefunded)
-5) In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples). 
-Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
-Eg. hello-world (prints hello world message)
 
 #### c) Test Workflow
 
@@ -86,28 +81,32 @@ Eg. hello-world (prints hello world message)
     <img width="1160" alt="Choose Service" src="assets/frontend/select-cyberdock.png">
     
 4) Enter the docker image name (e.g. hello-world)
-   
+
+* In the docker image url section enter any one of the following file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples). 
+* Any app/script/website published as a public docker image for linux/amd64 will execute in this system.
+Eg. hello-world (prints hello world message)
+
     <img width="1160" alt="Enter docker image" src="assets/frontend/enter-docker.png">
     
-5) Pay the fees
+6) Pay the fees
     
     <img width="1160" alt="Pay the fees" src="assets/frontend/4.png">
     
-6) Loader Screen
+7) Loader Screen
     
     <img width="1160" alt="Loader Screen" src="assets/frontend/5.png">
     
-7) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
+8) Node List Screen. There should already be a worker registered on chain already. The tasks are assigned randomly to available worker. If you registered another worker, there is a chance the task may be executed in another worker. Just click through the workers by clicking the left `Dashboard` tab to go back and see the other workers at this time to check the executed task.
  
     <img width="1160" alt="Node List Screen" src="assets/frontend/6.png">
     
-8) Deployment dashboard
+9) Deployment dashboard
     
     <img width="1160" alt="Deployment dashboard" src="assets/frontend/7.png">
    
 ## 2. Local Testing
 
-## Infrastructure setup
+## Prerequsites - Infrastructure setup
 
 #### a) OS: Ubuntu Debian 20.04 or Higher 
 
