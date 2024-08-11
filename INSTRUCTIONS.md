@@ -150,67 +150,7 @@ Deploy the second server
 
 ## Setup 
 
-### Cyborg Parachain
-
-Clone the parachain repository with:
-
-```bash
-git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
-```
-
-or run:
-
-```bash
-git clone https://github.com/Cyborg-Network/cyborg-parachain.git
-git submodule update --init
-```
-
-Compile the node:
-
-```bash
-cargo build --release
-```
-
-🐳 Alternatively, build the docker image:
-
-```sh
-docker build . -t cyborg-parachain
-```
-
-## Run Tests
-
-```bash
-cargo test
-```
-## Local Development Chain
-
-🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
-You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
-
-This template produces a parachain node.
-You still need a relaychain node - you can download the `polkadot`
-(and the accompanying `polkadot-prepare-worker` and `polkadot-execute-worker`)
-binaries from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases/latest).
-
-Make sure to bring the parachain node - as well as `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`,
-and `zombienet` - into `PATH` like so:
-
-```sh
-export PATH="./target/release/:$PATH"
-```
-
-This way, we can conveniently use them un the following steps.
-
-👥 The following command starts a local development chain, with a single relay chain node and a single parachain collator:
-
-```sh
-zombienet --provider native spawn ./zombienet.toml
-
-# Alternatively, the npm version:
-npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
-```
-
-### Setup K3s Workers
+### K3s Workers
 
 K3s Workers are service providers to the network. These workers read from the RPC endpoint of the chain in order to receive updates and info regarding task execution. Each K3s worker has only one `master node` and at least one `worker node`. The `master node` supplies its `IP` or `domain name` to the blockchain so that the chain can distribute tasks to them. 
 
@@ -306,6 +246,67 @@ You should see that there is a master node and one worker node. Upon Successful 
 Keep in mind that the port 3000 of the master node should accept inbound requests. You will need this for registering the K3s workers on the blockchain along with the IP address.
 
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
+
+
+### Cyborg Parachain
+
+Clone the parachain repository with:
+
+```bash
+git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
+```
+
+or run:
+
+```bash
+git clone https://github.com/Cyborg-Network/cyborg-parachain.git
+git submodule update --init
+```
+
+Compile the node:
+
+```bash
+cargo build --release
+```
+
+🐳 Alternatively, build the docker image:
+
+```sh
+docker build . -t cyborg-parachain
+```
+
+## Run Tests
+
+```bash
+cargo test
+```
+## Local Development Chain
+
+🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
+You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
+
+This template produces a parachain node.
+You still need a relaychain node - you can download the `polkadot`
+(and the accompanying `polkadot-prepare-worker` and `polkadot-execute-worker`)
+binaries from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases/latest).
+
+Make sure to bring the parachain node - as well as `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`,
+and `zombienet` - into `PATH` like so:
+
+```sh
+export PATH="./target/release/:$PATH"
+```
+
+This way, we can conveniently use them un the following steps.
+
+👥 The following command starts a local development chain, with a single relay chain node and a single parachain collator:
+
+```sh
+zombienet --provider native spawn ./zombienet.toml
+
+# Alternatively, the npm version:
+npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
+```
 
 ##### Register on k3s
 
