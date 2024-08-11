@@ -126,21 +126,17 @@ We have shown the setup example for Azure
    
  <img width="1220" alt="Screenshot 2024-08-10 at 5 57 20 PM" src="https://github.com/user-attachments/assets/99999800-03b8-490c-8e23-bf88e172928c">
 
-2. In the customization dashboard - create a new resource group
+2. In the customization dashboard - create a new resource group and Deploy the master node server and then create a new deployment for worker node
    
 <img width="1069" alt="Screenshot 2024-08-10 at 6 02 25 PM" src="https://github.com/user-attachments/assets/0f6ca8ba-ad2b-41b6-997f-e254ab1d4235">
-
-Deploy the master node server and create a new deployment for worker node
 
 3. Now choose the same resource group that was created for the first server
 
 <img width="1069" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/9e661c00-3b5b-4139-ac4b-9185a60f0ca1">
 
-4. In the Networking tab we can check the Vnet to be same as that of the master node
+4. In the Networking tab we can check the Vnet to be same as that of the master node and then deploy the second server
 
 <img width="1069" alt="Screenshot 2024-08-10 at 6 16 37 PM" src="https://github.com/user-attachments/assets/54b6ddb3-3004-4b91-9028-97d82d177932">
-
-Deploy the second server
 
 5. let's cross verify the vnet of both the deployed servers
 
