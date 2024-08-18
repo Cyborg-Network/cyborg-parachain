@@ -21,7 +21,7 @@ pub use types::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-	use frame_system::{WeightInfo, pallet_prelude::*};
+	use frame_system::{ pallet_prelude::*};
 	use scale_info::prelude::vec::Vec;
 	use super::*;
 
@@ -32,7 +32,7 @@ pub mod pallet {
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// A type representing the weights required by the dispatchables of this pallet.
+		// /// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
@@ -78,8 +78,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		// #[pallet::weight(T::WeightInfo::register_worker())]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]
+		#[pallet::weight(T::WeightInfo::register_worker())]
 		pub fn register_worker(
 			origin: OriginFor<T>, 
 			ip: Option<Ip>, 
@@ -140,8 +139,7 @@ pub mod pallet {
 
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
-		// #[pallet::weight(T::WeightInfo::remove_worker())]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]		
+		#[pallet::weight(T::WeightInfo::remove_worker())]
 		pub fn remove_worker(
 			origin: OriginFor<T>, 
 			worker_id: WorkerId, 

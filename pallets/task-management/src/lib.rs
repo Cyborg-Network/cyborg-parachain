@@ -9,6 +9,7 @@ mod mock;
 mod tests;
 
 pub mod weights;
+pub use weights::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -62,10 +63,10 @@ pub struct Verifications<AccountId> {
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-	use frame_system::{WeightInfo, pallet_prelude::*};
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
 	use super::*;
-	use pallet_edge_connect::{Pallet as PalletEdgeConnect, AccountWorkers, WorkerClusters};
+	use pallet_edge_connect::{AccountWorkers, WorkerClusters};
 	
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -149,7 +150,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1))]		
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]	
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_data: BoundedVec<u8, ConstU32<128>>,
@@ -194,7 +195,7 @@ pub mod pallet {
 
 		//// Assignee submits completed task for verification and validation from other workers
 		#[pallet::call_index(1)]
-		#[pallet::weight(Weight::from_parts(10_000, 0) + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_completed_task(u32::MAX))]	
 		pub fn submit_completed_task(
 			origin: OriginFor<T>,
 			task_id: TaskId,
@@ -241,7 +242,7 @@ pub mod pallet {
 		/// Can only be called from root
 		/// Assign new verifier as resolver if verification fails. Resolver will determine correct result.
 		#[pallet::call_index(2)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::verify_completed_task(u32::MAX))]	
 		pub fn verify_completed_task(
 			origin: OriginFor<T>,
 			// verifier_account: T::AccountId, // Change if using oracle
@@ -306,7 +307,7 @@ pub mod pallet {
 		/// If it matches one, the task is resolved and award is split between the matching pair. The failing worker is slashed.
 		/// If no matches, the task is reassigned to a new executor and cycle repeats
 		#[pallet::call_index(3)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::resolve_completed_task(u32::MAX))]	
 		pub fn resolve_completed_task(
 			origin: OriginFor<T>,
 			// resolver_account: T::AccountId,
