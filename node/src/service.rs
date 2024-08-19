@@ -55,7 +55,11 @@ pub type Service = PartialComponents<
 	(),
 	sc_consensus::DefaultImportQueue<Block>,
 	sc_transaction_pool::FullPool<Block, ParachainClient>,
-	(ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
+	(
+		ParachainBlockImport,
+		Option<Telemetry>,
+		Option<TelemetryWorkerHandle>,
+	),
 >;
 
 /// Starts a `ServiceBuilder` for a full service.
@@ -77,7 +81,9 @@ pub fn new_partial(config: &Configuration) -> Result<Service, sc_service::Error>
 
 	let heap_pages = config
 		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+			extra_pages: h as _,
+		});
 
 	let executor = ParachainExecutor::builder()
 		.with_execution_method(config.wasm_method)
@@ -99,7 +105,9 @@ pub fn new_partial(config: &Configuration) -> Result<Service, sc_service::Error>
 	let telemetry_worker_handle = telemetry.as_ref().map(|(worker, _)| worker.handle());
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
-		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
+		task_manager
+			.spawn_handle()
+			.spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
@@ -202,7 +210,10 @@ fn start_consensus(
 		para_backend: backend,
 		relay_client: relay_chain_interface,
 		code_hash_provider: move |block_hash| {
-			client.code_at(block_hash).ok().map(|c| ValidationCode::from(c).hash())
+			client
+				.code_at(block_hash)
+				.ok()
+				.map(|c| ValidationCode::from(c).hash())
 		},
 		sync_oracle,
 		keystore,
@@ -216,11 +227,12 @@ fn start_consensus(
 		reinitialize: false,
 	};
 
-	let fut =
-		aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
-			params,
-		);
-	task_manager.spawn_essential_handle().spawn("aura", None, fut);
+	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _, _>(
+		params,
+	);
+	task_manager
+		.spawn_essential_handle()
+		.spawn("aura", None, fut);
 
 	Ok(())
 }
@@ -341,11 +353,11 @@ pub async fn start_parachain_node(
 		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
 			Err(err) if validator => {
 				log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
-				err
-			);
-			},
-			_ => {},
+					"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
+					err
+				);
+			}
+			_ => {}
 		}
 
 		if let Some(ref mut telemetry) = telemetry {
