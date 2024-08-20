@@ -351,7 +351,7 @@ mod runtime {
 	pub type OracleMembership = pallet_membership;
 
 	#[runtime::pallet_index(42)]
-	pub type WorkerClusters = pallet_edge_connect;
+	pub type EdgeConnect = pallet_edge_connect;
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;
