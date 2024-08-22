@@ -1,6 +1,6 @@
-use scale_info::{ TypeInfo };
-use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, pallet_prelude::ConstU32 };
-use codec::{ Encode, Decode, MaxEncodedLen };
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
+use scale_info::TypeInfo;
 
 pub type WorkerId = u64;
 
@@ -20,9 +20,9 @@ pub struct Ip {
 	pub port: u32,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen )]
+#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct WorkerAPI {
-	pub ip : Option<Ip>,
+	pub ip: Option<Ip>,
 	pub domain: Option<Domain>,
 }
 
