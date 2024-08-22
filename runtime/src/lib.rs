@@ -10,8 +10,8 @@ pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 mod configs;
-mod weights;
 mod oracle;
+mod weights;
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -29,8 +29,8 @@ use frame_support::{
 	parameter_types,
 	traits::ConstU32,
 	weights::{
-	constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-	WeightToFeePolynomial,
+		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	},
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -43,7 +43,7 @@ use weights::ExtrinsicBaseWeight;
 
 pub use frame_system::EnsureRoot;
 
-use oracle::{ProcessStatus, ProcessId, DummyCombineData};
+use oracle::{DummyCombineData, ProcessId, ProcessStatus};
 
 pub use pallet_edge_connect;
 pub use pallet_task_management;
@@ -170,46 +170,46 @@ parameter_types! {
 }
 
 impl orml_oracle::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = RuntimeEvent;
 	type OnNewData = ();
-    type CombineData = DummyCombineData<Runtime>;
-    type Time = Timestamp;
-    type OracleKey = ProcessId;
-    type OracleValue = ProcessStatus;
+	type CombineData = DummyCombineData<Runtime>;
+	type Time = Timestamp;
+	type OracleKey = ProcessId;
+	type OracleValue = ProcessStatus;
 	type RootOperatorAccountId = RootOperatorAccountId;
-    type Members = OracleMembership;
-    type MaxHasDispatchedSize = ConstU32<8>;
-    type WeightInfo = ();
-    #[cfg(feature = "runtime-benchmarks")]
-    type MaxFeedValues = ConstU32<2>;
-    #[cfg(not(feature = "runtime-benchmarks"))]
-    type MaxFeedValues = ConstU32<1>;
+	type Members = OracleMembership;
+	type MaxHasDispatchedSize = ConstU32<8>;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxFeedValues = ConstU32<2>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type MaxFeedValues = ConstU32<1>;
 	// #[cfg(not(feature = "runtime-benchmarks"))]
 	// type BenchmarkHelper = ();
 }
 
 impl pallet_membership::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type AddOrigin = EnsureRoot<AccountId>;
-    type RemoveOrigin = EnsureRoot<AccountId>;
-    type SwapOrigin = EnsureRoot<AccountId>;
-    type ResetOrigin = EnsureRoot<AccountId>;
-    type PrimeOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type AddOrigin = EnsureRoot<AccountId>;
+	type RemoveOrigin = EnsureRoot<AccountId>;
+	type SwapOrigin = EnsureRoot<AccountId>;
+	type ResetOrigin = EnsureRoot<AccountId>;
+	type PrimeOrigin = EnsureRoot<AccountId>;
 
-    type MembershipInitialized = ();
-    type MembershipChanged = ();
-    type MaxMembers = ConstU32<16>;
-    type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+	type MembershipInitialized = ();
+	type MembershipChanged = ();
+	type MaxMembers = ConstU32<16>;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-} 
+	type WeightInfo = pallet_edge_connect::weights::SubstrateWeight<Runtime>;
+}
 
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = pallet_task_management::weights::SubstrateWeight<Runtime>;
 }
 
 #[sp_version::runtime_version]
@@ -283,7 +283,10 @@ type ConsensusHook = cumulus_pallet_aura_ext::FixedVelocityConsensusHook<
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -351,7 +354,7 @@ mod runtime {
 	pub type OracleMembership = pallet_membership;
 
 	#[runtime::pallet_index(42)]
-	pub type WorkerClusters = pallet_edge_connect;
+	pub type EdgeConnect = pallet_edge_connect;
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;

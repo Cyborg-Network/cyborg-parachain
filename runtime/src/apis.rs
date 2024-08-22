@@ -29,7 +29,7 @@ use frame_support::{
 	weights::Weight,
 };
 use pallet_aura::Authorities;
-use sp_api::impl_runtime_apis;
+use sp_api::{decl_runtime_apis, impl_runtime_apis};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -39,6 +39,8 @@ use sp_runtime::{
 };
 use sp_std::prelude::Vec;
 use sp_version::RuntimeVersion;
+
+use pallet_task_management::Event as TaskManagementPalletEvent;
 
 // Local module imports
 use super::{
@@ -285,5 +287,19 @@ impl_runtime_apis! {
 		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
 			Default::default()
 		}
+	}
+
+	impl crate::apis::TaskManagementEventsApi<Block> for Runtime {
+			fn get_recent_events() -> Vec<TaskManagementPalletEvent<Runtime>>{
+				frame_system::Pallet::<Runtime>::read_events_for_pallet::<pallet_task_management::Event<Runtime>>()
+		}
+	}
+
+}
+
+decl_runtime_apis! {
+	#[api_version(1)]
+	pub trait TaskManagementEventsApi {
+			fn get_recent_events() -> Vec<TaskManagementPalletEvent<Runtime>>;
 	}
 }
