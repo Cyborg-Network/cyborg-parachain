@@ -143,6 +143,14 @@ We have shown the setup example for Azure
 <img width="1568" alt="Screenshot 2024-08-10 at 7 28 27 PM" src="https://github.com/user-attachments/assets/a0137e1f-a23d-456d-9cad-45b8b34a5ae4">
 <img width="1568" alt="Screenshot 2024-08-10 at 7 27 49 PM" src="https://github.com/user-attachments/assets/0c049fd2-5125-461a-94bd-c57c70d32f75">
 
+6. Finally, go to the `Networking` tab of your virtual machine and add a new `inbound` rule for `port` `3000`. Hit `Create port rule`
+
+<img width="1568" alt="inbound rule setup" src="assets/worker/edit-inbound-port-rule.png">
+
+7. Change only the `Destination port ranges` to 3000 and click `Add` once complete. The name should default to `AllowAnyCustom3000Inbound`. You should now see the new rule within you `Network Settings` dashboard. 
+
+<img width="400" alt="inbound rule setup" src="assets/worker/add-inbound-rule.png">
+
 ## Setup 
 
 ### K3s Workers
