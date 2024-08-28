@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cyborg_runtime::apis::RuntimeApi;
+use cyborg_runtime::apis::TaskManagementEventsApi;
 use sc_client_api::BlockchainEvents;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -12,7 +12,7 @@ pub async fn start_worker<T, U>(client: Arc<T>) -> ()
 where
 	U: Block,
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
-	T::Api: sp_block_builder::BlockBuilder<U> + sp_api::Core<U>,
+	T::Api: TaskManagementEventsApi<U>,
 	// T::Api: cyborg_runtime::apis::RuntimeApi<U>,
 {
 	dbg!("============worker_starting============");
