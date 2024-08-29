@@ -58,12 +58,16 @@ Here is an example of adding the Alice account to the Polkadot.js wallet extensi
 
 - Click the plus icon to reveal a drop-down.
 - Select "Import account from pre-existing seed".
+
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png"><br><br>
 - Paste the Alice seed phrase and select "Next".
+
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png"><br><br>
 - Add a name and password, then add the account.
+
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png"><br><br>
 - Once successful, you should see this account.
+
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png"><br><br>
 
 #### b) Run the App
