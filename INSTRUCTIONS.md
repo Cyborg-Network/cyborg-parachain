@@ -77,11 +77,14 @@ Here is an example of adding the Alice account to the Polkadot.js wallet extensi
 
 #### c) Test Workflow
 
-1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`
+1) Connect wallet when prompted, make sure to select the Alice wallet or a funded account and click `Access Compute`.
+
     <img width="1000" alt="Access Compute" src="assets/frontend/1.png"><br><br>
 2) Select the hosted chain.
+
     <img width="1000" alt="Access Compute" src="assets/frontend/select-hosted.png"><br><br>
 3) Choose CyberDock from the list of product lines.
+
     <img width="1000" alt="Choose Service" src="assets/frontend/select-cyberdock.png"><br><br>
 4) Enter the Docker image name (e.g. hello-world).
 
