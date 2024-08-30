@@ -179,14 +179,6 @@ Navigate to your project directory:
 cd Worker
 ```
 
-Make sure to checkout the branch for the parachain
-```bash
-git fetch && git branch -a
-```
-```bash
-git checkout -b updated-parachain remotes/origin/updated-parachain
-```
-
 Install the required Node.js dependencies:
 
 ```bash
@@ -246,7 +238,7 @@ You should see that there is a master node and one worker node. Upon Successful 
 <img width="800" alt="worker nodes" src="assets/kubnodes.png">
 <br></br>
 
-Keep in mind that the port 3000 of the master node should accept inbound requests. You will need this for registering the K3s workers on the blockchain along with the IP address.
+`[Important]:` Keep in mind that the port 3000 of the master node should accept inbound requests. Otherwise, the results of computation or data from the worker nodes will not be made available to the UI (i.e. Cyborg-connect). Depending on the server provider, you will need to configure networking or firewall rules to allow inbound port access. An example of this was show above with Azure network configurations. You will also need this for registering the K3s workers on the blockchain along with the IP address.
 
 For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
 
