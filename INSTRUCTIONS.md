@@ -5,16 +5,16 @@
 The baseline infrastructure layer of the Cyborg Network parachain is delivered as part of this grant. This includes a sample product line called CyberDock, which allows users to deploy publicized Docker images into our network of edge servers. The executed container results will be verified by parallel execution and Hash equations.
 
 **Key Components**
-We have developed and submitted two priary pallets:
+We have developed and submitted two primary pallets:
 
-- **Edge Connect** - Manages the connection and management of off-chain workers (K3S clusters).
+- **Edge Connect** - Manages the connection and management of off-chain workers (K3s clusters).
 - **Task Management** - Oversees task scheduling to remote K3s clusters based on availability and specifications.
 
 **Prototype Overview**
-This prototype is a blockchain-based machine learning training module featuring on-chain verification and settlement. It is designed to simulate real-world scenarios involving multiple virtual machine, accurately representing the interaction between blockchain and off-chian components (K3S clusters). These components coordinate to execute tasks, submit result, and update task execution statuses.
+This prototype is a blockchain-based machine learning training module featuring on-chain verification and settlement. It is designed to simulate real-world scenarios involving multiple virtual machine, accurately representing the interaction between blockchain and off-chian components (K3s clusters). These components coordinate to execute tasks, submit result, and update task execution statuses.
 
 **Testing Environment**
-To simplify the testing process, we provide a pre-hosted version of the Cyborg parachain on the Tanssi Dancebox testnet. This environment includes an active K3S cluster, allowing you to directly test the application's workflow. We will discuss both local and hosted testing methods to ensure a clear understanding of the delivery process.
+To simplify the testing process, we provide a pre-hosted version of the Cyborg parachain on the `Tanssi Dancebox` testnet. This environment includes an active K3s cluster, allowing you to directly test the application's workflow. We will discuss both local and hosted testing methods to ensure a clear understanding of the delivery process.
 
 ## Code Repositories
 
@@ -31,9 +31,9 @@ The edge-connect pallet is responsible for managing the connected workers within
 
 **Task Management Pallet**
 The task-management pallet leverages the worker information to assign tasks to connected workers. The workflow includes:
-- **Task Submission**: Any account can submit a task using 'task_scheduler` extrinsic.
+- **Task Submission**: Any account can submit a task using `task_scheduler` extrinsic.
 
-- **Task Execution**: The task is assigned to an account with registered worker, know as the 'executor`.
+- **Task Execution**: The task is assigned to an account with registered worker, know as the `executor`.
 
 - **Task Completion**: Upon completion, the executor submits the `submit_completed_task` extrinsic, including the `TaskId` and the tasks's hash output.
 
@@ -43,33 +43,33 @@ The task-management pallet leverages the worker information to assign tasks to c
 
 **Task Example:**
 
-- 'hello-world': - Prints the Docker hello world message.
-- 'cyborgnetwork/simple-python:new': - A sample Python program with arithmetic functions.
-- 'cyborgnetwork/flog_loader:latest`: - A loader app to test logs.
+- `hello-world`: - Prints the Docker hello world message.
+- `cyborgnetwork/simple-python:new`: - A sample Python program with arithmetic functions.
+- `cyborgnetwork/flog_loader:latest`: - A loader app to test logs.
   
 ## Testing Guide
 
 ### 1 Prerequisites - Wallets and Accounts
 
-Only accounts with a minimum balance can execute transactions. The Alice account is prefunded with the chain's tokens and will be used to interact with the frontend.
-Whether you are testing locally or using the hosted version of our chain, you will need to use the Alice account.
+Only accounts with a minimum balance can execute transactions. The `Alice` account is prefunded with the chain's tokens and will be used to interact with the frontend.
+Whether you are testing locally or using the hosted version of our chain, you will need to use the `Alice` account.
 
-To use the Alice account, swtich to it or import it through the seed phrase using your prefered wallet extension:
+To use the `Alice` account, swtich to it or import it through the seed phrase using your prefered wallet extension:
 
-Using a wallet extension of your choice, switch to the Alice test account or import Alice through the seed phrase:
+Using a wallet extension of your choice, switch to the `Alice` test account or import `Alice` through the seed phrase:
 
 ```bash
 bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
 ```
 
- Steps to Add the Alice Account in Polkadot.js Wallet Extension:
+ Steps to Add the Alice Account in `Polkadot.js` Wallet Extension:
 
 - Click the plus icon to reveal a drop-down menu.
-- Select "Import account from pre-existing seed."
+- Select `Import account from pre-existing seed`.
 
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png"><br><br>
 
-- Paste the Alice seed phrase and click "Next".
+- Paste the Alice seed phrase and click `Next`.
 
 <img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png"><br><br>
 
@@ -104,10 +104,11 @@ You can either:
 4 Enter the Docker image name (e.g., hello-world).
 
 - In the Docker image url section enter any one of the file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples).
-- Any app/script/website published as a public Docker image for linux/amd64 will execute in this system.
+- Any `app/script/website` published as a public Docker image for `linux/amd64` will execute in this system.
 E.g., hello-world (prints hello world message)
 
 <img width="1000" alt="Enter docker image" src="assets/frontend/enter-docker.png">
+
 5 Pay the fees.
 
 <img width="1000" alt="Pay the fees" src="assets/frontend/4.png"><br><br>
@@ -141,11 +142,12 @@ You will need a local Linux machine and two servers hosted within the same virtu
 When deploying servers from a cloud provider, you have the option to add new servers to an existing network.
 It is crucial that both the K3S master node and worker node are connected within the same network to ensure seamless load distribution, especially when managing heavier data loads such as machine learning models.
 
-1 Under the "Create a VM" section, choose Ubuntu 20.04 or 22.04 LTS.
+1 Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
 
 <img width="1000" alt="Screenshot 2024-08-10 at 5 57 20 PM" src="https://github.com/user-attachments/assets/99999800-03b8-490c-8e23-bf88e172928c"><br><br>
 
-2 In the customization dashboard, create a new resource group and deploy the master node server. Then create a new deployment for worker node.
+2 In the customization dashboard, create a new resource group and deploy the master node server.
+Then create a new deployment for worker node.
 
 <img width="1000" alt="Screenshot 2024-08-10 at 6 02 25 PM" src="https://github.com/user-attachments/assets/0f6ca8ba-ad2b-41b6-997f-e254ab1d4235"><br><br>
 
@@ -153,7 +155,7 @@ It is crucial that both the K3S master node and worker node are connected within
 
 <img width="1000" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/9e661c00-3b5b-4139-ac4b-9185a60f0ca1"><br><br>
 
-4 In the Networking tab, check that the VNet is the same as that of the master node, then deploy the second server.
+4 In the `Networking` tab, check that the VNet is the same as that of the master node, then deploy the second server.
 
 <img width="1000" alt="Screenshot 2024-08-10 at 6 16 37 PM" src="https://github.com/user-attachments/assets/54b6ddb3-3004-4b91-9028-97d82d177932"><br><br>
 
@@ -162,16 +164,18 @@ It is crucial that both the K3S master node and worker node are connected within
 <img width="1000" alt="Screenshot 2024-08-10 at 7 28 27 PM" src="https://github.com/user-attachments/assets/a0137e1f-a23d-456d-9cad-45b8b34a5ae4"><br><br>
 <img width="1000" alt="Screenshot 2024-08-10 at 7 27 49 PM" src="https://github.com/user-attachments/assets/0c049fd2-5125-461a-94bd-c57c70d32f75"><br><br>
 
-6 Finally, go to the `Networking` tab of your virtual machine and add a new `inbound` rule for `port` `3000`. Then Hit `Create port rule`.
+6 Finally, go to the `Networking` tab of your virtual machine and add a new `inbound` rule for `port` `3000`.
+Then Hit `Create port rule`.
 
 <img width="1000" alt=" " src="assets/worker/edit-inbound-port-rule.png"><br><br>
 
-7 Change only the `Destination port ranges` to 3000 and click `Add` once complete. The name should default to `AllowAnyCustom3000Inbound`.
+7 Change only the `Destination port ranges` to `3000` and click `Add` once complete.
+The name should default to `AllowAnyCustom3000Inbound`.
 You should now see the new rule within your `Network Settings` dashboard.
 
 <img width="400" alt=" " src="assets/worker/add-inbound-rule.png"><br><br>
 
-8 Get Master Node IP Address
+8 Get `Master Node` IP Address
 
 <img width="1000" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/edce18ad-eaf8-4ac1-a370-eaa0f3a3db10">
 
