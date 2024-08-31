@@ -85,10 +85,7 @@ bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
 
 #### 2.1 Running the Application
 
-You can either:
-
-- Option 1: Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect).
-- Option 2: Open URL <http://127.0.0.1:8000/cyborg-connect/> in a web browser.
+Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect).
 
 #### 2.1 Testing the Workflow
 
