@@ -324,15 +324,6 @@ git clone https://github.com/Cyborg-Network/Worker.git
 # Navigate to your project directory
 cd Worker
 
-# Update the local repository and list the available branches
-git fetch && git branch -a
-
-# Check out the `updated-parachain` branch from the repository.
-git checkout -b updated-parachain origin/updated-parachain
-
-# List Branch
-git branch -v
-
 ```
 
 <img width="600" alt=" " src="assets/ubuntu/gitbranch.png">
