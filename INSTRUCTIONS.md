@@ -284,7 +284,7 @@ sudo telnet <ip addr> 6443
 
 # Test Telnet to port 3000 on Master VM
 #Run this command on the Master VM terminal to listen on port 3000
-Sudo nc -l -p <port>
+sudo nc -l -p 3000
 
 #Run this command on the Workder VM terminal to connect to the Master VM
 sudo telnet <master-vm-IP-address> <port>
