@@ -326,8 +326,6 @@ cd Worker
 
 ```
 
-<img width="600" alt=" " src="assets/ubuntu/gitbranch.png">
-
 Install the required Node.js dependencies
 
 - Install Node.js version 18 or above, you can check your current Node.js version by running `node -v` in terminal on Ubuntu.
@@ -425,23 +423,12 @@ Clone the worker repository
 - If `git` is not installed on your system, you can install it by running `sudo apt-get install git` in terminal on Ubuntu.
 
 ```bash
-# Install git if doesn't exist
-sudo apt-get install git
 
 # Clone the repository
 git clone https://github.com/Cyborg-Network/Worker.git
 
 # Navigate to your project directory
 cd Worker
-
-# Update the local repository and list the available branches
-git fetch && git branch -a
-
-# Check out the `updated-parachain` branch from the repository.
-git checkout -b updated-parachain origin/updated-parachain
-
-# List Branch
-git branch -v
 
 ```
 
