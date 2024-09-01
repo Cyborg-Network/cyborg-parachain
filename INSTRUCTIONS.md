@@ -322,9 +322,6 @@ Clone the worker repository
 - If `git` is not installed on your system, you can install it by running `sudo apt-get install git` in terminal on Ubuntu.
 
 ```bash
-# Install git if doesn't exist
-sudo apt-get install git
-
 # Clone the repository
 git clone https://github.com/Cyborg-Network/Worker.git
 
