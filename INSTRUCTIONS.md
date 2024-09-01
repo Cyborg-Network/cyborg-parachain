@@ -267,6 +267,9 @@ sudo ufw allow ssh
 # Allow traffic on port 3000
 sudo ufw allow 3000/tcp
 
+# Allow worker node to join cluster on port 6443
+sudo ufw allow 6443/tcp
+
 # Reload the firewall to apply changes
 sudo ufw reload
 ```
@@ -279,12 +282,15 @@ sudo ufw reload
 # Test SSH connectivity
 sudo telnet <ip addr> 22
 
+# Test K3s port connectivity
+sudo telnet <ip addr> 6443
+
 # Test Telnet to port 3000 on Master VM
 #Run this command on the Master VM terminal to listen on port 3000
-Sudo nc -l 
+Sudo nc -l -p <port>
 
 #Run this command on the Workder VM terminal to connect to the Master VM
-sudo tenet <master-vm-IP-address> 3000
+sudo telnet <master-vm-IP-address> <port>
 
 ```
 
@@ -488,15 +494,18 @@ sh WorkerSetup.sh worker-one 192.168.64.2 K10c8230eebd6c64c5cd5aa1::server:8ce7c
 
 ##### 3.2.4 Verify Worker Connection
 
-Go back to your master node and execute the followign command to verify the connection between your master and worker nodes:
+On your master node, execute the following command to verify the connection between your master and worker nodes:
 
 ```bash
 kubectl get nodes
 ```
 
-You should see that there is one master node and one worker node listed. This indicates that the worker node has successfully joned the K3s cluster.
+You should see both the master node and the worker node listed.
+This confirms that the worker node has successfully joned the K3s cluster.
 
-<img width="1000" alt="worker nodes" src="assets/kubnodes.png"><br></br>
+<img width="1000" alt="worker nodes" src="assets/kubnodes.png">
+
+<img width="1000" alt="worker nodes" src="assets/kubnodes2.png">
 
 if the setup was successful, you can proceed to register the K3s clusters on the blockchain.
 
