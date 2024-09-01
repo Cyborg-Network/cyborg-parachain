@@ -128,7 +128,7 @@ If you registered another worker, the task might be executed by another worker i
 
 We have included two ways for local testing K3s workers
 
-1. Using Azure cloud
+1. Using Azure cloud (For connecting to hosted chain)
 2. Using UTM (for running blockchain, K3S master and worker nodes in the same local machine)
 
    Either of the two types can be used to setup clusters
