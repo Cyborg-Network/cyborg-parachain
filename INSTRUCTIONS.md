@@ -583,13 +583,9 @@ Go to the [`Polkadotjs Apps`](https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9
 
 <img width="1000" alt="Zombienet terminal view" src="assets/zombinet-collator.png"><br></br>
 
-Once your parachain node starts producing blocks, navigate to the extrinsics tab and select `edge-connect`.
+Once your parachain node starts producing blocks, navigate to the extrinsics tab and select `edge-connect` and tick the option to include domain and enter your domain, or tick the option to include an IP/Port.
 
-<img width="1000" alt="Polkadotjs App extrinsic workerClusters" src="assets/workerClusters.png"><br><br>
-
-Tick the option to include domain and enter your domain, or tick the option to include an IP/Port.
-
-<img width="1000" alt="Enter API" src="assets/register-domain.png"><br><br>
+<img width="1718" alt="Screenshot 2024-09-01 at 10 19 57 PM" src="https://github.com/user-attachments/assets/71c23c7a-f567-43a0-9d45-abeea3bbe8a6">
 
 Then sign and submit the transaction. Congratulations, you've registered your worker on-chain!
 
