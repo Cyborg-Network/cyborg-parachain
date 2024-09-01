@@ -461,7 +461,7 @@ git branch -v
 Execute the `WorkerSetup.sh` script:
 
 - The private IP address for the Master Node in Azure in this example is `10.0.0.5`.
-- The private IP address for the Master Node in Local VM in this example is `192.168.64.2`
+- The private IP address for the Master Node in Local VM in this example is `192.168.50.219`
 - Retrieve the token from `k3s-node-token.txt` on the Master Node.
 
 ```bash
@@ -487,7 +487,7 @@ sh WorkerSetup.sh worker-one 10.0.0.5 K10c8230eebd6c64c5cd5aa1::server:8ce7cae60
 chmod +x WorkerSetup.sh
 
 # Replace these values with your own IP and token
-sh WorkerSetup.sh worker-one 192.168.64.2 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
+sh WorkerSetup.sh worker-one 192.168.50.219 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
 ```
 
 <img width="600" alt=" " src="assets/ubuntu/workersetup.png">
