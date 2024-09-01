@@ -126,6 +126,13 @@ If you registered another worker, the task might be executed by another worker i
 
 #### 3.1 Prerequsites - Infrastructure Setup
 
+We have included two ways for local testing K3s workers
+
+1. Using Azure cloud
+2. Using UTM (for running blockchain, K3S master and worker nodes in the same local machine)
+
+   Either of the two types can be used to setup clusters
+
 ##### 3.1.1 Operating System: Ubuntu Debian 20.04 or Higher
 
 You will need a local Linux machine and two servers hosted within the same virtual network (such as a VPC in the case of AWS):
