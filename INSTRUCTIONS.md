@@ -194,7 +194,7 @@ You should now see the new rule within your `Network Settings` dashboard.
 
 <img width="600" alt=" " src="assets/utm/ubuntu-user.png">
 
-3 Duplicte the Ubuntu Server VM
+3 Duplicate the Ubuntu Server VM
 
 - Once the Ubuntu Server VM is downloaded, you'll need two instances.
 
@@ -427,7 +427,7 @@ The following activities will be performed on the Ubuntu Worker VM.
 
 On each worker node, run the `WorkerSetup.sh` script with the worker's name (use any name of your choice), master node's private IP address, and the join token from the `k3s-node-token.txt` file:
 
-**1  Clone Repository and Install Node.js Dependencies**
+**2  Clone Repository and Install Node.js Dependencies**
 
 Clone the worker repository
 
@@ -454,7 +454,7 @@ git branch -v
 
 ```
 
-**2 Run the Worker Setup Script**
+**3 Run the Worker Setup Script**
 Execute the `WorkerSetup.sh` script:
 
 - The private IP address for the Master Node in Azure in this example is `10.0.0.5`.
