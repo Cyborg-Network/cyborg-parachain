@@ -40,6 +40,12 @@ jobs:
         run: git submodule update --init && cargo build
         timeout-minutes: 90
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: chain-build-linux
+          path: ./target/release
+
       # - name: Run clippy
       #   run: |
       #     SKIP_WASM_BUILD=1 cargo clippy --all-targets --locked --workspace --quiet
