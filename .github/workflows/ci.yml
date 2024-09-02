@@ -49,3 +49,33 @@ jobs:
       - name: Run the tests
         run: cargo test
         timeout-minutes: 15
+  
+  build-macos:
+    runs-on: macos-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Rust compilation prerequisites
+        run: |
+          brew install protobuf
+          rustup target add wasm32-unknown-unknown
+          rustup component add rustfmt clippy rust-src
+
+      - name: Build the chain
+        run: |
+          git submodule update --init
+          cargo build --release
+        timeout-minutes: 90
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: chain-build-macos
+          path: ./target/release
+
+      - name: Run the tests
+        run: cargo test
+        timeout-minutes: 15
