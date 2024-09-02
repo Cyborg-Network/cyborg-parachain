@@ -1,8 +1,12 @@
 # Cyborg Network - Milestone 1 Delivery
 
-## Introduction
+## Overview
 
 The baseline infrastructure layer of the Cyborg Network parachain is delivered as part of this grant. This includes a sample product line called CyberDock, which allows users to deploy publicized Docker images into our network of edge servers. The executed container results will be verified by parallel execution and Hash equations.
+
+## Delivered Items
+
+### 1. Pallets
 
 **Key Components**
 We have developed and submitted two primary pallets:
@@ -11,293 +15,186 @@ We have developed and submitted two primary pallets:
 - **Task Management** - Oversees task scheduling to remote K3s clusters based on availability and specifications.
 
 **Prototype Overview**
-This prototype is a blockchain-based machine learning training module featuring on-chain verification and settlement. It is designed to simulate real-world scenarios involving multiple virtual machine, accurately representing the interaction between blockchain and off-chian components (K3s clusters). These components coordinate to execute tasks, submit result, and update task execution statuses.
 
-**Testing Environment**
-To simplify the testing process, we provide a pre-hosted version of the Cyborg parachain on the `Tanssi Dancebox` testnet. This environment includes an active K3s cluster, allowing you to directly test the application's workflow. We will discuss both local and hosted testing methods to ensure a clear understanding of the delivery process.
+This prototype is a blockchain-based machine learning training module featuring on-chain verification and settlement.
+It is designed to simulate real-world scenarios involving multiple virtual machine, accurately representing the interaction between blockchain and off-chian components (K3s clusters). These components coordinate to execute tasks, submit result, and update task execution statuses.
 
-## Code Repositories
+**Chain Workflow**
+<img width="600" alt="Access Compute" src="assets/diagram/chain-workflow.png"><br>
+
+- **Edge Connect Pallet**
+The edge-connect pallet is responsible for managing the connected workers within the system It provides functionality to register (`register_worker`)  and remove (`remove_worker`) workers lined to user accounts. A storage map maintains worker details, including status, IP, Domain, availability, specifications, and creation block.
+
+- **Task Management Pallet**
+The task-management pallet leverages the worker information to assign tasks to connected workers. The workflow includes:
+
+    + **Task Submission**: Any account can submit a task using `task_scheduler` extrinsic.
+
+    + **Task Execution**: The task is assigned to an account with registered worker, know as the `executor`.
+
+    + **Task Completion**: Upon completion, the executor submits the `submit_completed_task` extrinsic, including the `TaskId` and the tasks's hash output.
+
+    + **Task Verification**: A `verifier`, another account with a registered worker, re-executes the task and submits their hash output with the `TaskId` using the `verify_completed_task` extrinsic. If the hashes match, the task is marked as `completed`. if not, a `resolver` is assigned.
+
+    + **Task Resolution**: The resolver performs the task and submits a hash output with the same `TaskId` using `resolve_completed_task` extrinsic. The correct task output is determined based on matching hashes. if none match, the task is reassigned to a new executor, disticnt from the previous accounts involved.
+
+- **Task Example:**
+
+    + `hello-world`: - Prints the Docker hello world message.
+    + `cyborgnetwork/simple-python:new`: - A sample Python program with arithmetic functions.
+    + `cyborgnetwork/flog_loader:latest`: - A loader app to test logs.
+
+**Code Repository**
 
 - [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain) - The Cyborg Substrate Parachain.
 - [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) - The Frontend for our App.
-- [Worker](https://github.com/Cyborg-Network/Worker) - The K3S worker configuration for Docker image execution.
 
-## Chain Workflow
+### 2. K3s Cluster
 
-<img width="600" alt="Access Compute" src="assets/diagram/chain-workflow.png"><br>
+**Key Components**
+The K3s Cluster is a lightweight Kubernetes distribution designed to manage and orchestrate containerized within Cyborg Network.
+We have developed an automated infrastructure setup for off-chain task execution:
 
-**Edge Connect Pallet**
-The edge-connect pallet is responsible for managing the connected workers within the system It provides functionality to register (`register_worker`)  and remove (`remove_worker`) workers lined to user accounts. A storage map maintains worker details, including status, IP, Domain, availability, specifications, and creation block.
+- **Master Node Setup** - The master node is configured to initiate the K3s cluster and managed the deployment of tasks. The `MasterSetup.sh` script is delivered as part of this setup, which automates the installation of K3s on the master node and prepares it to handle task orchestration.
+- **Worker Node Setup** - The worker node is configured to running the actual application workloads. The `WorkerSetup.sh` script is provided to automate the process of joining worker nodes to the master node using a secure token, ensuring they are ready to receive and execute tasks as part of K3s cluster.
 
-**Task Management Pallet**
-The task-management pallet leverages the worker information to assign tasks to connected workers. The workflow includes:
-- **Task Submission**: Any account can submit a task using `task_scheduler` extrinsic.
+**Code Repository**
 
-- **Task Execution**: The task is assigned to an account with registered worker, know as the `executor`.
+- [Worker](https://github.com/Cyborg-Network/Worker) - The K3s worker configuration for Docker image execution.
 
-- **Task Completion**: Upon completion, the executor submits the `submit_completed_task` extrinsic, including the `TaskId` and the tasks's hash output.
+## Modes of Testing
 
-- **Task Verification**: A `verifier`, another account with a registered worker, re-executes the task and submits their hash output with the `TaskId` using the `verify_completed_task` extrinsic. If the hashes match, the task is marked as `completed`. if not, a `resolver` is assigned.
+There are three different options available for testing CyberDock platform, each catering to different environments and needs. These options will be discussed in detail in the following sections:
+- **A. Testing Hosted Front End**: This option involves testing the hosted front end against a pre-configured backend that is already aligned and ready to use.
+- **B. Hosted Front End with Azure Servers**: This option tests the hosted front end in combination with Azure Servers, providing a hybrid setup.
+- **C. Fully Local Setup with UTM and Local Parachain**:This option is for testing the CyberDock platform on a local machine using UTM and a local parachain.
 
-- **Task Resolution**: The resolver performs the task and submits a hash output with the same `TaskId` using `resolve_completed_task` extrinsic. The correct task output is determined based on matching hashes. if none match, the task is reassigned to a new executor, disticnt from the previous accounts involved.
+**Prerequisites - Wallet and Accounts**
 
-**Task Example:**
+Before you begin testing, ensure that you have the necessary wallets and accounts configured.
 
-- `hello-world`: - Prints the Docker hello world message.
-- `cyborgnetwork/simple-python:new`: - A sample Python program with arithmetic functions.
-- `cyborgnetwork/flog_loader:latest`: - A loader app to test logs.
-  
-## Testing Guide
+Only accounts with a minimum balance can execute transactions. The `Alice` account is prefunded with the chain's tokens and will be used to interact with the frontend. Whether you are testing locally or using the hosted version of our chain, you will need to use the `Alice` account.
 
-### 1 Prerequisites - Wallets and Accounts
+- **Using the Alice Account**
+To use the `Alice` account, switch to it or import it through the seed phrase using your prefered wallet extension:
 
-Only accounts with a minimum balance can execute transactions. The `Alice` account is prefunded with the chain's tokens and will be used to interact with the frontend.
-Whether you are testing locally or using the hosted version of our chain, you will need to use the `Alice` account.
+- **Seed Pharase for Alice**
 
-To use the `Alice` account, swtich to it or import it through the seed phrase using your prefered wallet extension:
+    ```bash
+    bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
+    ```
 
-Using a wallet extension of your choice, switch to the `Alice` test account or import `Alice` through the seed phrase:
+- **Steps to Add the Alice Account in `Polkadot.js` Wallet Extension:**
 
-```bash
-bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice
-```
+    - Click the plus icon to reveal a drop-down menu.
+    - Select `Import account from pre-existing seed`.
 
- Steps to Add the Alice Account in `Polkadot.js` Wallet Extension:
+    <img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png">
 
-- Click the plus icon to reveal a drop-down menu.
-- Select `Import account from pre-existing seed`.
+    - Paste the Alice seed phrase and click `Next`.
 
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs1.png"><br><br>
+    <img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png">
 
-- Paste the Alice seed phrase and click `Next`.
+    - Add a name and password, then add the account.
 
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs2.png"><br><br>
+    <img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png">
 
-- Add a name and password, then add the account.
+    - Once successful, you should see the Alice account listed.
 
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs3.png"><br><br>
+    <img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png"><br><br>
 
-- Once successful, you should see the Alice account listed.
+    Once Alice's account is set up, you can proceed with the different modes of testing.
 
-<img width="300" alt="Access Compute" src="assets/polkajs/polkajs4.png"><br><br>
+### Option A: Testing Hosted Front End
 
-### 2. Testing the hosted version (Cloud Server)
+**Step 1: Access the Hosted Front End**
 
-#### 2.1 Running the Application
+- Open your web browser and navigate to the provided URL for the hosted front end.
+    URL: https://cyborg-network.github.io/cyborg-connect/
 
-You can either:
+**Step 2: Testing the Workflow**
 
-- Option 1: Compile and run [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect).
-- Option 2: Open URL <http://127.0.0.1:8000/cyborg-connect/> in a web browser.
+- Connect your wallet when prompted, ensuring you select the Alice wallet or a another funded account and click `Access Compute`.
 
-#### 2.1 Testing the Workflow
+    <img width="1000" alt="Access Compute" src="assets/frontend/1.png"><br><br>
+- Select the hosted chain.
 
-1 Connect your wallet when prompted, ensuring you select the Alice wallet or a another funded account and click `Access Compute`.
+    <img width="1000" alt="Access Compute" src="assets/frontend/select-hosted.png"><br><br>
+- Choose CyberDock from the list of product lines.
 
-<img width="1000" alt="Access Compute" src="assets/frontend/1.png"><br><br>
-2 Select the hosted chain.
+    <img width="1000" alt="Choose Service" src="assets/frontend/select-cyberdock.png"><br><br>
+- Enter the Docker image name (e.g., hello-world).
 
-<img width="1000" alt="Access Compute" src="assets/frontend/select-hosted.png"><br><br>
-3 Choose CyberDock from the list of product lines.
+    - In the Docker image url section enter any one of the file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples).
 
-<img width="1000" alt="Choose Service" src="assets/frontend/select-cyberdock.png"><br><br>
-4 Enter the Docker image name (e.g., hello-world).
+    - Any `app/script/website` published as a public Docker image for `linux/amd64` will execute in this system. E.g., hello-world (prints hello world message)
 
-- In the Docker image url section enter any one of the file names in the [task examples](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/INSTRUCTIONS.md#task-examples).
-- Any `app/script/website` published as a public Docker image for `linux/amd64` will execute in this system.
-E.g., hello-world (prints hello world message)
+    <img width="1000" alt="Enter docker image" src="assets/frontend/enter-docker.png">
 
-<img width="1000" alt="Enter docker image" src="assets/frontend/enter-docker.png">
+- Pay the fees.
 
-5 Pay the fees.
+    <img width="1000" alt="Pay the fees" src="assets/frontend/4.png"><br><br>
+- Wait for the task to execute (Loader Screen).
 
-<img width="1000" alt="Pay the fees" src="assets/frontend/4.png"><br><br>
-6 Wait for the task to execute (Loader Screen).
+    <img width="1000" alt="Loader Screen" src="assets/frontend/5.png"><br><br>
+- View the Node List screen. The tasks should be assigned randomly to an available worker. If you registered another worker, the task might be executed by another worker instead.
+    - Click through the workers by selecting the left `Dashboard` tab to see the executed task.
 
-<img width="1000" alt="Loader Screen" src="assets/frontend/5.png"><br><br>
-7 View the Node List screen. The tasks should be assigned randomly to an available worker.
-If you registered another worker, the task might be executed by another worker instead.
+    <img width="1000" alt="Node List Screen" src="assets/frontend/8.png"><br><br>
+- Access the Deployment dashboard
 
-- Click through the workers by selecting the left `Dashboard` tab to see the executed task.
+    <img width="1000" alt="Deployment dashboard" src="assets/frontend/7.png">
 
-<img width="1000" alt="Node List Screen" src="assets/frontend/8.png"><br><br>
-8 Access the Deployment dashboard
+### Option B: Hosted Front End with Azure Server
 
-<img width="1000" alt="Deployment dashboard" src="assets/frontend/7.png">
+**Step 1: Prerequisites - Infrastructure Setup**
+You will need a local Linux machine and two servers hosted within the same virtual network (e.g., a VPC in the case of AWS).
+Operating System: `Ubuntu Debian 20.04 LTS` or higher
 
-### 3. Testing on a Local Machine (Installed VM)
-
-#### 3.1 Prerequsites - Infrastructure Setup
-
-##### 3.1.1 Operating System: Ubuntu Debian 20.04 or Higher
-
-You will need a local Linux machine and two servers hosted within the same virtual network (such as a VPC in the case of AWS):
+When deploying servers from a cloud provider, you have the option to add new servers to an existing network. It is crucial that both the K3s master node and worker node are connected within the same network to ensure seamless load distribution, especially when managing heavier data loads such as machine learning models.
 
 - **Local Machine**: Host the Parachain and Frontend.
-- **Server 1**: K3s master node.
-- **Server 2**: K3s worker node.
+- **Server 1**: K3s Master node.
+- **Server 2**: K3s Worker node.<br><br>
 
-##### 3.1.2 Server Setup Example for Cloud Azure
+Below is an example server setup for Cloud Azure.
 
-When deploying servers from a cloud provider, you have the option to add new servers to an existing network.
-It is crucial that both the K3S master node and worker node are connected within the same network to ensure seamless load distribution, especially when managing heavier data loads such as machine learning models.
+- **VM Setup On Cloud Azure**
+  
+    - Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
 
-1 Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/99999800-03b8-490c-8e23-bf88e172928c"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-10 at 5 57 20 PM" src="https://github.com/user-attachments/assets/99999800-03b8-490c-8e23-bf88e172928c"><br><br>
+    - In the customization dashboard, create a new resource group and deploy the master node server. Then create a new deployment for worker node.
 
-2 In the customization dashboard, create a new resource group and deploy the master node server.
-Then create a new deployment for worker node.
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/0f6ca8ba-ad2b-41b6-997f-e254ab1d4235"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-10 at 6 02 25 PM" src="https://github.com/user-attachments/assets/0f6ca8ba-ad2b-41b6-997f-e254ab1d4235"><br><br>
+    - Now, choose the same resource group that was created for the first server.
 
-3 Now, choose the same resource group that was created for the first server.
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/9e661c00-3b5b-4139-ac4b-9185a60f0ca1"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-10 at 6 09 05 PM" src="https://github.com/user-attachments/assets/9e661c00-3b5b-4139-ac4b-9185a60f0ca1"><br><br>
+    - In the `Networking` tab, check that the VNet is the same as that of the master node, then deploy the second server.
 
-4 In the `Networking` tab, check that the VNet is the same as that of the master node, then deploy the second server.
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/54b6ddb3-3004-4b91-9028-97d82d177932"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-10 at 6 16 37 PM" src="https://github.com/user-attachments/assets/54b6ddb3-3004-4b91-9028-97d82d177932"><br><br>
+    - Cross-verify the VNet of both deployed servers.
 
-5 Cross-verify the VNet of both deployed servers.
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/a0137e1f-a23d-456d-9cad-45b8b34a5ae4">
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/0c049fd2-5125-461a-94bd-c57c70d32f75"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-10 at 7 28 27 PM" src="https://github.com/user-attachments/assets/a0137e1f-a23d-456d-9cad-45b8b34a5ae4"><br><br>
-<img width="1000" alt="Screenshot 2024-08-10 at 7 27 49 PM" src="https://github.com/user-attachments/assets/0c049fd2-5125-461a-94bd-c57c70d32f75"><br><br>
+    - Finally, go to the `Networking` tab of your virtual machine and add a new `inbound` rule for `port` `3000`. Then Hit `Create port rule`.
 
-6 Finally, go to the `Networking` tab of your virtual machine and add a new `inbound` rule for `port` `3000`.
-Then Hit `Create port rule`.
+    <img width="700" alt=" " src="assets/worker/edit-inbound-port-rule.png"><br><br>
 
-<img width="1000" alt=" " src="assets/worker/edit-inbound-port-rule.png"><br><br>
+    - Change only the `Destination port ranges` to `3000` and click `Add` once complete. The name should default to `AllowAnyCustom3000Inbound`. You should now see the new rule within your `Network Settings` dashboard.
 
-7 Change only the `Destination port ranges` to `3000` and click `Add` once complete.
-The name should default to `AllowAnyCustom3000Inbound`.
-You should now see the new rule within your `Network Settings` dashboard.
+    <img width="400" alt=" " src="assets/worker/add-inbound-rule.png"><br><br>
 
-<img width="400" alt=" " src="assets/worker/add-inbound-rule.png"><br><br>
+    - Get `Master Node` IP Address
 
-8 Get `Master Node` IP Address
+    <img width="700" alt=" " src="https://github.com/user-attachments/assets/edce18ad-eaf8-4ac1-a370-eaa0f3a3db10"><br><br>
 
-<img width="1000" alt="Screenshot 2024-08-06 at 9 23 39 PM" src="https://github.com/user-attachments/assets/edce18ad-eaf8-4ac1-a370-eaa0f3a3db10">
-
-##### 3.1.3 Server Setup Example for Local VM using UTM
-
-1 Download and Install UTM (Visit the UTM website: https://mac.getutm.app)
-
-- Visit the [UTM website](https://mac.getutm.app) to download and install the application.
-
-2 Open UTM Application, Download pre-build Ubuntu Image from UTM Galery
-
-- The Ubuntu username and password are provided in the description.
-
-<img width="600" alt=" " src="assets/utm/launch-utm.png">
-
-<img width="600" alt=" " src="assets/utm/download-prebuild.png">
-
-<img width="600" alt=" " src="assets/utm/select-ubuntu.png">
-
-<img width="600" alt=" " src="assets/utm/ubuntu-user.png">
-
-3 Duplicte the Ubuntu Server VM
-
-- Once the Ubuntu Server VM is downloaded, you'll need two instances.
-
-- To do this, right-click the downloaded Ubuntu Server VM and select Duplicate (e.g., Ubuntu_22.04_Master.utm and Ubuntu_22.04_Worker.utm)
-
-- This will create an identical copy of the Ubuntu Server VM, giving you two separate VMs.
-
-- Create directory that you want to share between your Mac and the Ubuntu Server VMs (e.g., SharedDirectory).
-
-- Set Network Mode to Bridge, configure the Inteface and Random Mac Address
-
-<img width="600" alt=" " src="assets/utm/duplicate-vm.png">
-
-<img width="600" alt=" " src="assets/ubuntu/networksetting.png">
-
-<img width="600" alt=" " src="assets/ubuntu/mounting.png">
-
-
-4 Start Both Ubuntu Server VMs.
-
-- Open the Ubuntu_Master and Ubuntu_Worker VM and set the Share Directory to `SharedDirectory`.
-
-<img width="600" alt=" " src="assets/utm/launch-utm.png">
-
-<img width="600" alt=" " src="assets/utm/open-prebuild.png">
-
-<img width="600" alt=" " src="assets/utm/workervm.png">
-
-5 Install Networking Utilities
-
-```bash
-# update the list of package source for new VM
-sudo apt-get update
-
-# Install Ping utility
-sudo apt-get install iputils-ping
-
-# Install SSH Server
-sudo apt-get install openssh-server
-
-# Install Telnet
-sudo apt-get install telnet
-
-# Telnet installation need reboot
-sudo reboot
-
-# Install the Uncomplicated Firewall (UFW)
-sudo apt-get install ufw
-
-# Install the Netcat for port testing
-sudo apt-get install netcat
-
-```
-
-6 Open Port on **Ubuntu_Master VM**.
-
-```bash
-# Check the current status of the firewall
-sudo ufw status
-
-# Enable the firewall to start on boot and activate it immediately
-sudo ufw enable
-
-# Allow traffic on port 22 - SSH
-sudo ufw allow ssh
-
-# Allow traffic on port 3000
-sudo ufw allow 3000/tcp
-
-# Allow worker node to join cluster on port 6443
-sudo ufw allow 6443/tcp
-
-# Reload the firewall to apply changes
-sudo ufw reload
-```
-
-<img width="600" alt=" " src="assets/ubuntu/firewall.png">
-
-7 Connectivity Testing
-
-```bash
-# Test SSH connectivity
-sudo telnet <ip addr> 22
-
-# Test K3s port connectivity
-sudo telnet <ip addr> 6443
-
-# Test Telnet to port 3000 on Master VM
-#Run this command on the Master VM terminal to listen on port 3000
-Sudo nc -l -p <port>
-
-#Run this command on the Workder VM terminal to connect to the Master VM
-sudo telnet <master-vm-IP-address> <port>
-
-```
-
-#### 3.2 Application Setup
-
-##### 3.2.1 Overview of K3s Workers
-
+**Step 2: Prerequisites - K3s Worker Setup**
 K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
 Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
 
@@ -307,247 +204,209 @@ When setting up servers for the K3s workers, ensure that you use two distinct Ub
 
 Below is an example setup of a K3s Worker that connects to the local blockchain.
 
-##### 3.2.2 Master Node Setup
+- **Master Node Setup for Cloud Azure**
+
+    - Clone the repository and Install Node.js Dependencies
+    ```bash
+        # Clone the repository
+        git clone   https://github.com/Cyborg-Network/Worker.git
+
+        # Navigate to your project directory
+        cd Worker
+
+        # Make sure to checkout the branch for the parachain
+        git fetch && git branch -a
+
+        git checkout -b updated-parachain origin/updated-parachain
+
+        # Node.js dependencies
+        npm install
+    ```
+    
+    - Environment
+    Copy the `.env.example` file and replace the contents:
+        - Set `WORKER_ADDRESS` to the address where you register this worker on the Cyborg Network chain.
+        - Set `RPC_ENDPOINT` to the correct RPC endpoint of the chain you are testing on.
+        ```bash
+        cp .env.example .env
+        ```
+
+     - Run Master Setup Script
+    Execute the `MasterSetup.sh` script. This script performs the following actions:
+        - Installs k3s on the master node.
+        - Saves the k3s node join token to k3s-node-token.txt
+        - Starts the Node.js application that listens for deployment requests on port 3000.
+
+        ```bash
+            # Make the MasterSetup.sh script executable
+            sudo chmod +x MasterSetup.sh
+
+            # Run the MasterSetup.sh script with elevated privileges
+            sudo sh MasterSetup.sh
+
+        ```
+- **Worker Node Setup for Cloud Azure**
+    - Run Worker Setup Scripts.
+    Execute the `WorkerSetup.sh <worker-name> <master-ip> <token>` script 
+        - `<worker-name>`: The worker's name (use any name of your choice).
+        - `<master-ip>`: The `private IP address` from master node.
+        - `<token>`: the join token present in the `k3s-node-token.txt` file. 
+    Example:
+
+        ```bash
+            # Make the WorkerSetup.sh script executable
+            sudo chmod +x WorkerSetup.sh
+
+            # Run the WorkerSetup.sh script with elevated privileges
+            sudo sh WorkerSetup.sh worker-node-1  10.0.0.5  K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd
+        ```
+    - Check Worker connected
+    Execute the following command master node. You should see that there is a master node and one worker node. Upon Successful setup proceed to start registering clusters onchain.
+
+        ```bash 
+            kubectl get nodes
+
+        ```
+         <img width="700" alt=" " src="/assets/kubnodes.png"><br><br>
+
+### Option C: Fully Local Setup with UTM and Local Parachain
+
+
+
+**Step 1: Prerequisites - Infrastructure Setup**
+You will need a local Linux machine and two servers hosted within the same virtual network. For local you can use UTM virtual server.
+Operating System: `Ubuntu Debian 20.04 LTS` or higher
+
+- **Local Machine**: Host the Parachain and Frontend.
+- **Server 1**: K3s Master node.
+- **Server 2**: K3s Worker node.<br><br>
+
+Below is an example server setup for fully local.
+
+- **Setup Local Parachain**
+    - Clone the parachain repository and build
+    ```bash
+        # Clone repository
+        git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
+
+        # Or alternatively you can run this command
+        git clone https://github.com/Cyborg-Network/cyborg-parachain.git
+        git submodule update --init
+    ```
+    - Compile the node
+    ```sh
+        # Change Directory to Cyborg-parachain
+        cd cyborg-parachain
+        
+        cargo build --release
+    ```
+    - Run Tests
+    ```sh
+        # Execute Cargo Test
+        cargo test
+    ```
+    - 🐳 Alternatively, build the docker image:
+    ```sh
+        docker build . -t cyborg-parachain
+    ```
+
+- **VM Setup On UTM**
+  
+    - Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
+    UTM Setting:
+        - `Network Mode`: Bridge
+
+    <img width="700" alt=" " src="assets/utm/workervm.png"><br><br>
+
+
+**Step 2: Prerequisites - K3s Worker Setup**
+K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
+Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
+
+Once the `master node` receives instructions from the blockchain, it assigns the tasks to its `worker nodes` for execution. Due to the networking requirements, the `master node` and `worker nodes` should be set up on separate machines, ideally within the same local network.
+
+When setting up servers for the K3s workers, ensure that you use two distinct Ubuntu VMs deployed within the same virtual network to facilitate seamless connectivity via their local IP addresses.
+
+Below is an example setup of a K3s Worker that connects to the local blockchain.
+
+- **Master Node Setup for Local VM**
+
+    - Clone the repository and Install Node.js Dependencies
+    ```bash
+        # Clone the repository
+        
+        # Update current Ubuntu package
+        sudo  apt-get update
+
+        # Install dnslookup
+        sudo apt-get install dnsutils
+
+        # Install Git
+        sudo apt-get install git
+
+        git clone   https://github.com/Cyborg-Network/Worker.git
+
+        # Navigate to your project directory
+        cd Worker
+
+        # Make sure to checkout the branch for the parachain
+        git fetch && git branch -a
+
+        git checkout -b updated-parachain origin/updated-parachain
+        
+        # Install nvm (Node Version Manager) for Master Node only
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+
+        # Reload bash shell
+        source ~/.bashrc
+
+        # download and install Node.js for Master Node only (you may need to restart the terminal).
+        nvm install 18
+    ```  
+    - Environment
+    Copy the `.env.example` file and replace the contents:
+        - Set `WORKER_ADDRESS` to the address where you register this worker on the Cyborg Network chain.
+        - Set `RPC_ENDPOINT` to the correct RPC endpoint of the chain you are testing on.
+        ```bash
+        cp .env.example .env
+        ```
+
+     - Run Master Setup Script
+    Execute the `MasterSetup.sh` script. This script performs the following actions:
+        - Installs k3s on the master node.
+        - Saves the k3s node join token to k3s-node-token.txt
+        - Starts the Node.js application that listens for deployment requests on port 3000.
+
+        ```bash
+            # Make the MasterSetup.sh script executable
+            sudo chmod +x MasterSetup.sh
+
+            # Run the MasterSetup.sh script with elevated privileges
+            sudo sh MasterSetup.sh
+
+        ```
+- **Worker Node Setup for Local VM**
+    - Run Worker Setup Scripts.
+    Execute the `WorkerSetup.sh <worker-name> <master-ip> <token>` script 
+        - `<worker-name>`: The worker's name (use any name of your choice).
+        - `<master-ip>`: The `private IP address` from master node.
+        - `<token>`: the join token present in the `k3s-node-token.txt` file.
+    Example:
+        ```bash
+            # Make the WorkerSetup.sh script executable
+            sudo chmod +x WorkerSetup.sh
+
+            # Run the WorkerSetup.sh script with elevated privileges
+            sudo sh WorkerSetup.sh worker-node-1  10.0.0.5  K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd
+        ```
+    - Check Worker connected
+    Execute the following command master node. You should see that there is a master node and one worker node. Upon Successful setup proceed to start registering clusters onchain.
+        ```bash 
+            kubectl get nodes
+
+        ```
+         <img width="700" alt=" " src="/assets/kubnodes2.png"><br><br>
 
-The following activities will be performed on the Ubuntu Master VM.
-
-**1  Clone Repository and Install Node.js Dependencies**
-
-Clone the worker repository
-
-- If `git` is not installed on your system, you can install it by running `sudo apt-get install git` in terminal on Ubuntu.
-
-```bash
-# Install git if doesn't exist
-sudo apt-get install git
-
-# Clone the repository
-git clone https://github.com/Cyborg-Network/Worker.git
-
-# Navigate to your project directory
-cd Worker
-
-# Update the local repository and list the available branches
-git fetch && git branch -a
-
-# Check out the `updated-parachain` branch from the repository.
-git checkout -b updated-parachain origin/updated-parachain
-
-# List Branch
-git branch -v
-
-```
-
-<img width="600" alt=" " src="assets/ubuntu/gitbranch.png">
-
-Install the required Node.js dependencies
-
-- Install Node.js version 18 or above, you can check your current Node.js version by running `node -v` in terminal on Ubuntu.
-
-```bash
-# Install nvm (Node Version Manager.
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
-
-# Reload bash shell
-source ~/.bashrc
-
-# download and install Node.js (you may need to restart the terminal).
-nvm install 18
-
-# verifies the right Node.js version is in the environment.
-# it should print v18.20.4
-node -v   
-
-
-# verifies the right npm version is in the environment
-# it should print 10.7.0
-npm -v
-```
-
-<img width="600" alt=" " src="assets/ubuntu/nodejs.png">
-
-**2 Configure the Environment**
-Copy the `.env.example` file and replace the contents:
-
-- Set `WORKER_ADDRESS` to the address where you register this worker on the Cyborg Network chain.
-- Set `RPC_ENDPOINT` to the correct RPC endpoint of the chain you are testing on.
-**Note:** The `.env.example` file is hidden. you can view it in terminal using `ls -a`.
-
-```bash
-cp .env.example .env
-
-```
-
-<img width="600" alt=" " src="assets/ubuntu/env-file-ls.png">
-
-<img width="600" alt=" " src="assets/ubuntu/env-file.png">
-
-**3 Run the Master Setup Script**
-Execute the `MasterSetup.sh` script:
-
-- If  you encounter dependency error, you can install the required dependecies by running `npm install` in terminal on Ubuntu.
-
-```bash
-# Make the MasterSetup.sh script executable
-chmod +x MasterSetup.sh
-
-# Run the MasterSetup.sh script with elevated privileges
-sudo sh MasterSetup.sh
-
-```
-
-This script performs the following actions:
-
-- Installs K3s on the master node.
-- Saves the K3s node join token to `k3s-node-token.txt`.
-- Starts the Node.js application that listens for deployment requests on port 3000.
-
-<img width="600" alt=" " src="assets/ubuntu/mastersetup.png">
-<img width="600" alt=" " src="assets/ubuntu/token.png">
-
-**4 Verify K3s Service Status**
-
-```bash
-sudo systemctl status k3s
-```
-
-<img width="600" alt=" " src="assets/ubuntu/k3srunning.png">
-
-**5 Get Master Node IP Address**
-
-```bash
-# List the IP Address
-hostname -I
-```
-
-<img width="600" alt=" " src="assets/ubuntu/masternodeip.png">
-
-##### 3.2.3 Worker Node Setup
-
-The following activities will be performed on the Ubuntu Worker VM.
-
-**1 Execute Worker Setup Script**
-
-On each worker node, run the `WorkerSetup.sh` script with the worker's name (use any name of your choice), master node's private IP address, and the join token from the `k3s-node-token.txt` file:
-
-**1  Clone Repository and Install Node.js Dependencies**
-
-Clone the worker repository
-
-- If `git` is not installed on your system, you can install it by running `sudo apt-get install git` in terminal on Ubuntu.
-
-```bash
-# Install git if doesn't exist
-sudo apt-get install git
-
-# Clone the repository
-git clone https://github.com/Cyborg-Network/Worker.git
-
-# Navigate to your project directory
-cd Worker
-
-# Update the local repository and list the available branches
-git fetch && git branch -a
-
-# Check out the `updated-parachain` branch from the repository.
-git checkout -b updated-parachain origin/updated-parachain
-
-# List Branch
-git branch -v
-
-```
-
-**2 Run the Worker Setup Script**
-Execute the `WorkerSetup.sh` script:
-
-- The private IP address for the Master Node in Azure in this example is `10.0.0.5`.
-- The private IP address for the Master Node in Local VM in this example is `192.168.50.219`
-- Retrieve the token from `k3s-node-token.txt` on the Master Node.
-
-```bash
-sh WorkerSetup.sh <worker-name> <master-ip> <token>
-```
-
-Replace `<worker-name>`, `<master-ip>`, and `<token>` with your specific details.
-
-- Example for Azure:
-
-```bash
-# Make the WorkerSetup.sh script executable
-chmod +x WorkerSetup.sh
-
-# Replace these values with your own IP and token
-sh WorkerSetup.sh worker-one 10.0.0.5 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
-```
-
-- Example for Local VM:
-
-```bash
-# Make the WorkerSetup.sh script executable
-chmod +x WorkerSetup.sh
-
-# Replace these values with your own IP and token
-sh WorkerSetup.sh worker-one 192.168.50.219 K10c8230eebd6c64c5cd5aa1::server:8ce7cae600cd 
-```
-
-<img width="600" alt=" " src="assets/ubuntu/workersetup.png">
-
-##### 3.2.4 Verify Worker Connection
-
-On your master node, execute the following command to verify the connection between your master and worker nodes:
-
-```bash
-kubectl get nodes
-```
-
-You should see both the master node and the worker node listed.
-This confirms that the worker node has successfully joned the K3s cluster.
-
-<img width="1000" alt="worker nodes" src="assets/kubnodes.png">
-
-<img width="1000" alt="worker nodes" src="assets/kubnodes2.png">
-
-if the setup was successful, you can proceed to register the K3s clusters on the blockchain.
-
-**Registering Cluster On-Chain**
-1 **Ensure Inbound Request on Port 3000:**
-
-- The master node's port 3000 must be configure to accept inbound requests. This is necessary for registering the K3s workers on the blockchain, as the IP address and port will be used during the registration process.
-
-For more info regarding the worker nodes, you can visit the [`Worker Repository`](https://github.com/Cyborg-Network/Worker/tree/updated-parachain)
-
-### Cyborg Parachain
-
-Clone the parachain repository with:
-
-```bash
-git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
-```
-
-Alternatively, you can run:
-
-```bash
-git clone https://github.com/Cyborg-Network/cyborg-parachain.git
-git submodule update --init
-```
-
-Compile the node:
-
-```bash
-cargo build --release
-```
-
-🐳 Alternatively, build the Docker image:
-
-```sh
-docker build . -t cyborg-parachain
-```
-
-## Run Tests
-
-```bash
-cargo test
-```
 
 ## Local Development Chain
 
