@@ -148,6 +148,7 @@ To use the `Alice` account, switch to it or import it through the seed phrase us
 ### Option B: Hosted Front End with Azure Server
 
 **Step 1: Prerequisites - Infrastructure Setup**
+
 You will need a local Linux machine and two servers hosted within the same virtual network (e.g., a VPC in the case of AWS).
 Operating System: `Ubuntu Debian 20.04 LTS` or higher
 
