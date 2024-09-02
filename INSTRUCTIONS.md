@@ -19,7 +19,7 @@ We have developed and submitted two primary pallets:
 This prototype is a blockchain-based machine learning training module featuring on-chain verification and settlement.
 It is designed to simulate real-world scenarios involving multiple virtual machine, accurately representing the interaction between blockchain and off-chian components (K3s clusters). These components coordinate to execute tasks, submit result, and update task execution statuses.
 
-**Chain Workflow**
+**Chain Workflow**<br><br>
 <img width="600" alt="Access Compute" src="assets/diagram/chain-workflow.png"><br>
 
 - **Edge Connect Pallet**
