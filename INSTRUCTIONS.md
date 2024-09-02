@@ -196,6 +196,7 @@ Below is an example server setup for Cloud Azure.
     <img width="700" alt=" " src="https://github.com/user-attachments/assets/edce18ad-eaf8-4ac1-a370-eaa0f3a3db10"><br><br>
 
 **Step 2: Prerequisites - K3s Worker Setup**
+
 K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
 Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
 
@@ -275,6 +276,7 @@ Below is an example setup of a K3s Worker that connects to the local blockchain.
 
 
 **Step 1: Prerequisites - Infrastructure Setup**
+
 You will need a local Linux machine and two servers hosted within the same virtual network. For local you can use UTM virtual server.
 Operating System: `Ubuntu Debian 20.04 LTS` or higher
 
@@ -321,6 +323,7 @@ Below is an example server setup for fully local.
 
 
 **Step 2: Prerequisites - K3s Worker Setup**
+
 K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
 Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
 
