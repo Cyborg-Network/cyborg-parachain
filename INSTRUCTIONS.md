@@ -195,7 +195,31 @@ Below is an example server setup for Cloud Azure.
 
     <img width="700" alt=" " src="https://github.com/user-attachments/assets/edce18ad-eaf8-4ac1-a370-eaa0f3a3db10"><br><br>
 
-**Step 2: Prerequisites - K3s Worker Setup**
+
+**Step 2: Register the Worker to the Blockchain**
+
+Make sure you have the domain or IP address of your master node. 
+You will use this to register the worker on-chain so that the blockchain can assign tasks to the IP or domain.
+
+- Head over to our [[Hosted Chain]](https://polkadot.js.org/apps/?rpc=wss://fraa-flashbox-3239-rpc.a.stagenet.tanssi.network#/extrinsics)
+- Navigate to the extrinsics tab and select the `edge-connect`.
+- Go to domain and tick the option to include it
+- Enter your domain along with port `3000` which is used by the K3s Worker node, in the format `<yourIpAddress>:3000`.
+    - `<yourIpAddress>`: Replace `<yourIpAddress>` with your you master node's public IP address.
+    If you registered a domain for your master node, you can use a domain name (e.g. yourWorker-cloud.com).
+
+        <img width="1000" alt="Choose Service" src="assets/add-ip-and-port2.png"><br><br>
+
+- Submit and sign the transaction with funded account
+    - Ensure you sign transaction on wallet.
+
+        <img width="1000" alt="Choose Service" src="assets/add-ip-and-port2-submit.png"><br>
+        <img width="1000" alt="Choose Service" src="assets/add-ip-and-port2-submit-approved.png"><br>
+
+- Wait for the transaction to succeed and view it at the block explorer. Congratulations, you've registered your worker on chain!
+
+
+**Step 3: K3s Cluster Setup**
 
 K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
 Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
@@ -321,8 +345,23 @@ Below is an example server setup for fully local.
 
     <img width="700" alt=" " src="assets/utm/workervm.png"><br><br>
 
+**Step 2: Register the Worker to the Blockchain**
 
-**Step 2: Prerequisites - K3s Worker Setup**
+Make sure you have the domain or IP address of your master node. 
+You will use this to register the worker on-chain so that the blockchain can assign tasks to the IP or domain.
+
+- Head over to our [[Hosted Chain]](https://polkadot.js.org/apps/?rpc=wss://fraa-flashbox-3239-rpc.a.stagenet.tanssi.network#/extrinsics)
+- Navigate to the extrinsics tab and select the `edge-connect`.
+- Go to domain and tick the option to include it
+- Enter your domain along with port `3000` which is used by the K3s Worker node, in the format `<yourIpAddress>:3000`.
+    - `<yourIpAddress>`: Replace `<yourIpAddress>` with your you master node's public IP address.
+    If you registered a domain for your master node, you can use a domain name (e.g. yourWorker-cloud.com).
+- Submit and sign the transaction with funded account
+    - Ensure you sign transaction on wallet.
+- Wait for the transaction to succeed and view it at the block explorer. Congratulations, you've registered your worker on chain!
+
+
+**Step 3: K3s Cluster Setup**
 
 K3s Workers serve as service providers within the network. These workers connect to the RPC endpoint of the blockchain to receive updates and information regarding task execution.
 Each K3s worker setup includes one `master node` and at least one `worker node`. The `master node` supplies its `IP` address or `domain name` to the blockchain, enabling the chain to distribute tasks to it.
