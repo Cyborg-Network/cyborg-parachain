@@ -2411,6 +2411,7 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-nfts",
  "pallet-session",
  "pallet-sudo",
  "pallet-task-management",
@@ -6879,6 +6880,25 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-nfts"
+version = "29.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "49c68c96f03ef2dd6c23072f315d6ef3e1b4664795f29aab5962db8cc9062ad3"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",

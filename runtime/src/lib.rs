@@ -14,6 +14,7 @@ mod oracle;
 mod weights;
 
 use smallvec::smallvec;
+use sp_core::ConstU128;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -27,7 +28,7 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	parameter_types,
-	traits::ConstU32,
+	traits::{AsEnsureOriginWithArg, ConstU32},
 	weights::{
 		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
@@ -47,6 +48,8 @@ use oracle::{DummyCombineData, ProcessId, ProcessStatus};
 
 pub use pallet_edge_connect;
 pub use pallet_task_management;
+
+use pallet_nfts::{PalletFeature, PalletFeatures};
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -212,6 +215,42 @@ impl pallet_task_management::Config for Runtime {
 	type WeightInfo = pallet_task_management::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub storage Features: PalletFeatures = PalletFeatures::from_disabled(PalletFeature::Approvals.into());
+}
+
+pub type AccountPublic = <Signature as Verify>::Signer;
+
+// TODO: Tune this palette properly
+impl pallet_nfts::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type CollectionId = u32;
+	type ItemId = u32;
+	type Currency = Balances;
+	type ForceOrigin = frame_system::EnsureRoot<Self::AccountId>;
+	type CreateOrigin = AsEnsureOriginWithArg<frame_system::EnsureSigned<Self::AccountId>>;
+	type Locker = ();
+	type CollectionDeposit = ConstU128<2u128>;
+	type ItemDeposit = ConstU128<0>;
+	type MetadataDepositBase = ConstU128<0>;
+	type AttributeDepositBase = ConstU128<0>;
+	type DepositPerByte = ConstU128<10>;
+	type StringLimit = ConstU32<50>;
+	type KeyLimit = ();
+	type ValueLimit = ConstU32<50>;
+	type ApprovalsLimit = ConstU32<10>;
+	type ItemAttributesApprovalsLimit = ConstU32<2>;
+	type MaxTips = ConstU32<10>;
+	type MaxDeadlineDuration = ConstU32<10000>;
+	type MaxAttributesPerCall = ConstU32<2>;
+	type Features = Features;
+	type OffchainSignature = Signature;
+	type OffchainPublic = AccountPublic;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type Helper = ();
+}
+
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cyborg-runtime"),
@@ -292,6 +331,8 @@ pub fn native_version() -> NativeVersion {
 // Create the runtime by composing the FRAME pallets that were previously configured.
 #[frame_support::runtime]
 mod runtime {
+	use cumulus_pallet_aura_ext::pallet;
+
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
@@ -358,6 +399,9 @@ mod runtime {
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;
+
+	#[runtime::pallet_index(44)]
+	pub type MachineNFT = pallet_nfts;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

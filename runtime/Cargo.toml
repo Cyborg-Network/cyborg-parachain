@@ -57,6 +57,7 @@ pallet-timestamp = { version = "34.0.0", default-features = false }
 pallet-transaction-payment = { version = "35.0.0", default-features = false }
 pallet-transaction-payment-rpc-runtime-api = { version = "35.0.0", default-features = false }
 pallet-membership = { version = "35.0.0", default-features = false }
+pallet-nfts = { version = "29.0.0", default-features = false }
 
 # Substrate	Primitives
 sp-api = { version = "33.0.0", default-features = false }
@@ -132,6 +133,7 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-xcm/std",
 	"pallet-membership/std",
+	"pallet-nfts/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"polkadot-parachain-primitives/std",
@@ -175,6 +177,7 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
+	"pallet-nfts/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
@@ -197,21 +200,22 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-message-queue/try-runtime",
-#	"pallet-edge-connect/try-runtime",
-#	"pallet-task-management/try-runtime",
+	#	"pallet-edge-connect/try-runtime",
+	#	"pallet-task-management/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-xcm/try-runtime",
 	"pallet-membership/try-runtime",
+	# "pallet-nfts/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",
 	"sp-runtime/try-runtime",
-#    "pallet-assets/try-runtime"
-#    "pallet-contracts/try-runtime",
-#    "pallet-randomness-collective-flip/try-runtime",
-#	"pallet-utility/try-runtime",
+	#    "pallet-assets/try-runtime"
+	#    "pallet-contracts/try-runtime",
+	#    "pallet-randomness-collective-flip/try-runtime",
+	#	"pallet-utility/try-runtime",
 ]
 
 # Enable the metadata hash generation.
