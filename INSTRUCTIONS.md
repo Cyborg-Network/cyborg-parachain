@@ -310,7 +310,7 @@ Operating System: `Ubuntu Debian 20.04 LTS` or higher
 
 Below is an example server setup for fully local.
 
-- **Setup Local Parachain**
+- **Setup Local Parachain (Local Machine)**
     - Clone the parachain repository and build
     ```bash
         # Clone repository
@@ -337,6 +337,49 @@ Below is an example server setup for fully local.
         docker build . -t cyborg-parachain
     ```
 
+- **Setup Zombienet (Local Machine)**
+    - [Download Zombienet Binary](https://github.com/paritytech/zombienet/releases/tag/v1.3.109)
+    - [Donwload Polkadot Libary](https://github.com/paritytech/polkadot-sdk/releases/tag/polkadot-stable2407-2)
+    - Using Binaries on MacOS
+        - Move the binary (`zombienet-macos-arm64`, `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`) to your working directory (e.g, `zombienetbin`)
+        - Rename the binary to just `zombienet` without any `macos-<version>` extension.
+        ```bash
+            # Enable the binary to be executable
+            chmod +x ./zombienet
+
+            # Remove the binary from quarantine
+            xattr -d com.apple.quarantine ./zombienet
+            
+            # Edit your shell's configuration to Add Zombienet to your PATH, using $HOME/zombienetbin as the working directory in this example
+            export PATH="$HOME/zombienetbin/:$PATH"
+
+            #Reload the configuration file
+            # source ~/.zshrc       #for Zsh
+            # source ~/.bashrc      #for Bash
+
+            # View zombienet help
+            ./zombienet help
+        ```        
+    - Ensure that parachain node are added to your PATH
+        - All above files can be found in `target` folder within cyborg-parachain project.
+        ```bash
+            export PATH="$HOME/cyborg-parachain/target/release/:$PATH"
+            #Reload the configuration file
+            # source ~/.zshrc       #for Zsh
+            # source ~/.bashrc      #for Bash
+        ```
+    - Start the local development chain with a single relay chain node and a single parachain collator
+        - in this example, the local parachain path is `$HOME/cyborg-parachain`
+    ```bash
+        #Working Directory
+        cd $HOME/cyborg-parachain
+
+        # Start zombienet
+        zombienet --provider native spawn ./zombienet.toml
+    ```
+
+
+
 - **VM Setup On UTM**
   
     - Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
@@ -350,12 +393,13 @@ Below is an example server setup for fully local.
 Make sure you have the domain or IP address of your master node. 
 You will use this to register the worker on-chain so that the blockchain can assign tasks to the IP or domain.
 
-- Head over to our [[Hosted Chain]](https://polkadot.js.org/apps/?rpc=wss://fraa-flashbox-3239-rpc.a.stagenet.tanssi.network#/extrinsics)
+- Head over to our [[Local Chain]](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9988#/extrinsics)
 - Navigate to the extrinsics tab and select the `edge-connect`.
 - Go to domain and tick the option to include it
 - Enter your domain along with port `3000` which is used by the K3s Worker node, in the format `<yourIpAddress>:3000`.
     - `<yourIpAddress>`: Replace `<yourIpAddress>` with your you master node's public IP address.
     If you registered a domain for your master node, you can use a domain name (e.g. yourWorker-cloud.com).
+    <img width="1000" alt="Choose Service" src="assets/add-ip-and-port-local.png"><br><br>
 - Submit and sign the transaction with funded account
     - Ensure you sign transaction on wallet.
 - Wait for the transaction to succeed and view it at the block explorer. Congratulations, you've registered your worker on chain!
