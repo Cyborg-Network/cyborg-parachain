@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: chain-build-linux
-          path: ./target/release
+          path: ./target/release/cyborg-node
 
       # - name: Run clippy
       #   run: |
@@ -80,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: chain-build-macos
-          path: ./target/release
+          path: ./target/release/cyborg-node
 
       - name: Run the tests
         run: cargo test
