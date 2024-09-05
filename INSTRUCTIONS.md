@@ -297,7 +297,7 @@ Below is an example setup of a K3s Worker that connects to the local blockchain.
 
 ### Option C: Fully Local Setup with UTM and Local Parachain
 
-
+Please check with this [video documentation](https://drive.google.com/file/d/1URMopsQZBgGCsZYqiznWOxwmg9wDIdfH/view?usp=sharing) for full walkthrough of local testing
 
 **Step 1: Prerequisites - Infrastructure Setup**
 
