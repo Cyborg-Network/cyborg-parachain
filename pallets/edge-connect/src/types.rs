@@ -13,17 +13,9 @@ pub enum WorkerStatusType {
 	Inactive,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct Ip {
-	pub ipv4: Option<u8>,
-	pub ipv6: Option<u8>,
-	pub port: u32,
-}
-
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen )]
 pub struct WorkerAPI {
-	pub ip : Option<Ip>,
-	pub domain: Option<Domain>,
+	pub domain: Domain,
 }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
