@@ -636,6 +636,7 @@ Following the similar steps as above, you will enter the `taskManagement` extrin
 The results of executed tasks are displayed in the terminal section of the deployment dashboard. Below are examples of worker logs corresponding to the task examples mentioned above.
 
 ## Hello World
+Docker Image URL: https://hub.docker.com/_/hello-world
 
     [172.212.108.104:3000][TaskID: 74] Status: 2024-08-06T13:54:01.000Z
     [172.212.108.104:3000][TaskID: 74] Status: ReplicaSet "dynamic-deployment-569b8o-54cc46b66d" has successfully progressed.
