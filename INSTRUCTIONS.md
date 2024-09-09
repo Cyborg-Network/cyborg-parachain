@@ -313,7 +313,7 @@ Below is an example server setup for fully local.
 - **Setup Local Parachain (Local Machine)**
     - Clone the parachain repository and build
     ```bash
-        # Clone repository
+        # Clone the repository
         git clone --recurse-submodules https://github.com/Cyborg-Network/cyborg-parachain.git
 
         # Or alternatively you can run this command
@@ -378,8 +378,25 @@ Below is an example server setup for fully local.
         zombienet --provider native spawn ./zombienet.toml
     ```
 
+- **Setup Cyborg Connect (Local Machine)**
+    - Clone the front-end application, Cyborg-connect repository and build
+    ```bash
+        # Clone the repository
+        git clone https://github.com/Cyborg-Network/cyborg-connect.git
 
+        # Change to working directory
+        cd cyborg-connect
 
+        npm install
+    ```
+    - You can start in development mode to connect to local running node
+    ```sh
+        npm run start
+    ```
+    - You can also build the app in proudction mode
+    ```sh
+        npm run build
+    ```
 - **VM Setup On UTM**
   
     - Under the `Create a VM` section, choose `Ubuntu 20.04 or 22.04 LTS`.
@@ -418,7 +435,7 @@ Below is an example setup of a K3s Worker that connects to the local blockchain.
 
 - **Master Node Setup for Local VM**
 
-    - Clone the repository and Install Node.js Dependencies
+    - Clone the repository, Install Node.js Dependencies and PM2
     ```bash
         # Clone the repository
         
@@ -435,11 +452,6 @@ Below is an example setup of a K3s Worker that connects to the local blockchain.
 
         # Navigate to your project directory
         cd Worker
-
-        # Make sure to checkout the branch for the parachain
-        git fetch && git branch -a
-
-        git checkout -b updated-parachain origin/updated-parachain
         
         # Install nvm (Node Version Manager) for Master Node only
         curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
@@ -449,20 +461,37 @@ Below is an example setup of a K3s Worker that connects to the local blockchain.
 
         # download and install Node.js for Master Node only (you may need to restart the terminal).
         nvm install 18
+
+        # Install PM2 on the master node for running the deployment service
+        npm i -g pm2
+
     ```  
-    - Environment
-    Copy the `.env.example` file and replace the contents:
+    - Environment Setup
+    Setup `.env` variables:
         - Set `WORKER_ADDRESS` to the address where you register this worker on the Cyborg Network chain.
         - Set `RPC_ENDPOINT` to the correct RPC endpoint of the chain you are testing on.
+        - Set `IP_ADDRESS` to the IP address of your worker (public or private).
+        - Set `DOMAIN_NAME` to the domain name IP Address (optional).
+    
+        Install K3s cluster master node:
+        - You can always run the `MasterSetup.sh` again to retrieve a worker node join token (`k3s-node-token.txt`).
+
+        Note: 
+        - You can edit the `.env` manually afterwards depending on your setup preference.
+        - if you are running Cyborg Node locally (not on vm), update the `RPC_ENDPOINT` to `ws://<your-local-pc-ip-address>:9988`. 
+        - You can fetch your local IP address of your computer on the newtwork using `ipconfig getifaddr en0`
+
         ```bash
-        cp .env.example .env
+            # Setup your envinronment variable defaults for running the worker locally within a local network.
+            # This script automates the creation of a `.env` file, set the variable defaults and run the MasterSetup script.
+
+            npm run setup:local
         ```
 
-     - Run Master Setup Script
+     - Run Master Setup Script (Optional)
     Execute the `MasterSetup.sh` script. This script performs the following actions:
         - Installs k3s on the master node.
-        - Saves the k3s node join token to k3s-node-token.txt
-        - Starts the Node.js application that listens for deployment requests on port 3000.
+        - Saves the k3s node join token to `k3s-node-token.txt`
 
         ```bash
             # Make the MasterSetup.sh script executable
