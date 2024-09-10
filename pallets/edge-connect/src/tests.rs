@@ -1,18 +1,16 @@
-
-use frame_support::BoundedVec;
-use frame_support::sp_runtime::traits::ConstU32;
 use crate::{mock::*, types::*, Error};
+use frame_support::sp_runtime::traits::ConstU32;
+use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
 use sp_std::convert::TryFrom;
 
 #[test]
 fn it_works_for_registering_domain() {
 	new_test_ext().execute_with(|| {
-
 		let domain_str = "https://some_api_domain.com";
-        let domain_vec = domain_str.as_bytes().to_vec();
-        let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-		
+		let domain_vec = domain_str.as_bytes().to_vec();
+		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
 		System::set_block_number(10);
 		let alice = 0;
 		let api_info = WorkerAPI {
@@ -25,13 +23,20 @@ fn it_works_for_registering_domain() {
 			owner: alice,
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
-			api: api_info.clone()
+			api: api_info.clone(),
 		};
-		
+
 		// Dispatch a signed extrinsic.
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.ip,
+			api_info.domain
+		));
 		// Read pallet storage and assert an expected result.
-		assert_eq!(edgeConnectModule::get_worker_clusters((alice,0)), Some(worker));
+		assert_eq!(
+			edgeConnectModule::get_worker_clusters((alice, 0)),
+			Some(worker)
+		);
 	});
 }
 
@@ -41,8 +46,12 @@ fn it_works_for_registering_ip() {
 		System::set_block_number(10);
 		let alice = 0;
 		let api_info = WorkerAPI {
-			ip: Some(Ip { ipv4: Some(125), ipv6: None, port: 123}),
-			domain: None
+			ip: Some(Ip {
+				ipv4: Some(125),
+				ipv6: None,
+				port: 123,
+			}),
+			domain: None,
 		};
 
 		let worker = Worker {
@@ -50,13 +59,20 @@ fn it_works_for_registering_ip() {
 			owner: alice,
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
-			api: api_info.clone()
+			api: api_info.clone(),
 		};
-		
+
 		// Dispatch a signed extrinsic.
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.ip,
+			api_info.domain
+		));
 		// Read pallet storage and assert an expected result.
-		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), Some(worker));
+		assert_eq!(
+			edgeConnectModule::get_worker_clusters((alice, 0)),
+			Some(worker)
+		);
 	});
 }
 
@@ -78,15 +94,27 @@ fn it_fails_for_registering_duplicate_worker() {
 	new_test_ext().execute_with(|| {
 		let alice = 0;
 		let api_info = WorkerAPI {
-			ip: Some(Ip { ipv4: Some(125), ipv6: None, port: 123}),
-			domain: None
+			ip: Some(Ip {
+				ipv4: Some(125),
+				ipv6: None,
+				port: 123,
+			}),
+			domain: None,
 		};
 
 		// Register the first worker
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.ip.clone(),
+			api_info.domain.clone()
+		));
 		// Try to register the same worker again
 		assert_noop!(
-			edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip, api_info.domain),
+			edgeConnectModule::register_worker(
+				RuntimeOrigin::signed(alice),
+				api_info.ip,
+				api_info.domain
+			),
 			Error::<Test>::WorkerExists
 		);
 	});
@@ -97,15 +125,26 @@ fn it_works_for_removing_worker() {
 	new_test_ext().execute_with(|| {
 		let alice = 0;
 		let api_info = WorkerAPI {
-			ip: Some(Ip { ipv4: Some(125), ipv6: None, port: 123}),
-			domain: None
+			ip: Some(Ip {
+				ipv4: Some(125),
+				ipv6: None,
+				port: 123,
+			}),
+			domain: None,
 		};
 
 		// Register a worker first
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.ip.clone(), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.ip.clone(),
+			api_info.domain.clone()
+		));
 
 		// Remove the worker
-		assert_ok!(edgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0));
+		assert_ok!(edgeConnectModule::remove_worker(
+			RuntimeOrigin::signed(alice),
+			0
+		));
 		// Assert that the worker no longer exists
 		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), None);
 	});
