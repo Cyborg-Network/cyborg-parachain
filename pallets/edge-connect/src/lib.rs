@@ -20,10 +20,10 @@ pub use types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-	use frame_system::{ pallet_prelude::*};
-	use scale_info::prelude::vec::Vec;
 	use super::*;
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_system::pallet_prelude::*;
+	use scale_info::prelude::vec::Vec;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -40,27 +40,37 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::type_value]
-    pub fn WorkerCountDefault() -> WorkerId {
-        0
-    }
+	pub fn WorkerCountDefault() -> WorkerId {
+		0
+	}
 
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
 	#[pallet::getter(fn account_workers)]
-	pub type AccountWorkers<T: Config> = 
+	pub type AccountWorkers<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
 
 	/// Worker Cluster information
 	#[pallet::storage]
 	#[pallet::getter(fn get_worker_clusters)]
-	pub type WorkerClusters<T: Config> = 
-		StorageMap<_, Twox64Concat, (T::AccountId, WorkerId), Worker<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
+	pub type WorkerClusters<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		(T::AccountId, WorkerId),
+		Worker<T::AccountId, BlockNumberFor<T>>,
+		OptionQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		WorkerRegistered{ creator: T::AccountId },
-		WorkerRemoved{ creator: T::AccountId, worker_id: WorkerId },
+		WorkerRegistered {
+			creator: T::AccountId,
+		},
+		WorkerRemoved {
+			creator: T::AccountId,
+			worker_id: WorkerId,
+		},
 	}
 
 	/// Pallet Errors
@@ -92,14 +102,14 @@ pub mod pallet {
 
 			match worker_keys {
 				Some(keys) => {
-			        for id in 0..=keys {
+					for id in 0..=keys {
 						// Get the Worker associated with the creator and worker_id
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
 							// Check if the API matches and throw an error if it does
 							ensure!(api != worker.api, Error::<T>::WorkerExists);
 						}
 					}
-				},
+				}
 				None => {}
 			}
 
@@ -107,7 +117,7 @@ pub mod pallet {
 				Some(id) => {
 					AccountWorkers::<T>::insert(creator.clone(), id + 1);
 					id + 1
-				},
+				}
 				None => {
 					AccountWorkers::<T>::insert(creator.clone(), 0);
 					0
@@ -136,14 +146,13 @@ pub mod pallet {
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_worker())]
-		pub fn remove_worker(
-			origin: OriginFor<T>, 
-			worker_id: WorkerId, 
-		) -> DispatchResultWithPostInfo {
+		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
-			
-			ensure!(WorkerClusters::<T>::get((creator.clone(), worker_id)) != None, 
-			Error::<T>::WorkerDoesNotExist);
+
+			ensure!(
+				WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
+				Error::<T>::WorkerDoesNotExist
+			);
 
 			// update storage
 			WorkerClusters::<T>::remove((creator.clone(), worker_id));
@@ -151,18 +160,22 @@ pub mod pallet {
 			// Emit an event.
 			Self::deposit_event(Event::WorkerRemoved { creator, worker_id });
 
-
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub fn get_active_workers() -> Option<Vec<((T::AccountId, WorkerId),Worker<T::AccountId, BlockNumberFor<T>>)>> {
+		pub fn get_active_workers() -> Option<
+			Vec<(
+				(T::AccountId, WorkerId),
+				Worker<T::AccountId, BlockNumberFor<T>>,
+			)>,
+		> {
 			let workers = WorkerClusters::<T>::iter()
-			.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active)
-			.collect::<Vec<_>>();
-	
+				.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active)
+				.collect::<Vec<_>>();
+
 			if workers.is_empty() {
 				None
 			} else {

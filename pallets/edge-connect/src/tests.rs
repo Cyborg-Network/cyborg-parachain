@@ -1,7 +1,6 @@
-
-use frame_support::BoundedVec;
-use frame_support::sp_runtime::traits::ConstU32;
 use crate::{mock::*, types::*, Error};
+use frame_support::sp_runtime::traits::ConstU32;
+use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
 use sp_std::convert::TryFrom;
 
@@ -24,13 +23,16 @@ fn it_works_for_registering_domain() {
 			owner: alice,
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
-			api: api_info.clone()
+			api: api_info.clone(),
 		};
-		
+
 		// Dispatch a signed extrinsic.
 		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain));
 		// Read pallet storage and assert an expected result.
-		assert_eq!(edgeConnectModule::get_worker_clusters((alice,0)), Some(worker));
+		assert_eq!(
+			edgeConnectModule::get_worker_clusters((alice, 0)),
+			Some(worker)
+		);
 	});
 }
 
@@ -75,7 +77,10 @@ fn it_works_for_removing_worker() {
 		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain.clone()));
 
 		// Remove the worker
-		assert_ok!(edgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0));
+		assert_ok!(edgeConnectModule::remove_worker(
+			RuntimeOrigin::signed(alice),
+			0
+		));
 		// Assert that the worker no longer exists
 		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), None);
 	});
