@@ -89,15 +89,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::register_worker())]
-		pub fn register_worker(
-			origin: OriginFor<T>, 
-			domain: Domain,
-		) -> DispatchResultWithPostInfo {
+		pub fn register_worker(origin: OriginFor<T>, domain: Domain) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			let api = WorkerAPI {
-				domain
-			};
+			let api = WorkerAPI { domain };
 			let worker_keys = AccountWorkers::<T>::get(creator.clone());
 
 			match worker_keys {

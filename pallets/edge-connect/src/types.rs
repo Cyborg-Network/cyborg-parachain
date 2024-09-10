@@ -13,7 +13,7 @@ pub enum WorkerStatusType {
 	Inactive,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen )]
+#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct WorkerAPI {
 	pub domain: Domain,
 }

@@ -7,16 +7,13 @@ use sp_std::convert::TryFrom;
 #[test]
 fn it_works_for_registering_domain() {
 	new_test_ext().execute_with(|| {
-
 		let domain_str = "some_api_domain.com";
-        let domain_vec = domain_str.as_bytes().to_vec();
-        let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-		
+		let domain_vec = domain_str.as_bytes().to_vec();
+		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
 		System::set_block_number(10);
 		let alice = 0;
-		let api_info = WorkerAPI {
-			domain: domain,
-		};
+		let api_info = WorkerAPI { domain: domain };
 
 		let worker = Worker {
 			id: 0,
@@ -27,7 +24,10 @@ fn it_works_for_registering_domain() {
 		};
 
 		// Dispatch a signed extrinsic.
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.domain
+		));
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
 			edgeConnectModule::get_worker_clusters((alice, 0)),
@@ -42,15 +42,16 @@ fn it_fails_for_registering_duplicate_worker() {
 		let alice = 0;
 
 		let domain_str = "127.0.0.1:3001";
-        let domain_vec = domain_str.as_bytes().to_vec();
-        let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+		let domain_vec = domain_str.as_bytes().to_vec();
+		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 
-		let api_info = WorkerAPI {
-			domain: domain
-		};
+		let api_info = WorkerAPI { domain: domain };
 
 		// Register the first worker
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.domain.clone()
+		));
 		// Try to register the same worker again
 		assert_noop!(
 			edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain),
@@ -65,16 +66,16 @@ fn it_works_for_removing_worker() {
 		let alice = 0;
 
 		let domain_str = "127.0.0.1:3001";
-        let domain_vec = domain_str.as_bytes().to_vec();
-        let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+		let domain_vec = domain_str.as_bytes().to_vec();
+		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 
-		let api_info = WorkerAPI {
-			domain: domain
-		};
-
+		let api_info = WorkerAPI { domain: domain };
 
 		// Register a worker first
-		assert_ok!(edgeConnectModule::register_worker(RuntimeOrigin::signed(alice), api_info.domain.clone()));
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.domain.clone()
+		));
 
 		// Remove the worker
 		assert_ok!(edgeConnectModule::remove_worker(
