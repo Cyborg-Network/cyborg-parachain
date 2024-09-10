@@ -17,13 +17,11 @@ fn it_works_for_task_scheduler() {
 
 		// Register a worker for executor
 		let api_info = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info.ip,
 			api_info.domain
 		));
 
@@ -74,25 +72,21 @@ fn it_works_for_submit_completed_task() {
 
 		// Register a worker for Alice
 		let api_info = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
 		// Register a worker for Bob
 		let api_info_bob = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-			api_info.ip,
 			api_info.domain
 		));
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
-			api_info_bob.ip,
 			api_info_bob.domain
 		));
 
@@ -138,13 +132,11 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 
 		// Register a worker for Alice
 		let api_info = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-			api_info.ip,
 			api_info.domain
 		));
 
@@ -184,12 +176,10 @@ fn it_works_when_verifying_task() {
 
 		// Register a worker for executor
 		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.ip,
 			api_info_executor.domain
 		));
 
@@ -207,12 +197,10 @@ fn it_works_when_verifying_task() {
 
 		// Register a worker for the verifier
 		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.ip,
 			api_info_verifier.domain
 		));
 
@@ -256,12 +244,10 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 
 		// Register a worker for executor
 		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.ip,
 			api_info_executor.domain
 		));
 
@@ -279,12 +265,10 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 
 		// Register a worker for the verifier
 		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.ip,
 			api_info_verifier.domain
 		));
 
@@ -306,12 +290,10 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 
 		// Register a worker for the resolver
 		let api_info_resolver = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-			api_info_resolver.ip,
 			api_info_resolver.domain
 		));
 
@@ -360,12 +342,10 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 
 		// Register a worker for executor
 		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.ip,
 			api_info_executor.domain
 		));
 
@@ -383,12 +363,10 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 
 		// Register a worker for the verifier
 		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.ip,
 			api_info_verifier.domain
 		));
 
@@ -410,12 +388,10 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 
 		// Register a worker for the resolver
 		let api_info_resolver = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker3.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker3.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-			api_info_resolver.ip,
 			api_info_resolver.domain
 		));
 
@@ -453,12 +429,10 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 
 		// Register a worker for the new executor
 		let api_info_new_executor = pallet_edge_connect::types::WorkerAPI {
-			ip: None,
-			domain: Some(BoundedVec::try_from(b"https://api-worker4.testing".to_vec()).unwrap()),
+			domain: BoundedVec::try_from(b"https://api-worker4.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(new_executor),
-			api_info_new_executor.ip,
 			api_info_new_executor.domain
 		));
 
