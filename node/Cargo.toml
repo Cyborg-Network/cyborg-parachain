@@ -68,7 +68,10 @@ cumulus-primitives-core = { version = "0.14.0" }
 cumulus-primitives-parachain-inherent = { version = "0.14.0" }
 cumulus-relay-chain-interface = { version = "0.14.0" }
 color-print = "0.3.4"
-substrate-api-client = { version = "0.18.0", features = ["tungstenite-client"] }
+substrate-api-client = { version = "0.18.0", features = [
+	"tungstenite-client",
+	"disable-metadata-hash-check",
+] }
 hex = "0.4.3"
 
 [build-dependencies]

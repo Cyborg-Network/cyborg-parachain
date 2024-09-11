@@ -14,7 +14,7 @@ pub async fn register_worker_on_chain() {
 	dbg!("============register_worker_on_chain============");
 
 	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" #// Alice
-	// cargo run --release -- --name alice-1 --chain /tmp/chain_spec_tmp_chain_01.json --base-path /tmp/tmp_chain_data_01 --listen-addr /ip4/0.0.0.0/tcp/53876/ws --rpc-port 9988 --rpc-cors all --unsafe-rpc-external --rpc-methods unsafe
+	// run zombienet `zombienet --provider native spawn ./zombienet.toml`
 
 	let worker_key = env::var("CYBORG_WORKER_KEY").expect("CYBORG_WORKER_KEY not set");
 
