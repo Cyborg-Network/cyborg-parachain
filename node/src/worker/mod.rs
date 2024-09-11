@@ -7,15 +7,16 @@ use sp_blockchain::HeaderBackend;
 use sp_runtime::traits::Block;
 
 pub mod custom_event_listener;
+pub mod register_worker;
 
-pub async fn start_worker<T, U>(client: Arc<T>) -> ()
+pub async fn start_worker<T, U>(client: Arc<T>)
 where
 	U: Block,
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
 	T::Api: TaskManagementEventsApi<U>,
-	// T::Api: cyborg_runtime::apis::RuntimeApi<U>,
 {
 	dbg!("============worker_starting============");
 
+	register_worker::register_worker_on_chain().await;
 	custom_event_listener::event_listener_tester(client).await;
 }

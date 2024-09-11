@@ -371,7 +371,7 @@ pub async fn start_parachain_node(
 	}
 
 	task_manager.spawn_handle().spawn(
-		"event_listner",
+		"worker_node",
 		None,
 		crate::worker::start_worker(client.clone()),
 	);

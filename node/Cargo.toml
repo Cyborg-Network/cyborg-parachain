@@ -68,6 +68,8 @@ cumulus-primitives-core = { version = "0.14.0" }
 cumulus-primitives-parachain-inherent = { version = "0.14.0" }
 cumulus-relay-chain-interface = { version = "0.14.0" }
 color-print = "0.3.4"
+substrate-api-client = { version = "0.18.0", features = ["tungstenite-client"] }
+hex = "0.4.3"
 
 [build-dependencies]
 substrate-build-script-utils = { version = "11.0.0" }
