@@ -2379,6 +2379,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyborg-primitives"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "cyborg-runtime"
 version = "0.1.0"
 dependencies = [
@@ -6638,6 +6653,7 @@ dependencies = [
 name = "pallet-edge-connect"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -7314,6 +7330,7 @@ dependencies = [
 name = "pallet-task-management"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

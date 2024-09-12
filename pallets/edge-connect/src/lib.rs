@@ -14,9 +14,7 @@ pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub mod types;
-
-pub use types::*;
+pub use cyborg_primitives::worker::*;
 
 #[frame_support::pallet]
 pub mod pallet {

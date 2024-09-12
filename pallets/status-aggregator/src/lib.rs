@@ -29,6 +29,19 @@ pub struct StatusInstance<BlockNumber> {
     block: BlockNumber
 }
 
+impl StatusInstance<BlockNumber> {
+    pub fn new( online: bool, available: bool, block: BlockNumber ) -> Self {
+        Self {     
+            is_online: online,
+            is_available: available,
+            block,
+        }
+    }
+    pub fn get_block_number() -> BlockNumber {
+        self.block
+    }
+}
+
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct WorkerStatus {
     uptime: u8,
@@ -104,7 +117,12 @@ pub mod pallet {
 
 
 	impl<T: Config> Pallet<T> {
-
+        fn update_worker_status(key: &(T::AccountId, u64)) {
+            let last_updated_block = match WorkerStatusMap::<T>::get(key) {
+                Some(last_updated) => last_updated,
+                None => return
+            }
+        }
 	}
 
     impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), bool> for Pallet<T> {
