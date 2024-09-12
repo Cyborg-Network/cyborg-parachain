@@ -9,6 +9,7 @@ members = [
     "node",
     "pallets/edge-connect",
     "pallets/task-management",
+    "pallets/status-aggregator",
     "runtime",
     "orml/oracle",
     "orml/traits",
