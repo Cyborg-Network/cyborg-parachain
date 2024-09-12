@@ -13,10 +13,12 @@ pub async fn register_worker_on_chain() {
 
 	dbg!("============register_worker_on_chain============");
 
-	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" #// Alice
+	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" # //Alice
+	// export CYBORG_WORKER_DOMAIN="example.com" # replace with your domain
 	// run zombienet `zombienet --provider native spawn ./zombienet.toml`
 
 	let worker_key = env::var("CYBORG_WORKER_KEY").expect("CYBORG_WORKER_KEY not set");
+	let worker_domain = env::var("CYBORG_WORKER_DOMAIN").expect("CYBORG_WORKER_DOMAIN not set");
 
 	let mut key_32 = [0u8; 32];
 
@@ -33,12 +35,11 @@ pub async fn register_worker_on_chain() {
 	dbg!(key.public());
 	api.set_signer(key.clone().into());
 
-	let domain = BoundedVec::new();
+	let domain = BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap();
 
 	let register_call =
 		runtime::RuntimeCall::EdgeConnect(runtime::pallet_edge_connect::Call::register_worker {
-			ip: None,
-			domain: Some(domain),
+			domain,
 		});
 
 	let tr_tx = api.compose_extrinsic_offline(register_call, 0);
