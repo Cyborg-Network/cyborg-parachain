@@ -66,6 +66,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		WorkerRegistered {
 			creator: T::AccountId,
+			worker: (T::AccountId, WorkerId),
+			domain: Domain,
 		},
 		WorkerRemoved {
 			creator: T::AccountId,
@@ -129,10 +131,14 @@ pub mod pallet {
 
 			// update storage
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
-			WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker);
+			WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
 
 			// Emit an event.
-			Self::deposit_event(Event::WorkerRegistered { creator });
+			Self::deposit_event(Event::WorkerRegistered {
+				creator: creator.clone(),
+				worker: (worker.owner, worker.id),
+				domain: worker.api.domain,
+			});
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
