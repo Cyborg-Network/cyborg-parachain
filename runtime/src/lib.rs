@@ -10,7 +10,6 @@ pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 mod configs;
-mod oracle;
 mod weights;
 
 use smallvec::smallvec;
@@ -43,7 +42,7 @@ use weights::ExtrinsicBaseWeight;
 
 pub use frame_system::EnsureRoot;
 
-use oracle::{DummyCombineData, ProcessId, ProcessStatus};
+pub use cyborg_primitives::{ worker::WorkerId , oracle::{DummyCombineData, ProcessStatus}};
 
 pub use pallet_edge_connect;
 pub use pallet_task_management;
@@ -174,7 +173,7 @@ impl orml_oracle::Config for Runtime {
 	type OnNewData = ();
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = ProcessId;
+	type OracleKey = (AccountId, WorkerId);
 	type OracleValue = ProcessStatus;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	type Members = OracleMembership;

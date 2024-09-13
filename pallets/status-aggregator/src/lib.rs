@@ -1,7 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet::*;
-
 // #[cfg(test)]
 // mod mock;
 
@@ -22,46 +20,11 @@ use frame_system;
 
 pub type WorkerId = u64;
 
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
     is_online: bool,
     is_available: bool,
     block: BlockNumber
-}
-
-impl StatusInstance<BlockNumber> {
-    pub fn new( online: bool, available: bool, block: BlockNumber ) -> Self {
-        Self {     
-            is_online: online,
-            is_available: available,
-            block,
-        }
-    }
-    pub fn get_block_number() -> BlockNumber {
-        self.block
-    }
-}
-
-#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct WorkerStatus {
-    uptime: u8,
-}
-
-impl WorkerStatus {
-    pub fn new(uptime: u8) -> Self {
-        // Enforce maximum value constraint in the constructor
-        let valid_uptime = if uptime > 100 { 100 } else { uptime };
-        Self { uptime: valid_uptime }
-    }
-
-    pub fn set_uptime(&mut self, value: u8) {
-        // Ensure the value does not exceed 100
-        self.uptime = if value > 100 { 100 } else { value };
-    }
-
-    pub fn get_uptime(&self) -> u8 {
-        self.uptime
-    }
 }
 
 
@@ -121,7 +84,7 @@ pub mod pallet {
             let last_updated_block = match WorkerStatusMap::<T>::get(key) {
                 Some(last_updated) => last_updated,
                 None => return
-            }
+            };
         }
 	}
 

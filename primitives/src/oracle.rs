@@ -3,6 +3,7 @@ use orml_oracle::Config;
 use orml_traits;
 use scale_info::prelude::string::String;
 use sp_std::vec::Vec;
+use crate::worker::WorkerId;
 
 /// Interface for fetching metrics and Logs.
 ///
@@ -19,7 +20,8 @@ pub type StringAPI = String;
 	Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
 )]
 pub struct ProcessStatus {
-	TaskCompleted: bool,
+	online: bool,
+	available: bool,
 	// TaskResultHash: Option<H256>,
 }
 
@@ -33,20 +35,21 @@ pub enum ProcessId {
 	Process(u64, MachineId),
 }
 
-type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
+pub type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
 	ProcessStatus,
 	<<T as orml_oracle::Config<I>>::Time as Time>::Moment,
 >;
 
+
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);
-impl<T: orml_oracle::Config<I>, I> orml_traits::CombineData<ProcessId, TimestampedValue<T, I>>
+impl<T: Config<I>, I> orml_traits::CombineData<(T::AccountId, WorkerId), TimestampedValue<T, I>>
 	for DummyCombineData<T, I>
 where
 	<T as Config<I>>::Time: frame_support::traits::Time,
 {
 	fn combine_data(
-		_key: &ProcessId,
+		_key: &(T::AccountId, WorkerId),
 		_values: Vec<TimestampedValue<T, I>>,
 		_prev_value: Option<TimestampedValue<T, I>>,
 	) -> Option<TimestampedValue<T, I>> {

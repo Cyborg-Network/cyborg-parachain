@@ -18,6 +18,9 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
 
+orml-oracle = { workspace = true }
+orml-traits = { workspace = true }
+
 # frame deps
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
 frame-support = { version = "35.0.0", default-features = false }
@@ -39,6 +42,8 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
+	"orml-oracle/std",
+	"orml-traits/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",

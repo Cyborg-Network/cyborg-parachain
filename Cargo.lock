@@ -2385,6 +2385,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "orml-oracle",
+ "orml-traits",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -2406,6 +2408,7 @@ dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-storage-weight-reclaim",
  "cumulus-primitives-utility",
+ "cyborg-primitives",
  "docify",
  "frame-benchmarking",
  "frame-executive",
@@ -7297,6 +7300,7 @@ dependencies = [
 name = "pallet-status-aggregator"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

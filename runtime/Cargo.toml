@@ -35,6 +35,7 @@ orml-traits = { workspace = true }
 # Local
 pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
+cyborg-primitives = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
