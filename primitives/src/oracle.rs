@@ -20,8 +20,8 @@ pub type StringAPI = String;
 	Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
 )]
 pub struct ProcessStatus {
-	online: bool,
-	available: bool,
+	pub online: bool,
+	pub available: bool,
 	// TaskResultHash: Option<H256>,
 }
 

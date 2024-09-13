@@ -15,8 +15,13 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use orml_traits::OnNewData;
+use orml_traits::{OnNewData, CombineData};
+use orml_oracle;
 use frame_system;
+// use crate::{Config, MomentOf, TimestampedValueOf};
+use frame_support::{LOG_TARGET,traits::{Get, Time}};
+// use sp_std::{marker, prelude::*};
+use cyborg_primitives::oracle::{TimestampedValue,ProcessStatus};
 
 pub type WorkerId = u64;
 
@@ -26,7 +31,6 @@ pub struct StatusInstance<BlockNumber> {
     is_available: bool,
     block: BlockNumber
 }
-
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -46,11 +50,21 @@ pub mod pallet {
 
 		// /// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
+
+        /// Maximum number of blocks or block range used to calculate average status 
+        #[pallet::constant]
+        type MaxBlockRangePeriod: Get<BlockNumberFor<Self>>;
+
+        /// The percentage of active oracle entries needed to determine online status for worker
+        #[pallet::constant]
+        type ThresholdOnlineStatus: Get<u32>;
+
+        #[pallet::constant]
+        type MaxAggregateParamLength: Get<u32>;
 	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
-
 
 	/// Worker Cluster information
 	#[pallet::storage]
@@ -59,43 +73,92 @@ pub mod pallet {
 		_,
 		Twox64Concat,
 		(T::AccountId, WorkerId),
-		StatusInstance<BlockNumberFor<T>>,
-		OptionQuery,
+		BoundedVec<StatusInstance<BlockNumberFor<T>>, T::MaxAggregateParamLength>,
+		ValueQuery,
 	>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn last_updated_block)]
+    pub type LastClearedBlock<T: Config> =
+        StorageValue<_, u128, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn submitted_per_period)]
+    pub type SubmittedPerPeriod<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+	    (T::AccountId, WorkerId),
+        OptionQuery,
+    >;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-
+		WorkerRegistered {
+			creator: T::AccountId,
+		},
 	}
 
 	/// Pallet Errors
-	#[pallet::error]
-	pub enum Error<T> {
-
-	}
+    pub enum Error {
+        ExceedsMaxAggregateParamLength,
+    }
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+	// impl<T: Config> Pallet<T> {
+    //     fn update_worker_status(key: &(T::AccountId, u64)) {
+    //         let last_updated_block = match WorkerStatusMap::<T>::get(key) {
+    //             Some(last_updated) => last_updated,
+    //             None => return
+    //         };
+    //     }
+	// }
 
-	impl<T: Config> Pallet<T> {
-        fn update_worker_status(key: &(T::AccountId, u64)) {
-            let last_updated_block = match WorkerStatusMap::<T>::get(key) {
-                Some(last_updated) => last_updated,
-                None => return
-            };
-        }
-	}
-
-    impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), bool> for Pallet<T> {
-        fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &bool) {
-
-            WorkerStatusMap::<T>::set(key, Some(StatusInstance{
-                is_online: *value,
-                is_available: true,
+    impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
+        fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
+            if SubmittedPerPeriod::<T>::get(who).is_some() {
+                log::error!(
+                    target: LOG_TARGET,
+                        "A value for this period was already submitted by: {:?}",
+                        who
+                );
+                return
+            }
+            WorkerStatusMap::<T>::mutate(&key, |status_vec| match status_vec.try_push(
+                StatusInstance{
+                is_online: value.online,
+                is_available: value.available,
                 block: <frame_system::Pallet<T>>::block_number()
-            }));
+            }) {
+                Ok(()) => {}
+                Err(_) => {
+                    log::error!(
+                    target: LOG_TARGET,
+                        "Failed to push status instance value due to exceeded capacity. \
+                        Value was submitted by: {:?}",
+                        who
+                    );
+                }
+            });
+            SubmittedPerPeriod::<T>::set(who, Some(key.clone()));
+        }
+    }
+
+    impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, WorkerId), TimestampedValue<T>>
+        for Pallet<T>
+    {
+        fn combine_data(
+            _key: &(T::AccountId, WorkerId),
+            _values: Vec<TimestampedValue<T>>,
+            _prev_value: Option<TimestampedValue<T>>,
+        ) -> Option<TimestampedValue<T>> {
+            None
         }
     }
 }
+
+
+

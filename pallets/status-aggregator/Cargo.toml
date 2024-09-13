@@ -19,7 +19,9 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
 
+log = { workspace = true }
 orml-traits = { workspace = true }
+orml-oracle = { workspace = true }
 cyborg-primitives = { workspace = true }
 
 # frame deps

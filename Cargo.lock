@@ -7304,6 +7304,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
+ "orml-oracle",
  "orml-traits",
  "parity-scale-codec",
  "scale-info",
