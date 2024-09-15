@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::{fs, option, sync::Arc};
 
 use codec::{Decode, Encode};
 use cyborg_runtime::apis::TaskManagementEventsApi;
+use log::info;
 use sc_client_api::BlockchainEvents;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
@@ -11,6 +12,8 @@ use sp_runtime::traits::Block;
 
 pub mod custom_event_listener;
 pub mod register_worker;
+
+pub const CONFIG_FILE_NAME: &str = "registered_worker_config.json";
 
 // datastructure for worker registartion persistence
 #[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Serialize, Deserialize)]
@@ -27,8 +30,23 @@ where
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
 	T::Api: TaskManagementEventsApi<U>,
 {
-	dbg!("============worker_starting============");
+	info!("worker_starting");
 
-	register_worker::register_worker_on_chain().await;
+	bootstrap_worker().await.unwrap();
 	custom_event_listener::event_listener_tester(client).await;
+}
+pub async fn bootstrap_worker() -> option::Option<WorkerData> {
+	let worker_data = match fs::read_to_string(CONFIG_FILE_NAME) {
+		Err(_) => None,
+		Ok(data) => {
+			let worker_data: WorkerData = serde_json::from_str(&data).unwrap();
+			return Some(worker_data);
+		}
+	};
+	if worker_data.is_none() {
+		info!("worker registation not found, registering worker");
+		return register_worker::register_worker_on_chain().await;
+	} else {
+		return worker_data;
+	}
 }

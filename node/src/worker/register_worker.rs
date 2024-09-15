@@ -14,6 +14,8 @@ use substrate_api_client::SubmitAndWatch;
 use substrate_api_client::XtStatus;
 use substrate_api_client::{rpc::TungsteniteRpcClient, Api};
 
+use crate::worker::CONFIG_FILE_NAME;
+
 use super::WorkerData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Decode)]
@@ -28,9 +30,7 @@ impl StaticEvent for EventWorkerRegistered {
 	const EVENT: &'static str = "WorkerRegistered";
 }
 
-pub async fn register_worker_on_chain() {
-	dbg!("============register_worker_on_chain============");
-
+pub async fn register_worker_on_chain() -> Option<WorkerData> {
 	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" # //Alice
 	// export CYBORG_WORKER_DOMAIN="example.com" # replace with your domain
 	// run zombienet `zombienet --provider native spawn ./zombienet.toml`
@@ -80,21 +80,23 @@ pub async fn register_worker_on_chain() {
 							println!("❌Event not decoded properly❌");
 						}
 						Ok(Some(registration_event)) => {
-							worker_retain_after_restart(registration_event);
+							return worker_retain_after_restart(registration_event);
 						}
 					}
 				}
 			}
+			None
 		}
 		Err(e) => {
 			println!("Somethign went wrong while registering worker ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
 			dbg!(e);
 			println!("RESTART The worker node with proper environment variables");
+			None
 		}
 	}
 }
 
-fn worker_retain_after_restart(reg_event: EventWorkerRegistered) {
+fn worker_retain_after_restart(reg_event: EventWorkerRegistered) -> Option<WorkerData> {
 	let registered_worker_data = WorkerData {
 		creator: reg_event.creator.to_ss58check(),
 		worker: reg_event.worker,
@@ -107,10 +109,11 @@ fn worker_retain_after_restart(reg_event: EventWorkerRegistered) {
 
 	use std::{fs::File, path::Path};
 
-	let config_path = Path::new("registered_worker_config.json");
+	let config_path = Path::new(CONFIG_FILE_NAME);
 	match File::create(config_path) {
 		Err(e) => {
 			dbg!(e);
+			None
 		}
 		Ok(mut created_file) => {
 			created_file
@@ -120,6 +123,7 @@ fn worker_retain_after_restart(reg_event: EventWorkerRegistered) {
 				"✅✅Saved worker registration data to file: {:?}✅✅ ",
 				config_path.to_str()
 			);
+			Some(registered_worker_data)
 		}
-	};
+	}
 }
