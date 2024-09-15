@@ -17,7 +17,7 @@ pub trait MetricsAndLogs {
 pub type StringAPI = String;
 
 #[derive(
-	Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
+	Default, Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
 )]
 pub struct ProcessStatus {
 	pub online: bool,

@@ -13,7 +13,7 @@
 // mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec}; 
 use scale_info::TypeInfo;
 use orml_traits::{OnNewData, CombineData};
 use orml_oracle;
@@ -66,21 +66,22 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-	/// Worker Cluster information
+
+    #[pallet::storage]
+    #[pallet::getter(fn last_updated_block)]
+    pub type LastClearedBlock<T: Config> =
+        StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
+    
 	#[pallet::storage]
-	#[pallet::getter(fn worker_status)]
-	pub type WorkerStatusMap<T: Config> = StorageMap<
+	#[pallet::getter(fn worker_status_entries)]
+	pub type WorkerStatusEntriesPerPeriod<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
 		(T::AccountId, WorkerId),
 		BoundedVec<StatusInstance<BlockNumberFor<T>>, T::MaxAggregateParamLength>,
 		ValueQuery,
 	>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn last_updated_block)]
-    pub type LastClearedBlock<T: Config> =
-        StorageValue<_, u128, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn submitted_per_period)]
@@ -91,6 +92,16 @@ pub mod pallet {
 	    (T::AccountId, WorkerId),
         OptionQuery,
     >;
+
+    #[pallet::storage]
+	#[pallet::getter(fn worker_status_result)]
+	pub type ResultingWorkerStatus<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		(T::AccountId, WorkerId),
+		ProcessStatus,
+		ValueQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -106,16 +117,36 @@ pub mod pallet {
     }
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_finalize(now: BlockNumberFor<T>) {
+            if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
+				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
+                let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
+                if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
+                    LastClearedBlock::<T>::set(now);
+                }
+                log::info!(
+                    target: LOG_TARGET,
+                        "Clearing map result for SubmittedPerPeriod: {:?}",
+                        clear_result_a.deconstruct()
+                );
+                log::info!(
+                    target: LOG_TARGET,
+                        "Clearing map result for WorkerStatusEntriesPerPeriod: {:?}",
+                        clear_result_b.deconstruct()
+                );
+			}
+        }
+    }
 
-	// impl<T: Config> Pallet<T> {
-    //     fn update_worker_status(key: &(T::AccountId, u64)) {
-    //         let last_updated_block = match WorkerStatusMap::<T>::get(key) {
-    //             Some(last_updated) => last_updated,
-    //             None => return
-    //         };
-    //     }
-	// }
+	impl<T: Config> Pallet<T> {
+        fn derive_status_for_period() {
+            for (key_worker, value_status_vec) in WorkerStatusMap::<T>::iter() {
+                let mut total: u32 = 0;
+                if 
+            }
+        }
+	}
 
     impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
         fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
@@ -127,7 +158,7 @@ pub mod pallet {
                 );
                 return
             }
-            WorkerStatusMap::<T>::mutate(&key, |status_vec| match status_vec.try_push(
+            WorkerStatusEntriesPerPeriod::<T>::mutate(&key, |status_vec| match status_vec.try_push(
                 StatusInstance{
                 is_online: value.online,
                 is_available: value.available,
