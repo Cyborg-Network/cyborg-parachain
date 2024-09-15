@@ -32,13 +32,14 @@ where
 {
 	info!("worker_starting");
 
-	bootstrap_worker().await.unwrap();
-	custom_event_listener::event_listener_tester(client).await;
+	let worker_data = bootstrap_worker().await.unwrap();
+	custom_event_listener::event_listener_tester(client, worker_data).await;
 }
 pub async fn bootstrap_worker() -> option::Option<WorkerData> {
 	let worker_data = match fs::read_to_string(CONFIG_FILE_NAME) {
 		Err(_) => None,
 		Ok(data) => {
+			// TODO: verify worker registration on chain
 			let worker_data: WorkerData = serde_json::from_str(&data).unwrap();
 			return Some(worker_data);
 		}
