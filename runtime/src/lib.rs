@@ -46,7 +46,7 @@ pub use cyborg_primitives::{ worker::WorkerId , oracle::{DummyCombineData, Proce
 
 pub use pallet_edge_connect;
 pub use pallet_task_management;
-// pub use pallet_status_aggregator;
+pub use pallet_status_aggregator;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -216,14 +216,14 @@ parameter_types! {
     pub const MaxBlockRangePeriod: BlockNumber = 15u32; // Set the max block range to 100 blocks
 }
 
-// impl pallet_status_aggregator::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type WeightInfo = ();
+impl pallet_status_aggregator::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 
-// 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
-// 	type ThresholdOnlineStatus = ConstU8<75>;
-// 	type MaxAggregateParamLength = ConstU32<300>;
-// }
+	type MaxBlockRangePeriod = MaxBlockRangePeriod;
+	type ThresholdOnlineStatus = ConstU8<75>;
+	type MaxAggregateParamLength = ConstU32<300>;
+}
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
