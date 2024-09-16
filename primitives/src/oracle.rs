@@ -1,9 +1,9 @@
+use crate::worker::WorkerId;
 use frame_support::{pallet_prelude::*, traits::Time};
 use orml_oracle::Config;
 use orml_traits;
 use scale_info::prelude::string::String;
 use sp_std::vec::Vec;
-use crate::worker::WorkerId;
 
 /// Interface for fetching metrics and Logs.
 ///
@@ -17,7 +17,18 @@ pub trait MetricsAndLogs {
 pub type StringAPI = String;
 
 #[derive(
-	Default, Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
+	Default,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	Ord,
+	PartialOrd,
+	PartialEq,
+	Eq,
+	TypeInfo,
 )]
 pub struct ProcessStatus {
 	pub online: bool,
@@ -39,7 +50,6 @@ pub type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
 	ProcessStatus,
 	<<T as orml_oracle::Config<I>>::Time as Time>::Moment,
 >;
-
 
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);

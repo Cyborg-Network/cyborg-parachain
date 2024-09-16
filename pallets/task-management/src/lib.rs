@@ -21,8 +21,8 @@ use sp_core::hash::H256;
 
 pub type TaskId = u64;
 
-use cyborg_primitives::worker::{WorkerId, WorkerStatusType};
 pub use cyborg_primitives::task::*;
+use cyborg_primitives::worker::{WorkerId, WorkerStatusType};
 
 #[frame_support::pallet]
 pub mod pallet {

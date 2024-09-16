@@ -42,11 +42,14 @@ use weights::ExtrinsicBaseWeight;
 
 pub use frame_system::EnsureRoot;
 
-pub use cyborg_primitives::{ worker::WorkerId , oracle::{DummyCombineData, ProcessStatus}};
+pub use cyborg_primitives::{
+	oracle::{DummyCombineData, ProcessStatus},
+	worker::WorkerId,
+};
 
 pub use pallet_edge_connect;
-pub use pallet_task_management;
 pub use pallet_status_aggregator;
+pub use pallet_task_management;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -213,7 +216,7 @@ impl pallet_task_management::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MaxBlockRangePeriod: BlockNumber = 15u32; // Set the max block range to 100 blocks
+		pub const MaxBlockRangePeriod: BlockNumber = 15u32; // Set the max block range to 100 blocks
 }
 
 impl pallet_status_aggregator::Config for Runtime {

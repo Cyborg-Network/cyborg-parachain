@@ -14,31 +14,46 @@ pub use pallet::*;
 // mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec}; 
-use scale_info::TypeInfo;
-use orml_traits::{OnNewData, CombineData};
-use orml_oracle;
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_system;
+use orml_oracle;
+use orml_traits::{CombineData, OnNewData};
+use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
-use frame_support::{LOG_TARGET,traits::{Get, Time}};
-use cyborg_primitives::{worker::WorkerId, oracle::{TimestampedValue,ProcessStatus}};
-
-
+use cyborg_primitives::{
+	oracle::{ProcessStatus, TimestampedValue},
+	worker::WorkerId,
+};
+use frame_support::{
+	traits::{Get, Time},
+	LOG_TARGET,
+};
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
-    pub is_online: bool,
-    pub is_available: bool,
-    pub block: BlockNumber
+	pub is_online: bool,
+	pub is_available: bool,
+	pub block: BlockNumber,
 }
 
 #[derive(
-	Default, Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
+	Default,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	Clone,
+	Copy,
+	Debug,
+	Ord,
+	PartialOrd,
+	PartialEq,
+	Eq,
+	TypeInfo,
 )]
 pub struct ProcessStatusPercentages<BlockNumber> {
 	pub online: u8,
 	pub available: u8,
-    pub last_block_processed: BlockNumber
+	pub last_block_processed: BlockNumber,
 }
 
 #[frame_support::pallet]
@@ -48,7 +63,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use scale_info::prelude::vec::Vec;
 
-    use frame_system::WeightInfo; //remove later
+	use frame_system::WeightInfo; //remove later
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -60,26 +75,25 @@ pub mod pallet {
 		// /// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 
-        /// Maximum number of blocks or block range used to calculate average status 
-        #[pallet::constant]
-        type MaxBlockRangePeriod: Get<BlockNumberFor<Self>>;
+		/// Maximum number of blocks or block range used to calculate average status
+		#[pallet::constant]
+		type MaxBlockRangePeriod: Get<BlockNumberFor<Self>>;
 
-        /// The percentage of active oracle entries needed to determine online status for worker
-        #[pallet::constant]
-        type ThresholdOnlineStatus: Get<u8>;
+		/// The percentage of active oracle entries needed to determine online status for worker
+		#[pallet::constant]
+		type ThresholdOnlineStatus: Get<u8>;
 
-        #[pallet::constant]
-        type MaxAggregateParamLength: Get<u32>;
+		#[pallet::constant]
+		type MaxAggregateParamLength: Get<u32>;
 	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-    #[pallet::storage]
-    #[pallet::getter(fn last_updated_block)]
-    pub type LastClearedBlock<T: Config> =
-        StorageValue<_, BlockNumberFor<T>, ValueQuery>;
-    
+	#[pallet::storage]
+	#[pallet::getter(fn last_updated_block)]
+	pub type LastClearedBlock<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn worker_status_entries)]
 	pub type WorkerStatusEntriesPerPeriod<T: Config> = StorageMap<
@@ -90,17 +104,12 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-    #[pallet::storage]
-    #[pallet::getter(fn submitted_per_period)]
-    pub type SubmittedPerPeriod<T: Config> = StorageMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-	    (T::AccountId, WorkerId),
-        OptionQuery,
-    >;
+	#[pallet::storage]
+	#[pallet::getter(fn submitted_per_period)]
+	pub type SubmittedPerPeriod<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, (T::AccountId, WorkerId), OptionQuery>;
 
-    #[pallet::storage]
+	#[pallet::storage]
 	#[pallet::getter(fn worker_status_resulting_percentages)]
 	pub type ResultingWorkerStatusPercentages<T: Config> = StorageMap<
 		_,
@@ -110,114 +119,107 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-    #[pallet::storage]
+	#[pallet::storage]
 	#[pallet::getter(fn worker_status_result)]
-	pub type ResultingWorkerStatus<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		(T::AccountId, WorkerId),
-		ProcessStatus,
-		ValueQuery,
-	>;
+	pub type ResultingWorkerStatus<T: Config> =
+		StorageMap<_, Twox64Concat, (T::AccountId, WorkerId), ProcessStatus, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		WorkerRegistered {
-			creator: T::AccountId,
-		},
+		WorkerRegistered { creator: T::AccountId },
 	}
 
 	/// Pallet Errors
-    pub enum Error {
-        ExceedsMaxAggregateParamLength,
-    }
+	pub enum Error {
+		ExceedsMaxAggregateParamLength,
+	}
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-        fn on_finalize(now: BlockNumberFor<T>) {
-            if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
+		fn on_finalize(now: BlockNumberFor<T>) {
+			if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
-                let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
-                if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
-                    LastClearedBlock::<T>::set(now);
-                }
-                log::info!(
-                    target: LOG_TARGET,
-                        "Clearing map result for SubmittedPerPeriod: {:?}",
-                        clear_result_a.deconstruct()
-                );
-                log::info!(
-                    target: LOG_TARGET,
-                        "Clearing map result for WorkerStatusEntriesPerPeriod: {:?}",
-                        clear_result_b.deconstruct()
-                );
+				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
+				if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
+					LastClearedBlock::<T>::set(now);
+				}
+				log::info!(
+						target: LOG_TARGET,
+								"Clearing map result for SubmittedPerPeriod: {:?}",
+								clear_result_a.deconstruct()
+				);
+				log::info!(
+						target: LOG_TARGET,
+								"Clearing map result for WorkerStatusEntriesPerPeriod: {:?}",
+								clear_result_b.deconstruct()
+				);
 			}
-        }
-    }
-
-	impl<T: Config> Pallet<T> {
-        fn derive_status_percentages_for_period() {
-            for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
-                let mut total_online: u32 = 0;
-                let mut total_available: u32 = 0;
-                value_status_vec.iter().for_each(|value: &StatusInstance<BlockNumberFor<T>>| {
-                    total_online += if value.is_online {100} else {0};
-                    total_available += if value.is_available {100} else {0};
-                });
-                let process_status_percentages = ProcessStatusPercentages {
-                    online: (total_online / value_status_vec.len() as u32) as u8,
-                    available: (total_available / value_status_vec.len() as u32) as u8,
-                    last_block_processed: LastClearedBlock::<T>::get()
-                };
-                ResultingWorkerStatusPercentages::<T>::set(key_worker, process_status_percentages);
-            }
-        }
+		}
 	}
 
-    /// updates entries into
-    impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
-        fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
-            if SubmittedPerPeriod::<T>::get(who).is_some() {
-                log::error!(
-                    target: LOG_TARGET,
-                        "A value for this period was already submitted by: {:?}",
-                        who
-                );
-                return
-            }
-            WorkerStatusEntriesPerPeriod::<T>::mutate(&key, |status_vec| match status_vec.try_push(
-                StatusInstance{
-                is_online: value.online,
-                is_available: value.available,
-                block: <frame_system::Pallet<T>>::block_number()
-            }) {
-                Ok(()) => {}
-                Err(_) => {
-                    log::error!(
-                    target: LOG_TARGET,
-                        "Failed to push status instance value due to exceeded capacity. \
-                        Value was submitted by: {:?}",
-                        who
-                    );
-                }
-            });
-            SubmittedPerPeriod::<T>::set(who, Some(key.clone()));
-        }
-    }
+	impl<T: Config> Pallet<T> {
+		fn derive_status_percentages_for_period() {
+			for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
+				let mut total_online: u32 = 0;
+				let mut total_available: u32 = 0;
+				value_status_vec
+					.iter()
+					.for_each(|value: &StatusInstance<BlockNumberFor<T>>| {
+						total_online += if value.is_online { 100 } else { 0 };
+						total_available += if value.is_available { 100 } else { 0 };
+					});
+				let process_status_percentages = ProcessStatusPercentages {
+					online: (total_online / value_status_vec.len() as u32) as u8,
+					available: (total_available / value_status_vec.len() as u32) as u8,
+					last_block_processed: LastClearedBlock::<T>::get(),
+				};
+				ResultingWorkerStatusPercentages::<T>::set(key_worker, process_status_percentages);
+			}
+		}
+	}
 
-    impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, WorkerId), TimestampedValue<T>>
-        for Pallet<T>
-    {
-        fn combine_data(
-            _key: &(T::AccountId, WorkerId),
-            _values: Vec<TimestampedValue<T>>,
-            _prev_value: Option<TimestampedValue<T>>,
-        ) -> Option<TimestampedValue<T>> {
-            None
-        }
-    }
+	/// updates entries into
+	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
+		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
+			if SubmittedPerPeriod::<T>::get(who).is_some() {
+				log::error!(
+						target: LOG_TARGET,
+								"A value for this period was already submitted by: {:?}",
+								who
+				);
+				return;
+			}
+			WorkerStatusEntriesPerPeriod::<T>::mutate(&key, |status_vec| {
+				match status_vec.try_push(StatusInstance {
+					is_online: value.online,
+					is_available: value.available,
+					block: <frame_system::Pallet<T>>::block_number(),
+				}) {
+					Ok(()) => {}
+					Err(_) => {
+						log::error!(
+						target: LOG_TARGET,
+								"Failed to push status instance value due to exceeded capacity. \
+								Value was submitted by: {:?}",
+								who
+						);
+					}
+				}
+			});
+			SubmittedPerPeriod::<T>::set(who, Some(key.clone()));
+		}
+	}
+
+	impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, WorkerId), TimestampedValue<T>>
+		for Pallet<T>
+	{
+		fn combine_data(
+			_key: &(T::AccountId, WorkerId),
+			_values: Vec<TimestampedValue<T>>,
+			_prev_value: Option<TimestampedValue<T>>,
+		) -> Option<TimestampedValue<T>> {
+			None
+		}
+	}
 }
-
-
-
