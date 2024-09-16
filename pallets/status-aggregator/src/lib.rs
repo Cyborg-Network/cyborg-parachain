@@ -20,16 +20,24 @@ use orml_oracle;
 use frame_system;
 // use crate::{Config, MomentOf, TimestampedValueOf};
 use frame_support::{LOG_TARGET,traits::{Get, Time}};
-// use sp_std::{marker, prelude::*};
-use cyborg_primitives::oracle::{TimestampedValue,ProcessStatus};
+use cyborg_primitives::{worker::WorkerId, oracle::{TimestampedValue,ProcessStatus}};
 
-pub type WorkerId = u64;
+
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
-    is_online: bool,
-    is_available: bool,
-    block: BlockNumber
+    pub is_online: bool,
+    pub is_available: bool,
+    pub block: BlockNumber
+}
+
+#[derive(
+	Default, Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, Ord, PartialOrd, PartialEq, Eq, TypeInfo,
+)]
+pub struct ProcessStatusPercentages<BlockNumber> {
+	pub online: u8,
+	pub available: u8,
+    pub last_block_processed: BlockNumber
 }
 
 #[frame_support::pallet]
@@ -57,7 +65,7 @@ pub mod pallet {
 
         /// The percentage of active oracle entries needed to determine online status for worker
         #[pallet::constant]
-        type ThresholdOnlineStatus: Get<u32>;
+        type ThresholdOnlineStatus: Get<u8>;
 
         #[pallet::constant]
         type MaxAggregateParamLength: Get<u32>;
@@ -66,12 +74,10 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-
     #[pallet::storage]
     #[pallet::getter(fn last_updated_block)]
     pub type LastClearedBlock<T: Config> =
         StorageValue<_, BlockNumberFor<T>, ValueQuery>;
-
     
 	#[pallet::storage]
 	#[pallet::getter(fn worker_status_entries)]
@@ -92,6 +98,16 @@ pub mod pallet {
 	    (T::AccountId, WorkerId),
         OptionQuery,
     >;
+
+    #[pallet::storage]
+	#[pallet::getter(fn worker_status_resulting_percentages)]
+	pub type ResultingWorkerStatusPercentages<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		(T::AccountId, WorkerId),
+		ProcessStatusPercentages<BlockNumberFor<T>>,
+		ValueQuery,
+	>;
 
     #[pallet::storage]
 	#[pallet::getter(fn worker_status_result)]
@@ -140,14 +156,25 @@ pub mod pallet {
     }
 
 	impl<T: Config> Pallet<T> {
-        fn derive_status_for_period() {
-            for (key_worker, value_status_vec) in WorkerStatusMap::<T>::iter() {
-                let mut total: u32 = 0;
-                if 
+        fn derive_status_percentages_for_period() {
+            for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
+                let mut total_online: u32 = 0;
+                let mut total_available: u32 = 0;
+                value_status_vec.iter().for_each(|value: &StatusInstance<BlockNumberFor<T>>| {
+                    total_online += if value.is_online {100} else {0};
+                    total_available += if value.is_available {100} else {0};
+                });
+                let process_status_percentages = ProcessStatusPercentages {
+                    online: (total_online / value_status_vec.len() as u32) as u8,
+                    available: (total_available / value_status_vec.len() as u32) as u8,
+                    last_block_processed: LastClearedBlock::<T>::get()
+                };
+                ResultingWorkerStatusPercentages::<T>::set(key_worker, process_status_percentages);
             }
         }
 	}
 
+    /// updates entries into
     impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
         fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
             if SubmittedPerPeriod::<T>::get(who).is_some() {

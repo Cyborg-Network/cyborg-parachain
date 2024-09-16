@@ -2430,6 +2430,7 @@ dependencies = [
  "pallet-membership",
  "pallet-message-queue",
  "pallet-session",
+ "pallet-status-aggregator",
  "pallet-sudo",
  "pallet-task-management",
  "pallet-timestamp",
