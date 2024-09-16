@@ -35,4 +35,5 @@ frame_benchmarking::define_benchmarks!(
 	[cumulus_pallet_xcmp_queue, XcmpQueue]
 	[pallet_edge_connect, EdgeConnect]
 	[pallet_task_management, TaskManagement]
+	[orml_oracle, Oracle]
 );

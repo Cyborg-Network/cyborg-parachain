@@ -10,16 +10,16 @@ use frame_support::sp_runtime::traits::One;
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
 
-
-
+// Define a constant for the worker API domain.
+const WORKER_API_DOMAIN: &str = "https://some_api_domain.com";
 
 // Helper function to convert the domain string into a BoundedVec with a maximum length of 128 bytes.
 // Convert the domain string into a vector of bytes and then into a BoundedVec with a maximum length of 128 bytes.
 // The `try_from` mthod ensure that the length of the string doesn't exceed the limit.
 fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
-    BoundedVec::try_from(domain_str.as_bytes().to_vec()).expect("Domain string exceeds maximum length")
+	BoundedVec::try_from(domain_str.as_bytes().to_vec())
+		.expect("Domain string exceeds maximum length")
 }
-
 
 #[benchmarks]
 mod benchmarks {
@@ -32,7 +32,7 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 
 		// Define a domain string that will be part of the WorkerAPI (represent the worker's domain).
-		let domain = get_domain("https://some_api_domain.com");
+		let domain = get_domain(WORKER_API_DOMAIN);
 
 		// Create a WorkerAPI struct that contains the domain information.
 		let api_info = WorkerAPI {
@@ -54,10 +54,7 @@ mod benchmarks {
 		// The `RawOrigin::Signed(caller.clone())` indicates that this transaction is signed by the caller.
 		// The domain  from `api_info` is passed as part of the worker registration process.
 		#[extrinsic_call]
-		register_worker(
-			RawOrigin::Signed(caller.clone()),
-			api_info.domain,
-		);
+		register_worker(RawOrigin::Signed(caller.clone()), api_info.domain);
 
 		// After the worker is registered, assert that the worker was correctly stored in the pallet's storage.
 		// `get_worker_cluster` (getter fn for workercluster) retrieves the worker by the tuple (caller, worker ID).
@@ -75,13 +72,11 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 
 		// Define a domain string that will be part of the WorkerAPI (represent the worker's domain).
-		let domain = get_domain("https://some_api_domain.com");
+		let domain = get_domain(WORKER_API_DOMAIN);
 
 		// First, register a worker to ensure there is one to remove
 		// This step simulates the existence of a worker in the system before we benchmark the removal process.
-		let api_info = WorkerAPI {
-			domain
-		};
+		let api_info = WorkerAPI { domain };
 
 		// Call the `register_worker` extrinsic to create and register a worker.
 		// This step is necessary before calling `remove_worker` because we need to remove an existing worker.
