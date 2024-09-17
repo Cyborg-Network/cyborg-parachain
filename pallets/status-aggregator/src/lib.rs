@@ -14,7 +14,7 @@ pub use pallet::*;
 // mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
 use frame_system;
 use orml_oracle;
 use orml_traits::{CombineData, OnNewData};
@@ -24,10 +24,7 @@ use cyborg_primitives::{
 	oracle::{ProcessStatus, TimestampedValue},
 	worker::WorkerId,
 };
-use frame_support::{
-	traits::{Get, Time},
-	LOG_TARGET,
-};
+use frame_support::{traits::Get, LOG_TARGET};
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
@@ -81,7 +78,7 @@ pub mod pallet {
 
 		/// The percentage of active oracle entries needed to determine online status for worker
 		#[pallet::constant]
-		type ThresholdOnlineStatus: Get<u8>;
+		type ThresholdUptimeStatus: Get<u8>;
 
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
@@ -94,6 +91,7 @@ pub mod pallet {
 	#[pallet::getter(fn last_updated_block)]
 	pub type LastClearedBlock<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
+	/// Stores the amount of status entries for a given worker provided for this period
 	#[pallet::storage]
 	#[pallet::getter(fn worker_status_entries)]
 	pub type WorkerStatusEntriesPerPeriod<T: Config> = StorageMap<
@@ -104,11 +102,13 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	/// Tracks whether an oracle provider has submitted status for a given worker during the current period
 	#[pallet::storage]
 	#[pallet::getter(fn submitted_per_period)]
 	pub type SubmittedPerPeriod<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, (T::AccountId, WorkerId), OptionQuery>;
+		StorageMap<_, Twox64Concat, (T::AccountId, (T::AccountId, WorkerId)), bool, ValueQuery>;
 
+	/// Resulting percentages for status uptimes
 	#[pallet::storage]
 	#[pallet::getter(fn worker_status_resulting_percentages)]
 	pub type ResultingWorkerStatusPercentages<T: Config> = StorageMap<
@@ -119,6 +119,7 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	/// Resulting status determined by given percentage threshold
 	#[pallet::storage]
 	#[pallet::getter(fn worker_status_result)]
 	pub type ResultingWorkerStatus<T: Config> =
@@ -139,6 +140,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(now: BlockNumberFor<T>) {
 			if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
+				Self::derive_status_percentages_for_period();
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
 				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
 				if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
@@ -169,12 +171,21 @@ pub mod pallet {
 						total_online += if value.is_online { 100 } else { 0 };
 						total_available += if value.is_available { 100 } else { 0 };
 					});
+				let online = (total_online / value_status_vec.len() as u32) as u8;
+				let available = (total_available / value_status_vec.len() as u32) as u8;
 				let process_status_percentages = ProcessStatusPercentages {
-					online: (total_online / value_status_vec.len() as u32) as u8,
-					available: (total_available / value_status_vec.len() as u32) as u8,
+					online,
+					available,
 					last_block_processed: LastClearedBlock::<T>::get(),
 				};
-				ResultingWorkerStatusPercentages::<T>::set(key_worker, process_status_percentages);
+				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
+				ResultingWorkerStatus::<T>::set(
+					key_worker,
+					ProcessStatus {
+						online: online >= T::ThresholdUptimeStatus::get(),
+						available: available >= T::ThresholdUptimeStatus::get(),
+					},
+				)
 			}
 		}
 	}
@@ -182,7 +193,7 @@ pub mod pallet {
 	/// updates entries into
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
-			if SubmittedPerPeriod::<T>::get(who).is_some() {
+			if SubmittedPerPeriod::<T>::get((who, key)) == true {
 				log::error!(
 						target: LOG_TARGET,
 								"A value for this period was already submitted by: {:?}",
@@ -196,7 +207,14 @@ pub mod pallet {
 					is_available: value.available,
 					block: <frame_system::Pallet<T>>::block_number(),
 				}) {
-					Ok(()) => {}
+					Ok(()) => {
+						log::info!(
+						target: LOG_TARGET,
+								"Successfully push status instance value for period. \
+								Value was submitted by: {:?}",
+								who
+						);
+					}
 					Err(_) => {
 						log::error!(
 						target: LOG_TARGET,
@@ -207,7 +225,7 @@ pub mod pallet {
 					}
 				}
 			});
-			SubmittedPerPeriod::<T>::set(who, Some(key.clone()));
+			SubmittedPerPeriod::<T>::set((who, key), true);
 		}
 	}
 

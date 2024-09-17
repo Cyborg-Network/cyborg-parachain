@@ -14,9 +14,8 @@ pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
-use scale_info::{prelude::vec::Vec, TypeInfo};
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use scale_info::prelude::vec::Vec;
 use sp_core::hash::H256;
 
 pub type TaskId = u64;

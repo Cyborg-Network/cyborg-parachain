@@ -174,7 +174,7 @@ parameter_types! {
 
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnNewData = ();
+	type OnNewData = StatusAggregator;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
 	type OracleKey = (AccountId, WorkerId);
@@ -186,7 +186,7 @@ impl orml_oracle::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxFeedValues = ConstU32<2>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MaxFeedValues = ConstU32<1>;
+	type MaxFeedValues = ConstU32<100>;
 	// #[cfg(not(feature = "runtime-benchmarks"))]
 	// type BenchmarkHelper = ();
 }
@@ -216,7 +216,7 @@ impl pallet_task_management::Config for Runtime {
 }
 
 parameter_types! {
-		pub const MaxBlockRangePeriod: BlockNumber = 15u32; // Set the max block range to 100 blocks
+		pub const MaxBlockRangePeriod: BlockNumber = 50u32; // Set the max block range to 100 blocks
 }
 
 impl pallet_status_aggregator::Config for Runtime {
@@ -224,7 +224,7 @@ impl pallet_status_aggregator::Config for Runtime {
 	type WeightInfo = ();
 
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
-	type ThresholdOnlineStatus = ConstU8<75>;
+	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
 }
 
