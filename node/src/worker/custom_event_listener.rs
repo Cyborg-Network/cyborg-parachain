@@ -16,18 +16,18 @@ where
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
 	T::Api: TaskManagementEventsApi<U>,
 {
-	dbg!("============ event_listener_tester ============");
+	info!("============ event_listener_tester ============");
 
 	let mut blocks = client.every_import_notification_stream();
 
 	while let Some(block_import_notification) = blocks.next().await {
-		dbg!("block_import_notification");
+		info!("block_import_notification");
 
 		let block_hash = block_import_notification.hash;
 
 		match client.runtime_api().get_recent_events(block_hash) {
 			Ok(event_vec) => {
-				dbg!(&event_vec);
+				info!("{:?}", &event_vec);
 				for event in event_vec {
 					match event {
 						cyborg_runtime::pallet_task_management::Event::TaskScheduled {

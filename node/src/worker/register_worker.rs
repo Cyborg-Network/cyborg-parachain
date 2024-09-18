@@ -1,5 +1,6 @@
 use codec::Decode;
 use cyborg_runtime as runtime;
+use log::{error, info};
 use sp_core::crypto::Ss58Codec;
 use sp_core::hexdisplay::AsBytesRef;
 use sp_core::sr25519;
@@ -60,7 +61,7 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 		});
 
 	let tr_tx = api.compose_extrinsic_offline(register_call, 0);
-	dbg!(&tr_tx);
+	info!("{:?}", &tr_tx);
 
 	let ext_response = api.submit_and_watch_extrinsic_until(tr_tx, XtStatus::InBlock);
 	println!("{:?}", &ext_response);
@@ -74,7 +75,7 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 			for event in ext_response_succ.events.unwrap() {
 				if event.pallet_name() == "EdgeConnect" {
 					let decoded_event = event.as_event::<EventWorkerRegistered>();
-					dbg!(&decoded_event);
+					info!("{:?}", &decoded_event);
 					match decoded_event {
 						Err(_) | Ok(None) => {
 							println!("❌Event not decoded properly❌");
@@ -89,7 +90,7 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 		}
 		Err(e) => {
 			println!("Somethign went wrong while registering worker ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
-			dbg!(e);
+			error!("{:?}", e);
 			println!("RESTART The worker node with proper environment variables");
 			None
 		}
@@ -105,14 +106,14 @@ fn worker_retain_after_restart(reg_event: EventWorkerRegistered) -> Option<Worke
 	};
 
 	let registered_worker_json = serde_json::to_string_pretty(&registered_worker_data);
-	dbg!(&registered_worker_json);
+	info!("{:?}", &registered_worker_json);
 
 	use std::{fs::File, path::Path};
 
 	let config_path = Path::new(CONFIG_FILE_NAME);
 	match File::create(config_path) {
 		Err(e) => {
-			dbg!(e);
+			error!("{}", e);
 			None
 		}
 		Ok(mut created_file) => {
