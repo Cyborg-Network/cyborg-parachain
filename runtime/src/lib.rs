@@ -12,11 +12,13 @@ mod benchmarks;
 mod configs;
 mod weights;
 
+use core::marker::PhantomData;
+use frame_benchmarking::account;
 use smallvec::smallvec;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
-	MultiSignature,
+	traits::{BlakeTwo256, Get, IdentifyAccount, Verify},
+	BoundedVec, MultiSignature,
 };
 
 use sp_std::prelude::*;
@@ -168,6 +170,44 @@ impl_opaque_keys! {
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
+#[cfg(feature = "runtime-benchmarks")]
+impl<MaxFeedValues>
+	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
+	for BenchmarkHelperImpl<MaxFeedValues>
+where
+	MaxFeedValues: Get<u32>,
+{
+	fn get_currency_id_value_pairs(
+	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
+		//Initialize an empty vector to hold up to 300 key-value pairs
+		let mut pairs: BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> =
+			BoundedVec::default();
+
+		// Loop to generate 300 pseuod-random accounts, worker IDs, and statuses
+		for seed in 0..300 {
+			//generate pseudo-random accountId
+			let account_id: AccountId = account("benchmark_account", 0, seed);
+
+			//generate pseudo-random workerId
+			let worker_id: WorkerId = (seed as u64) * 12345;
+
+			//generate pseudo-random ProcessStatus
+			let process_status = ProcessStatus {
+				online: seed % 2 == 0,
+				available: seed % 3 == 0,
+			};
+
+			pairs
+				.try_push(((account_id, worker_id), process_status))
+				.expect("Exceeded MaxFeedValues limit");
+		}
+
+		pairs
+	}
+}
+
 parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 }
@@ -187,8 +227,8 @@ impl orml_oracle::Config for Runtime {
 	type MaxFeedValues = ConstU32<2>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxFeedValues = ConstU32<100>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type BenchmarkHelper = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = BenchmarkHelperImpl<Self::MaxFeedValues>;
 }
 
 impl pallet_membership::Config for Runtime {
