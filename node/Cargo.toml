@@ -73,6 +73,7 @@ substrate-api-client = { version = "0.18.0", features = [
 	"disable-metadata-hash-check",
 ] }
 hex = "0.4.3"
+ipfs-api-backend-hyper = { version = "0.6.0", features = ["with-send-sync"] }
 
 [build-dependencies]
 substrate-build-script-utils = { version = "11.0.0" }

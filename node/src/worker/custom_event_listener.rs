@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use cyborg_runtime::apis::TaskManagementEventsApi;
 use futures::StreamExt;
+use log::{error, info};
 use sc_client_api::BlockchainEvents;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_core::hexdisplay::AsBytesRef;
 use sp_runtime::traits::Block;
+
+use crate::worker::donwloade_and_execute_tasks::download_and_execute_work_package;
 
 use super::WorkerData;
 
@@ -29,27 +32,26 @@ where
 			Ok(event_vec) => {
 				info!("{:?}", &event_vec);
 				for event in event_vec {
-					match event {
-						cyborg_runtime::pallet_task_management::Event::TaskScheduled {
-							assigned_worker,
-							task_owner,
-							task_id,
-							task,
-							..
-						} => {
-							if assigned_worker == (worker_data.worker.0.into(), worker_data.worker.1) {
-								dbg!(task_id, task_owner);
-								let docker_image_name = String::from_utf8_lossy(task.as_bytes_ref());
-								dbg!(docker_image_name);
-							}
-						}
+					if let cyborg_runtime::pallet_task_management::Event::TaskScheduled {
+						assigned_worker,
+						task_owner,
+						task_id,
+						task,
+						..
+					} = event
+					{
+						if assigned_worker == (worker_data.worker.0.into(), worker_data.worker.1) {
+							info!("task_id: {}, task_owner: {}", task_id, task_owner);
+							let ipfs_hash = String::from_utf8_lossy(task.as_bytes_ref());
+							info!("{}", &ipfs_hash);
 
-						_ => {}
+							download_and_execute_work_package(ipfs_hash.as_ref()).await;
+						}
 					}
 				}
 			}
 			Err(e) => {
-				dbg!(e);
+				error!("{}", e);
 			}
 		}
 	}
