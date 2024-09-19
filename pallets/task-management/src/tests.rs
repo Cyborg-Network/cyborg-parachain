@@ -1,5 +1,6 @@
 use crate::TaskStatusType;
 use crate::{mock::*, Error};
+pub use cyborg_primitives::worker::*;
 use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
 use sp_core::H256;
@@ -16,7 +17,7 @@ fn it_works_for_task_scheduler() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for executor
-		let api_info = pallet_edge_connect::types::WorkerAPI {
+		let api_info = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
@@ -71,12 +72,12 @@ fn it_works_for_submit_completed_task() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for Alice
-		let api_info = pallet_edge_connect::types::WorkerAPI {
+		let api_info = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
 		// Register a worker for Bob
-		let api_info_bob = pallet_edge_connect::types::WorkerAPI {
+		let api_info_bob = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 
@@ -131,7 +132,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for Alice
-		let api_info = pallet_edge_connect::types::WorkerAPI {
+		let api_info = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
@@ -175,7 +176,7 @@ fn it_works_when_verifying_task() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for executor
-		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
+		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -196,7 +197,7 @@ fn it_works_when_verifying_task() {
 		let completed_hash = H256::random();
 
 		// Register a worker for the verifier
-		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
+		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -243,7 +244,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for executor
-		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
+		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -264,7 +265,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let completed_hash = H256([123; 32]);
 
 		// Register a worker for the verifier
-		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
+		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -289,7 +290,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
-		let api_info_resolver = pallet_edge_connect::types::WorkerAPI {
+		let api_info_resolver = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -341,7 +342,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Register a worker for executor
-		let api_info_executor = pallet_edge_connect::types::WorkerAPI {
+		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -362,7 +363,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let completed_hash = H256([123; 32]);
 
 		// Register a worker for the verifier
-		let api_info_verifier = pallet_edge_connect::types::WorkerAPI {
+		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -387,7 +388,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
-		let api_info_resolver = pallet_edge_connect::types::WorkerAPI {
+		let api_info_resolver = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker3.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(
@@ -428,7 +429,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let new_executor = 4;
 
 		// Register a worker for the new executor
-		let api_info_new_executor = pallet_edge_connect::types::WorkerAPI {
+		let api_info_new_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker4.testing".to_vec()).unwrap(),
 		};
 		assert_ok!(edgeConnectModule::register_worker(

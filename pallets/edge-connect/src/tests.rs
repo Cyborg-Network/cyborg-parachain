@@ -1,4 +1,6 @@
-use crate::{mock::*, types::*, Error, Event};
+use crate::{mock::*, Error, Event};
+pub use cyborg_primitives::worker::*;
+
 use frame_support::sp_runtime::traits::ConstU32;
 use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
