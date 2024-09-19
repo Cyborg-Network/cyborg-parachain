@@ -184,7 +184,7 @@ impl orml_oracle::Config for Runtime {
 	type MaxHasDispatchedSize = ConstU32<8>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type MaxFeedValues = ConstU32<2>;
+	type MaxFeedValues = ConstU32<100>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxFeedValues = ConstU32<100>;
 	#[cfg(feature = "runtime-benchmarks")]

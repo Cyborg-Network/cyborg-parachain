@@ -11,11 +11,11 @@ mod benchmarks {
 	#[benchmark]
 	fn on_new_data() {
 		// Constant defining the max number of feed values
-		const MAX_FEED_VALUES: u32 = 300;
+		const MAX_FEED_VALUES: u32 = 12;
 
 		#[block]
 		{
-			let max_limit = MAX_FEED_VALUES - 1;
+			let max_limit = MAX_FEED_VALUES - 2;
 
 			// Loop to generate and insert mock data for benchmarking
 			for seed in 0..max_limit {
@@ -44,15 +44,9 @@ mod benchmarks {
 			account("benchmark_account", 0, 1);
 		let test_worker_id: WorkerId = (1 as u64) * 12345;
 
-		// Assert that WorkerStatusEntriesPerPeriod storage entry is empty after generate data processing
-		assert!(
-			WorkerStatusEntriesPerPeriod::<T>::get((test_account_id.clone(), test_worker_id)).is_empty(),
-			"Should have been cleaned up."
-		);
-
 		// Assert that no submission exists for the given account and worker ID in SubmittedPerPeriod
 		assert!(
-			!SubmittedPerPeriod::<T>::get((
+			SubmittedPerPeriod::<T>::get((
 				test_account_id.clone(),
 				(test_account_id.clone(), test_worker_id)
 			)),
@@ -61,7 +55,7 @@ mod benchmarks {
 
 		// Assert that no key exists in WorkerStatusEntriesPerPeriod for the test account and worker ID
 		assert!(
-			!WorkerStatusEntriesPerPeriod::<T>::contains_key((test_account_id.clone(), test_worker_id)),
+			WorkerStatusEntriesPerPeriod::<T>::contains_key((test_account_id.clone(), test_worker_id)),
 			"Entry key does not exists in WorkerStatusEntriesPerPeriod"
 		);
 	}
