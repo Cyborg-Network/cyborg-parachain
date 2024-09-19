@@ -9,7 +9,7 @@ mod mock;
 mod tests;
 
 pub mod weights;
-pub use weights::*;
+pub use weights::{*, WeightInfo as EdgeConnectWeightInfo};
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -24,16 +24,17 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use scale_info::prelude::vec::Vec;
+  use pallet_timestamp as timestamp;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		// /// A type representing the weights required by the dispatchables of this pallet.
-		type WeightInfo: WeightInfo;
+		type EdgeConnectWeightInfo: EdgeConnectWeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -43,6 +44,11 @@ pub mod pallet {
 	pub fn WorkerCountDefault() -> WorkerId {
 		0
 	}
+
+  #[pallet::type_value]
+  pub fn WorkerReputationDefault() -> WorkerReputation {
+    0
+  }
 
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
@@ -57,7 +63,7 @@ pub mod pallet {
 		_,
 		Twox64Concat,
 		(T::AccountId, WorkerId),
-		Worker<T::AccountId, BlockNumberFor<T>>,
+		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
 
@@ -73,6 +79,11 @@ pub mod pallet {
 			creator: T::AccountId,
 			worker_id: WorkerId,
 		},
+    WorkerStatusUpdated {
+      creator: T::AccountId,   
+      worker_id: WorkerId,
+      worker_status: WorkerStatusType,
+    },
 	}
 
 	/// Pallet Errors
@@ -90,12 +101,22 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::register_worker())]
-		pub fn register_worker(origin: OriginFor<T>, domain: Domain) -> DispatchResultWithPostInfo {
+		#[pallet::weight(T::EdgeConnectWeightInfo::register_worker())]
+		pub fn register_worker(
+      origin: OriginFor<T>, 
+      domain: Domain,
+      latitude: Latitude,
+      longitude: Longitude,
+      ram: RamBytes,
+      storage: StorageBytes,
+      cpu: CpuCores,
+    ) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
 			let api = WorkerAPI { domain };
 			let worker_keys = AccountWorkers::<T>::get(creator.clone());
+      let worker_location = Location { latitude, longitude };
+      let worker_specs = WorkerSpecs { ram, storage, cpu };
 
 			match worker_keys {
 				Some(keys) => {
@@ -124,9 +145,13 @@ pub mod pallet {
 			let worker = Worker {
 				id: worker_id.clone(),
 				owner: creator.clone(),
+        location: worker_location,
+        specs: worker_specs,
+        reputation: 0,
 				start_block: <frame_system::Pallet<T>>::block_number(),
 				status: WorkerStatusType::Inactive,
 				api: api,
+        last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
 			// update storage
@@ -146,7 +171,7 @@ pub mod pallet {
 
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::remove_worker())]
+		#[pallet::weight(T::EdgeConnectWeightInfo::remove_worker())]
 		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
@@ -164,13 +189,40 @@ pub mod pallet {
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
+
+    #[pallet::call_index(2)]
+    #[pallet::weight(T::EdgeConnectWeightInfo::toggle_worker_visibility())]
+    pub fn toggle_worker_visibility(
+      origin: OriginFor<T>, 
+      worker_id: WorkerId, 
+      visibility: bool
+    ) -> DispatchResultWithPostInfo {
+      let creator = ensure_signed(origin)?;
+
+      let mut worker = WorkerClusters::<T>::get((creator.clone(), worker_id))
+        .ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+      worker.status = if visibility {
+        WorkerStatusType::Active
+      } else {
+        WorkerStatusType::Inactive
+      };
+
+      worker.last_status_check = timestamp::Pallet::<T>::get();
+
+      WorkerClusters::<T>::insert((creator.clone(), worker_id), worker.clone());
+
+      Self::deposit_event(Event::WorkerStatusUpdated { creator, worker_id, worker_status: worker.status});
+
+      Ok(().into())
+    }
 	}
 
 	impl<T: Config> Pallet<T> {
 		pub fn get_active_workers() -> Option<
 			Vec<(
 				(T::AccountId, WorkerId),
-				Worker<T::AccountId, BlockNumberFor<T>>,
+				Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 			)>,
 		> {
 			let workers = WorkerClusters::<T>::iter()

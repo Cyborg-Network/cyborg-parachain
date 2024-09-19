@@ -204,7 +204,7 @@ impl pallet_membership::Config for Runtime {
 
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_edge_connect::weights::SubstrateWeight<Runtime>;
+	type EdgeConnectWeightInfo = pallet_edge_connect::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_task_management::Config for Runtime {
