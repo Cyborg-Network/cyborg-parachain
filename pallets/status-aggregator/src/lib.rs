@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 // pub mod weights;
 // pub use weights::*;
@@ -80,6 +80,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type ThresholdUptimeStatus: Get<u8>;
 
+		/// Maximum number of status entries by unique oracle feeders for a worker per period 
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
 	}
@@ -176,7 +177,7 @@ pub mod pallet {
 				let process_status_percentages = ProcessStatusPercentages {
 					online,
 					available,
-					last_block_processed: LastClearedBlock::<T>::get(),
+					last_block_processed: <frame_system::Pallet<T>>::block_number(),
 				};
 				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
 				ResultingWorkerStatus::<T>::set(
