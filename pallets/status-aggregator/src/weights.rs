@@ -31,12 +31,30 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for `pallet_status_aggregator`.
 pub trait WeightInfo {
+	fn derive_status_percentages_for_period() -> Weight;
 	fn on_new_data() -> Weight;
 }
 
 /// Weights for `pallet_status_aggregator` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	/// Storage: `StatusAggregator::WorkerStatusEntriesPerPeriod` (r:11 w:0)
+	/// Proof: `StatusAggregator::WorkerStatusEntriesPerPeriod` (`max_values`: None, `max_size`: Some(1850), added: 4325, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::LastClearedBlock` (r:1 w:0)
+	/// Proof: `StatusAggregator::LastClearedBlock` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::ResultingWorkerStatusPercentages` (r:0 w:10)
+	/// Proof: `StatusAggregator::ResultingWorkerStatusPercentages` (`max_values`: None, `max_size`: Some(54), added: 2529, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::ResultingWorkerStatus` (r:0 w:10)
+	/// Proof: `StatusAggregator::ResultingWorkerStatus` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
+	fn derive_status_percentages_for_period() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1014`
+		//  Estimated: `48565`
+		// Minimum execution time: 60_000_000 picoseconds.
+		Weight::from_parts(62_000_000, 48565)
+			.saturating_add(T::DbWeight::get().reads(12_u64))
+			.saturating_add(T::DbWeight::get().writes(20_u64))
+	}
 	/// Storage: `StatusAggregator::SubmittedPerPeriod` (r:10 w:10)
 	/// Proof: `StatusAggregator::SubmittedPerPeriod` (`max_values`: None, `max_size`: Some(81), added: 2556, mode: `MaxEncodedLen`)
 	/// Storage: `StatusAggregator::WorkerStatusEntriesPerPeriod` (r:10 w:10)
@@ -45,8 +63,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `44240`
-		// Minimum execution time: 108_000_000 picoseconds.
-		Weight::from_parts(113_000_000, 44240)
+		// Minimum execution time: 105_000_000 picoseconds.
+		Weight::from_parts(110_000_000, 44240)
 			.saturating_add(T::DbWeight::get().reads(20_u64))
 			.saturating_add(T::DbWeight::get().writes(20_u64))
 	}
@@ -54,6 +72,23 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
+	/// Storage: `StatusAggregator::WorkerStatusEntriesPerPeriod` (r:11 w:0)
+	/// Proof: `StatusAggregator::WorkerStatusEntriesPerPeriod` (`max_values`: None, `max_size`: Some(1850), added: 4325, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::LastClearedBlock` (r:1 w:0)
+	/// Proof: `StatusAggregator::LastClearedBlock` (`max_values`: Some(1), `max_size`: Some(4), added: 499, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::ResultingWorkerStatusPercentages` (r:0 w:10)
+	/// Proof: `StatusAggregator::ResultingWorkerStatusPercentages` (`max_values`: None, `max_size`: Some(54), added: 2529, mode: `MaxEncodedLen`)
+	/// Storage: `StatusAggregator::ResultingWorkerStatus` (r:0 w:10)
+	/// Proof: `StatusAggregator::ResultingWorkerStatus` (`max_values`: None, `max_size`: Some(50), added: 2525, mode: `MaxEncodedLen`)
+	fn derive_status_percentages_for_period() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `1014`
+		//  Estimated: `48565`
+		// Minimum execution time: 60_000_000 picoseconds.
+		Weight::from_parts(62_000_000, 48565)
+			.saturating_add(RocksDbWeight::get().reads(12_u64))
+			.saturating_add(RocksDbWeight::get().writes(20_u64))
+	}
 	/// Storage: `StatusAggregator::SubmittedPerPeriod` (r:10 w:10)
 	/// Proof: `StatusAggregator::SubmittedPerPeriod` (`max_values`: None, `max_size`: Some(81), added: 2556, mode: `MaxEncodedLen`)
 	/// Storage: `StatusAggregator::WorkerStatusEntriesPerPeriod` (r:10 w:10)
@@ -62,8 +97,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `44240`
-		// Minimum execution time: 108_000_000 picoseconds.
-		Weight::from_parts(113_000_000, 44240)
+		// Minimum execution time: 105_000_000 picoseconds.
+		Weight::from_parts(110_000_000, 44240)
 			.saturating_add(RocksDbWeight::get().reads(20_u64))
 			.saturating_add(RocksDbWeight::get().writes(20_u64))
 	}
