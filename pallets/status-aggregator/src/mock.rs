@@ -1,6 +1,9 @@
-use frame_support::{derive_impl,parameter_types, weights::constants::RocksDbWeight};
+use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
-use sp_runtime::{traits::{ConstU64, ConstU32, ConstU8}, BuildStorage};
+use sp_runtime::{
+	traits::{ConstU32, ConstU64, ConstU8},
+	BuildStorage,
+};
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -38,16 +41,16 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-    pub const MaxBlockRangePeriod: BlockNumber = 5u32;
+		pub const MaxBlockRangePeriod: BlockNumber = 5u32;
 }
 
 impl crate::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 
-    type MaxBlockRangePeriod = MaxBlockRangePeriod;
-    type ThresholdUptimeStatus = ConstU8<75>;
-    type MaxAggregateParamLength = ConstU32<10>;
+	type MaxBlockRangePeriod = MaxBlockRangePeriod;
+	type ThresholdUptimeStatus = ConstU8<75>;
+	type MaxAggregateParamLength = ConstU32<10>;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -80,7 +80,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type ThresholdUptimeStatus: Get<u8>;
 
-		/// Maximum number of status entries by unique oracle feeders for a worker per period 
+		/// Maximum number of status entries by unique oracle feeders for a worker per period
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
 	}
