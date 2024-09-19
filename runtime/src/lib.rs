@@ -12,13 +12,11 @@ mod benchmarks;
 mod configs;
 mod weights;
 
-use core::marker::PhantomData;
-use frame_benchmarking::account;
 use smallvec::smallvec;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, Get, IdentifyAccount, Verify},
-	BoundedVec, MultiSignature,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiSignature,
 };
 
 use sp_std::prelude::*;
@@ -170,77 +168,6 @@ impl_opaque_keys! {
 	}
 }
 
-// Struct to implement the BenchmarkHelper trait for benchmarking. It takes a generic MaxFeedValues,
-// which defines the maximum number of values (or pairs) the benchmark will generate.
-// The `PhantomData<MaxFeedValues>` is used because MaxFeedValues is a type-level constant,
-// and we need to associate it with this struct but don't actually store it.
-#[cfg(feature = "runtime-benchmarks")]
-pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
-
-// Implementing the orml_oracle::BenchmarkHelper trait for the BenchmarkHelperImpl struct.
-// The trait is specialized for key-value pairs with the key being a tuple of (AccountId, WorkerId)
-// and the value being ProcessStatus. MaxFeedValues is a type constant that defines the upper limit
-// on the number of pairs that can be generated.
-
-#[cfg(feature = "runtime-benchmarks")]
-impl<MaxFeedValues>
-	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
-	for BenchmarkHelperImpl<MaxFeedValues>
-where
-	MaxFeedValues: Get<u32>,
-{
-	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
-	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
-	fn get_currency_id_value_pairs(
-	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
-		BenchmarkHelperImpl::status_aggregator_benchmark_data()
-	}
-}
-
-impl<MaxFeedValues> BenchmarkHelperImpl<MaxFeedValues>
-where
-	MaxFeedValues: Get<u32>,
-{
-	// This method generates key-value pairs of (AccountId, WorkerId) -> ProcessStatus,
-	// used in the context of benchmarking the status-aggregator pallet.
-	// The number of pairs generated is limited by the value of MaxFeedValues.
-
-	fn status_aggregator_benchmark_data(
-	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
-		// Initialize a BoundedVec to store the generated key-value pairs,
-		// constrained by MaxFeedValues, which defines the upper limit.
-		let mut pairs: BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> =
-			BoundedVec::default();
-
-		// Get the value of MaxFeedValues to determine how many iterations the loop will run.
-		let max_values = MaxFeedValues::get() - 1;
-
-		// Loop to generate pseudo-random key-value pairs for benchmarking,
-		// using max_values to control the number of iterations.
-		for seed in 0..max_values {
-			//generate pseudo-random accountId
-			let account_id: AccountId = account("benchmark_account", 0, seed);
-
-			//generate pseudo-random workerId
-			let worker_id: WorkerId = (seed as u64) * 12345;
-
-			//generate pseudo-random ProcessStatus
-			let process_status = ProcessStatus {
-				online: seed % 2 == 0,
-				available: seed % 3 == 0,
-			};
-
-			// Add the generated key-value pair to the BoundedVec.
-			// The number of entries pushed is limited by MaxFeedValues.
-			pairs
-				.try_push(((account_id, worker_id), process_status))
-				.expect("Exceeded MaxFeedValues limit");
-		}
-
-		pairs
-	}
-}
-
 parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 }
@@ -257,11 +184,11 @@ impl orml_oracle::Config for Runtime {
 	type MaxHasDispatchedSize = ConstU32<8>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type MaxFeedValues = ConstU32<300>;
+	type MaxFeedValues = ConstU32<2>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxFeedValues = ConstU32<100>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = BenchmarkHelperImpl<Self::MaxFeedValues>;
+	type BenchmarkHelper = ();
 }
 
 impl pallet_membership::Config for Runtime {

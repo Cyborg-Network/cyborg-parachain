@@ -7,11 +7,11 @@ pub use pallet::*;
 // #[cfg(test)]
 // mod tests;
 
-// pub mod weights;
-// pub use weights::*;
+//pub mod weights;
+//pub use weights::*;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
