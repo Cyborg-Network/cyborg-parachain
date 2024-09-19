@@ -44,16 +44,16 @@ mod benchmarks {
 			account("benchmark_account", 0, 1);
 		let test_worker_id: WorkerId = (1 as u64) * 12345;
 
-		// Assert that no submission exists for the given account and worker ID in SubmittedPerPeriod
+		// Assert that submission exists for the given account and worker ID in SubmittedPerPeriod
 		assert!(
 			SubmittedPerPeriod::<T>::get((
 				test_account_id.clone(),
 				(test_account_id.clone(), test_worker_id)
 			)),
-			"Submission has already been done"
+			"Submission not found"
 		);
 
-		// Assert that no key exists in WorkerStatusEntriesPerPeriod for the test account and worker ID
+		// Assert that key exists in WorkerStatusEntriesPerPeriod for the test account and worker ID
 		assert!(
 			WorkerStatusEntriesPerPeriod::<T>::contains_key((test_account_id.clone(), test_worker_id)),
 			"Entry key does not exists in WorkerStatusEntriesPerPeriod"
