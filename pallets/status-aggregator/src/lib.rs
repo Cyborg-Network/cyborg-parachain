@@ -15,8 +15,6 @@ mod tests;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
-use frame_system;
-use orml_oracle;
 use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
@@ -56,7 +54,7 @@ pub struct ProcessStatusPercentages<BlockNumber> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use scale_info::prelude::vec::Vec;
 
@@ -144,7 +142,7 @@ pub mod pallet {
 				Self::derive_status_percentages_for_period();
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
 				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
-				if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
+				if clear_result_a.maybe_cursor.is_none() && clear_result_b.maybe_cursor.is_none() {
 					LastClearedBlock::<T>::set(now);
 				}
 				log::info!(
@@ -194,7 +192,7 @@ pub mod pallet {
 	/// updates entries into
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
-			if SubmittedPerPeriod::<T>::get((who, key)) == true {
+			if SubmittedPerPeriod::<T>::get((who, key)) {
 				log::error!(
 						target: LOG_TARGET,
 								"A value for this period was already submitted by: {:?}",
@@ -202,7 +200,7 @@ pub mod pallet {
 				);
 				return;
 			}
-			WorkerStatusEntriesPerPeriod::<T>::mutate(&key, |status_vec| {
+			WorkerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
 				match status_vec.try_push(StatusInstance {
 					is_online: value.online,
 					is_available: value.available,
