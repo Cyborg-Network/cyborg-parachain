@@ -20,7 +20,7 @@ use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
 use cyborg_primitives::{
 	oracle::{ProcessStatus, TimestampedValue},
-	worker::WorkerId,
+	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType},
 };
 use frame_support::{traits::Get, LOG_TARGET};
 
@@ -81,6 +81,9 @@ pub mod pallet {
 		/// Maximum number of status entries by unique oracle feeders for a worker per period
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
+
+		/// Updates Worker Status for Edge Connect
+		type WorkerInfoHandler: WorkerInfoHandler<Self::AccountId, WorkerId, BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -127,14 +130,15 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		AggregatedWorkerInfo { 
+		UpdateFromAggregatedWorkerInfo {
 			worker: (T::AccountId, WorkerId),
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
-
 		},
-		LastBlockUpdated { block_number: BlockNumberFor<T> },
+		LastBlockUpdated {
+			block_number: BlockNumberFor<T>,
+		},
 	}
 
 	/// Pallet Errors
@@ -145,14 +149,12 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(now: BlockNumberFor<T>) {
 			if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
-				Self::derive_status_percentages_for_period();
+				Self::process_aggregate_data_for_period();
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
 				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
 				if clear_result_a.maybe_cursor.is_none() && clear_result_b.maybe_cursor.is_none() {
 					LastClearedBlock::<T>::set(now);
-					Self::deposit_event(Event::LastBlockUpdated {
-						block_number: now,
-					});
+					Self::deposit_event(Event::LastBlockUpdated { block_number: now });
 				}
 				log::info!(
 						target: LOG_TARGET,
@@ -169,7 +171,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn derive_status_percentages_for_period() {
+		fn process_aggregate_data_for_period() {
 			for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
 				let mut total_online: u32 = 0;
 				let mut total_available: u32 = 0;
@@ -188,19 +190,50 @@ pub mod pallet {
 					last_block_processed: current_block,
 				};
 				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
+
+				// Update worker statuses
+				let online_status = online >= T::ThresholdUptimeStatus::get();
+				let available_status = available >= T::ThresholdUptimeStatus::get();
 				ResultingWorkerStatus::<T>::set(
 					key_worker.clone(),
 					ProcessStatus {
-						online: online >= T::ThresholdUptimeStatus::get(),
-						available: available >= T::ThresholdUptimeStatus::get(),
+						online: online_status,
+						available: available_status,
 					},
 				);
-				Self::deposit_event(Event::AggregatedWorkerInfo {
+				Self::update_worker_clusters(key_worker, online_status, available_status, current_block);
+			}
+		}
+		/// sends updated worker info to pallets that implement T::WorkerClusterHandler and emits an event
+		fn update_worker_clusters(
+			key_worker: (T::AccountId, WorkerId),
+			online: bool,
+			available: bool,
+			last_block_processed: BlockNumberFor<T>,
+		) {
+			if let Some(mut worker_cluster) = T::WorkerInfoHandler::get_worker_cluster(&key_worker) {
+				let status = if online {
+					if available {
+						WorkerStatusType::Active
+					} else {
+						WorkerStatusType::Busy
+					}
+				} else {
+					WorkerStatusType::Inactive
+				};
+				worker_cluster.status = status;
+				worker_cluster.status_last_updated = last_block_processed;
+
+				T::WorkerInfoHandler::update_worker_cluster(&key_worker, worker_cluster);
+
+				Self::deposit_event(Event::UpdateFromAggregatedWorkerInfo {
 					worker: key_worker,
-					online: online >= T::ThresholdUptimeStatus::get(),
-					available: available >= T::ThresholdUptimeStatus::get(),
-					last_block_processed: current_block,
+					online,
+					available,
+					last_block_processed,
 				});
+			} else {
+				log::warn!("Worker cluster not found for the given account and worker_id.");
 			}
 		}
 	}
@@ -208,11 +241,19 @@ pub mod pallet {
 	/// Data from the oracle first enters into this pallet through this trait implmentation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
+			if T::WorkerInfoHandler::get_worker_cluster(key).is_none() {
+				log::error!(
+					target: LOG_TARGET,
+					"No worker registed by this key: {:?}",
+					key
+				);
+				return;
+			}
 			if SubmittedPerPeriod::<T>::get((who, key)) {
 				log::error!(
-						target: LOG_TARGET,
-								"A value for this period was already submitted by: {:?}",
-								who
+					target: LOG_TARGET,
+					"A value for this period was already submitted by: {:?}",
+					who
 				);
 				return;
 			}
@@ -224,10 +265,10 @@ pub mod pallet {
 				}) {
 					Ok(()) => {
 						log::info!(
-						target: LOG_TARGET,
-								"Successfully push status instance value for period. \
-								Value was submitted by: {:?}",
-								who
+							target: LOG_TARGET,
+							"Successfully push status instance value for period. \
+							Value was submitted by: {:?}",
+							who
 						);
 					}
 					Err(_) => {

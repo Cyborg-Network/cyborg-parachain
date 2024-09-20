@@ -8,7 +8,7 @@ First an oracle data feeder must be register onto the `OracleMembership` pallet 
 
 The `feed_value()` extrinsic takes in a value type of `BoundedVec<(T::OracleKey, T::OracleValue), T::MaxFeedValues>
 
-- `T::MaxFeedValues` limits how many values a feeder can enter in  
+- `T::MaxFeedValues` limits how many values a feeder can enter in each entry 
 - `T::OracleKey`: identifies the specific worker to enter information for
 - `T::OracleValue`: represents any data we assign to the worker which will be processesed by this aggregator pallet
 

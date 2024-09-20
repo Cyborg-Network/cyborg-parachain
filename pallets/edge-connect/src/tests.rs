@@ -22,6 +22,7 @@ fn it_works_for_registering_domain() {
 			owner: alice,
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
+			status_last_updated: 10,
 			api: api_info.clone(),
 		};
 

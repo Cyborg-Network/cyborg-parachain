@@ -1,5 +1,6 @@
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
+use pallet_edge_connect;
 use sp_runtime::{
 	traits::{ConstU32, ConstU64, ConstU8},
 	BuildStorage,
@@ -26,6 +27,9 @@ mod test_runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
+	pub type EdgeConnect = pallet_edge_connect;
+
+	#[runtime::pallet_index(2)]
 	pub type StatusAggregator = crate;
 }
 
@@ -40,6 +44,11 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
+impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 		pub const MaxBlockRangePeriod: BlockNumber = 5u32;
 }
@@ -51,6 +60,8 @@ impl crate::Config for Test {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<10>;
+
+	type WorkerInfoHandler = EdgeConnect;
 }
 
 // Build genesis storage according to the mock runtime.
