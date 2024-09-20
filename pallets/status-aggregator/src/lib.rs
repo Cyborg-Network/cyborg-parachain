@@ -127,14 +127,20 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		WorkerRegistered { creator: T::AccountId },
+		AggregatedWorkerInfo { 
+			worker: (T::AccountId, WorkerId),
+			online: bool,
+			available: bool,
+			last_block_processed: BlockNumberFor<T>,
+
+		},
+		LastBlockUpdated { block_number: BlockNumberFor<T> },
 	}
 
 	/// Pallet Errors
-	pub enum Error {
-		ExceedsMaxAggregateParamLength,
-	}
+	pub enum Error {}
 
+	/// This hook calculates storage values in this pallet updated by the oracle per MaxBlockRangePeriod
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(now: BlockNumberFor<T>) {
@@ -144,6 +150,9 @@ pub mod pallet {
 				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
 				if clear_result_a.maybe_cursor.is_none() && clear_result_b.maybe_cursor.is_none() {
 					LastClearedBlock::<T>::set(now);
+					Self::deposit_event(Event::LastBlockUpdated {
+						block_number: now,
+					});
 				}
 				log::info!(
 						target: LOG_TARGET,
@@ -172,24 +181,31 @@ pub mod pallet {
 					});
 				let online = (total_online / value_status_vec.len() as u32) as u8;
 				let available = (total_available / value_status_vec.len() as u32) as u8;
+				let current_block = <frame_system::Pallet<T>>::block_number();
 				let process_status_percentages = ProcessStatusPercentages {
 					online,
 					available,
-					last_block_processed: <frame_system::Pallet<T>>::block_number(),
+					last_block_processed: current_block,
 				};
 				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
 				ResultingWorkerStatus::<T>::set(
-					key_worker,
+					key_worker.clone(),
 					ProcessStatus {
 						online: online >= T::ThresholdUptimeStatus::get(),
 						available: available >= T::ThresholdUptimeStatus::get(),
 					},
-				)
+				);
+				Self::deposit_event(Event::AggregatedWorkerInfo {
+					worker: key_worker,
+					online: online >= T::ThresholdUptimeStatus::get(),
+					available: available >= T::ThresholdUptimeStatus::get(),
+					last_block_processed: current_block,
+				});
 			}
 		}
 	}
 
-	/// updates entries into
+	/// Data from the oracle first enters into this pallet through this trait implmentation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
 			if SubmittedPerPeriod::<T>::get((who, key)) {

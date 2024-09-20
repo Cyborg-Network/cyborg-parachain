@@ -1,4 +1,4 @@
-use crate::mock::*;
+use crate::{mock::*, Event};
 use crate::{
 	pallet::Config, LastClearedBlock, ProcessStatusPercentages, ResultingWorkerStatus,
 	ResultingWorkerStatusPercentages, StatusInstance, SubmittedPerPeriod,
@@ -286,6 +286,9 @@ fn on_finalize_works_as_expected() {
 		// increase block time past MaxBlockRangePeriod
 		System::set_block_number(MaxBlockRangePeriod::get() as u64);
 		StatusAggregator::on_finalize(MaxBlockRangePeriod::get() as u64);
+
+        System::assert_last_event(RuntimeEvent::StatusAggregator(Event::LastBlockUpdated { block_number: 5 }));
+       
 		// Validate update last cleared block
 		assert_eq!(
 			LastClearedBlock::<Test>::get(),
@@ -334,5 +337,19 @@ fn on_finalize_works_as_expected() {
 				available: false,
 			},
 		);
+
+        System::assert_has_event(RuntimeEvent::StatusAggregator(Event::AggregatedWorkerInfo {
+            worker: key_1,
+            online: false,
+            available: true,
+            last_block_processed: 5,
+		}));
+
+        System::assert_has_event(RuntimeEvent::StatusAggregator(Event::AggregatedWorkerInfo {
+            worker: key_2,
+            online: false,
+            available: false,
+            last_block_processed: 5,
+		}));
 	});
 }
