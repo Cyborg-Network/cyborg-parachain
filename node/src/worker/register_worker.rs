@@ -64,13 +64,13 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 	info!("{:?}", &tr_tx);
 
 	let ext_response = api.submit_and_watch_extrinsic_until(tr_tx, XtStatus::InBlock);
-	println!("{:?}", &ext_response);
+	info!("{:?}", &ext_response);
 
 	match ext_response {
 		Ok(ext_response_succ) => {
-			println!("{:?}", &ext_response_succ);
-			println!("Worker registered successfully ✅✅✅✅✅✅✅✅✅✅✅✅✅");
-			println!("Events: {:?}", ext_response_succ.events);
+			info!("{:?}", &ext_response_succ);
+			info!("Worker registered successfully ✅✅✅✅✅✅✅✅✅✅✅✅✅");
+			info!("Events: {:?}", ext_response_succ.events);
 
 			for event in ext_response_succ.events.unwrap() {
 				if event.pallet_name() == "EdgeConnect" {
@@ -78,7 +78,7 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 					info!("{:?}", &decoded_event);
 					match decoded_event {
 						Err(_) | Ok(None) => {
-							println!("❌Event not decoded properly❌");
+							error!("❌Event not decoded properly❌");
 						}
 						Ok(Some(registration_event)) => {
 							return worker_retain_after_restart(registration_event);
@@ -89,9 +89,9 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 			None
 		}
 		Err(e) => {
-			println!("Somethign went wrong while registering worker ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
+			error!("Somethign went wrong while registering worker ❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌");
 			error!("{:?}", e);
-			println!("RESTART The worker node with proper environment variables");
+			error!("RESTART The worker node with proper environment variables");
 			None
 		}
 	}
@@ -120,7 +120,7 @@ fn worker_retain_after_restart(reg_event: EventWorkerRegistered) -> Option<Worke
 			created_file
 				.write_all(registered_worker_json.unwrap().as_bytes())
 				.unwrap_or_else(|_| panic!("Unable to write file : {:?}", config_path.to_str()));
-			println!(
+			info!(
 				"✅✅Saved worker registration data to file: {:?}✅✅ ",
 				config_path.to_str()
 			);
