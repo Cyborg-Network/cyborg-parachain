@@ -4,11 +4,13 @@ use log::{error, info};
 use std::fs::File;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 pub const WORK_FILES_DIR: &str = "tasks_binary";
 
-pub async fn download_and_execute_work_package(ipfs_hash: &str) {
+pub async fn download_and_execute_work_package(
+	ipfs_hash: &str,
+) -> Option<Result<std::process::Child, std::io::Error>> {
 	info!("ipfs_hash: {}", ipfs_hash);
 	info!("============ download_file ============");
 	let ipfs_client = IpfsClient::default();
@@ -24,6 +26,7 @@ pub async fn download_and_execute_work_package(ipfs_hash: &str) {
 	{
 		Err(e) => {
 			error!("{}", e);
+			None
 		}
 		Ok(data) => {
 			info!("got data from ipfs with length of {}", &data.len());
@@ -37,11 +40,7 @@ pub async fn download_and_execute_work_package(ipfs_hash: &str) {
 			file.write_all(&data).unwrap();
 
 			file.set_permissions(perms).unwrap();
-
-			let output = Command::new(file_path)
-				.output() // This runs the command and collects the output
-				.expect("Failed to execute command");
-			info!("{:?}", output);
+			Some(Command::new(file_path).stdout(Stdio::piped()).spawn())
 		}
 	}
 }

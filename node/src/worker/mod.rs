@@ -13,6 +13,7 @@ use sp_runtime::traits::Block;
 pub mod custom_event_listener;
 pub mod donwloade_and_execute_tasks;
 pub mod register_worker;
+pub mod submit_results;
 
 pub const CONFIG_FILE_NAME: &str = "registered_worker_config.json";
 

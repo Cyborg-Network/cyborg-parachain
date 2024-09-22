@@ -9,7 +9,10 @@ use sp_blockchain::HeaderBackend;
 use sp_core::hexdisplay::AsBytesRef;
 use sp_runtime::traits::Block;
 
-use crate::worker::donwloade_and_execute_tasks::download_and_execute_work_package;
+use crate::worker::{
+	donwloade_and_execute_tasks::download_and_execute_work_package,
+	submit_results::submit_result_onchain,
+};
 
 use super::WorkerData;
 
@@ -45,7 +48,14 @@ where
 							let ipfs_hash = String::from_utf8_lossy(task.as_bytes_ref());
 							info!("{}", &ipfs_hash);
 
-							download_and_execute_work_package(ipfs_hash.as_ref()).await;
+							let result = download_and_execute_work_package(ipfs_hash.as_ref()).await;
+							if let Some(Ok(output)) = result {
+								info!("{:?}", &output);
+								submit_result_onchain(output).await;
+							} else {
+								info!("result: {:?}", result);
+								error!("Failed to execute command");
+							}
 						}
 					}
 				}
