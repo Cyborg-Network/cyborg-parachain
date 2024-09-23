@@ -103,11 +103,15 @@ fn it_works_for_submit_completed_task() {
 		// Create a completed hash
 		let completed_hash = H256::random();
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(alice),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task status
@@ -119,6 +123,80 @@ fn it_works_for_submit_completed_task() {
 		assert_eq!(verifications.executor.account, alice);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 	});
+}
+
+#[test]
+fn result_on_taskinfo_works_on_result_submit() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(8);
+		let alice = 1;
+		let bob = 2;
+		// Create a task data BoundedVec
+		let task_data = BoundedVec::try_from(b"some ipfs hash to executable".to_vec()).unwrap();
+
+		// Register a worker for Alice
+		let api_info = WorkerAPI {
+			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
+		};
+
+		// Register a worker for Bob
+		let api_info_bob = WorkerAPI {
+			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
+		};
+
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			api_info.domain
+		));
+
+		assert_ok!(edgeConnectModule::register_worker(
+			RuntimeOrigin::signed(bob),
+			api_info_bob.domain
+		));
+
+		// Dispatch a signed extrinsic to schedule a task
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(bob),
+			task_data.clone()
+		));
+
+		System::set_block_number(10);
+		// Get the task_id of the scheduled task
+		let task_id = TaskManagementModule::next_task_id() - 1;
+
+		// Create a completed hash
+		let completed_hash = H256::random();
+
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
+		// Dispatch a signed extrinsic to submit the completed task
+		assert_ok!(TaskManagementModule::submit_completed_task(
+			RuntimeOrigin::signed(bob),
+			task_id,
+			completed_hash,
+			result.clone()
+		));
+
+		System::set_block_number(15);
+
+		assert_eq!(
+			TaskManagementModule::get_tasks(task_id)
+				.unwrap()
+				.result
+				.unwrap(),
+			result
+		);
+
+		// Check task status
+		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		assert_eq!(task_status, TaskStatusType::PendingValidation);
+
+		// Check task verifications
+		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		assert_eq!(verifications.executor.account, bob);
+		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
+	})
 }
 
 #[test]
@@ -153,12 +231,16 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		// Create a completed hash
 		let completed_hash = H256::random();
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task with Bob as the sender
 		assert_noop!(
 			TaskManagementModule::submit_completed_task(
 				RuntimeOrigin::signed(bob),
 				task_id,
-				completed_hash
+				completed_hash,
+				result
 			),
 			Error::<Test>::InvalidTaskOwner
 		);
@@ -205,11 +287,15 @@ fn it_works_when_verifying_task() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications
@@ -273,11 +359,15 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications
@@ -371,11 +461,15 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications

@@ -151,6 +151,7 @@ pub mod pallet {
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
+				result: None,
 			};
 
 			// Assign task to worker and set task owner.
@@ -176,6 +177,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_id: TaskId,
 			completed_hash: H256,
+			result: BoundedVec<u8, ConstU32<128>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -212,6 +214,12 @@ pub mod pallet {
 			ver.verifier = Some(VerificationHashes {
 				account: assigned_verifier.0.clone(),
 				completed_hash: None,
+			});
+
+			Tasks::<T>::mutate(task_id, |task| {
+				if let Some(ref mut raw_task) = task {
+					raw_task.result = Some(result);
+				}
 			});
 
 			TaskVerifications::<T>::insert(task_id, ver.clone());
