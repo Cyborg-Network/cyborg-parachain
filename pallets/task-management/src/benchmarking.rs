@@ -176,6 +176,7 @@ benchmarks! {
 
 				// Register verifier and submit completed task by the executor.
 				let domain2=get_domain(WORKER_API_DOMAIN2);
+
 				let api_info_verifier = WorkerAPI {
 						domain:domain2,
 				};
