@@ -103,11 +103,15 @@ fn it_works_for_submit_completed_task() {
 		// Create a completed hash
 		let completed_hash = H256::random();
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(alice),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task status
@@ -153,12 +157,16 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		// Create a completed hash
 		let completed_hash = H256::random();
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task with Bob as the sender
 		assert_noop!(
 			TaskManagementModule::submit_completed_task(
 				RuntimeOrigin::signed(bob),
 				task_id,
-				completed_hash
+				completed_hash,
+				result
 			),
 			Error::<Test>::InvalidTaskOwner
 		);
@@ -205,11 +213,15 @@ fn it_works_when_verifying_task() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications
@@ -273,11 +285,15 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications
@@ -371,11 +387,15 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 			api_info_verifier.domain
 		));
 
+		let result =
+			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic to submit the completed task by executor
 		assert_ok!(TaskManagementModule::submit_completed_task(
 			RuntimeOrigin::signed(executor),
 			task_id,
-			completed_hash
+			completed_hash,
+			result
 		));
 
 		// Check task verifications
