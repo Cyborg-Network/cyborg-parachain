@@ -7308,6 +7308,7 @@ dependencies = [
  "log",
  "orml-oracle",
  "orml-traits",
+ "pallet-edge-connect",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

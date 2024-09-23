@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
-// #[cfg(test)]
-// mod mock;
+#[cfg(test)]
+mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 //pub mod weights;
 //pub use weights::*;
@@ -15,14 +15,12 @@ mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
-use frame_system;
-use orml_oracle;
 use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
 use cyborg_primitives::{
 	oracle::{ProcessStatus, TimestampedValue},
-	worker::WorkerId,
+	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType},
 };
 use frame_support::{traits::Get, LOG_TARGET};
 
@@ -56,7 +54,7 @@ pub struct ProcessStatusPercentages<BlockNumber> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use scale_info::prelude::vec::Vec;
 
@@ -80,8 +78,12 @@ pub mod pallet {
 		#[pallet::constant]
 		type ThresholdUptimeStatus: Get<u8>;
 
+		/// Maximum number of status entries by unique oracle feeders for a worker per period
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
+
+		/// Updates Worker Status for Edge Connect
+		type WorkerInfoHandler: WorkerInfoHandler<Self::AccountId, WorkerId, BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -128,23 +130,31 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		WorkerRegistered { creator: T::AccountId },
+		UpdateFromAggregatedWorkerInfo {
+			worker: (T::AccountId, WorkerId),
+			online: bool,
+			available: bool,
+			last_block_processed: BlockNumberFor<T>,
+		},
+		LastBlockUpdated {
+			block_number: BlockNumberFor<T>,
+		},
 	}
 
 	/// Pallet Errors
-	pub enum Error {
-		ExceedsMaxAggregateParamLength,
-	}
+	pub enum Error {}
 
+	/// This hook calculates storage values in this pallet updated by the oracle per MaxBlockRangePeriod
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_finalize(now: BlockNumberFor<T>) {
 			if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
-				Self::derive_status_percentages_for_period();
+				Self::process_aggregate_data_for_period();
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
 				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
-				if clear_result_a.maybe_cursor == None && clear_result_b.maybe_cursor == None {
+				if clear_result_a.maybe_cursor.is_none() && clear_result_b.maybe_cursor.is_none() {
 					LastClearedBlock::<T>::set(now);
+					Self::deposit_event(Event::LastBlockUpdated { block_number: now });
 				}
 				log::info!(
 						target: LOG_TARGET,
@@ -161,7 +171,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		fn derive_status_percentages_for_period() {
+		fn process_aggregate_data_for_period() {
 			for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
 				let mut total_online: u32 = 0;
 				let mut total_available: u32 = 0;
@@ -173,19 +183,57 @@ pub mod pallet {
 					});
 				let online = (total_online / value_status_vec.len() as u32) as u8;
 				let available = (total_available / value_status_vec.len() as u32) as u8;
+				let current_block = <frame_system::Pallet<T>>::block_number();
 				let process_status_percentages = ProcessStatusPercentages {
 					online,
 					available,
-					last_block_processed: LastClearedBlock::<T>::get(),
+					last_block_processed: current_block,
 				};
 				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
+
+				// Update worker statuses
+				let online_status = online >= T::ThresholdUptimeStatus::get();
+				let available_status = available >= T::ThresholdUptimeStatus::get();
 				ResultingWorkerStatus::<T>::set(
-					key_worker,
+					key_worker.clone(),
 					ProcessStatus {
-						online: online >= T::ThresholdUptimeStatus::get(),
-						available: available >= T::ThresholdUptimeStatus::get(),
+						online: online_status,
+						available: available_status,
 					},
-				)
+				);
+				Self::update_worker_clusters(key_worker, online_status, available_status, current_block);
+			}
+		}
+		/// sends updated worker info to pallets that implement T::WorkerClusterHandler and emits an event
+		fn update_worker_clusters(
+			key_worker: (T::AccountId, WorkerId),
+			online: bool,
+			available: bool,
+			last_block_processed: BlockNumberFor<T>,
+		) {
+			if let Some(mut worker_cluster) = T::WorkerInfoHandler::get_worker_cluster(&key_worker) {
+				let status = if online {
+					if available {
+						WorkerStatusType::Active
+					} else {
+						WorkerStatusType::Busy
+					}
+				} else {
+					WorkerStatusType::Inactive
+				};
+				worker_cluster.status = status;
+				worker_cluster.status_last_updated = last_block_processed;
+
+				T::WorkerInfoHandler::update_worker_cluster(&key_worker, worker_cluster);
+
+				Self::deposit_event(Event::UpdateFromAggregatedWorkerInfo {
+					worker: key_worker,
+					online,
+					available,
+					last_block_processed,
+				});
+			} else {
+				log::warn!("Worker cluster not found for the given account and worker_id.");
 			}
 		}
 
@@ -199,18 +247,26 @@ pub mod pallet {
 		}
 	}
 
-	/// updates entries into
+	/// Data from the oracle first enters into this pallet through this trait implmentation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
-			if SubmittedPerPeriod::<T>::get((who, key)) == true {
+			if T::WorkerInfoHandler::get_worker_cluster(key).is_none() {
 				log::error!(
-						target: LOG_TARGET,
-								"A value for this period was already submitted by: {:?}",
-								who
+					target: LOG_TARGET,
+					"No worker registed by this key: {:?}",
+					key
 				);
 				return;
 			}
-			WorkerStatusEntriesPerPeriod::<T>::mutate(&key, |status_vec| {
+			if SubmittedPerPeriod::<T>::get((who, key)) {
+				log::error!(
+					target: LOG_TARGET,
+					"A value for this period was already submitted by: {:?}",
+					who
+				);
+				return;
+			}
+			WorkerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
 				match status_vec.try_push(StatusInstance {
 					is_online: value.online,
 					is_available: value.available,
@@ -218,10 +274,10 @@ pub mod pallet {
 				}) {
 					Ok(()) => {
 						log::info!(
-						target: LOG_TARGET,
-								"Successfully push status instance value for period. \
-								Value was submitted by: {:?}",
-								who
+							target: LOG_TARGET,
+							"Successfully push status instance value for period. \
+							Value was submitted by: {:?}",
+							who
 						);
 					}
 					Err(_) => {

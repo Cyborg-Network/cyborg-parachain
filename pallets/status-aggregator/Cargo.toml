@@ -22,6 +22,7 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 log = { workspace = true }
 orml-traits = { workspace = true }
 orml-oracle = { workspace = true }
+pallet-edge-connect = { workspace = true }
 cyborg-primitives = { workspace = true }
 
 # frame deps
