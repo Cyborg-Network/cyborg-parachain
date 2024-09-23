@@ -48,6 +48,7 @@ mod benchmarks {
 			start_block: One::one(),
 			status: WorkerStatusType::Inactive,
 			api: api_info.clone(),
+			status_last_updated: One::one(),
 		};
 
 		// Call the `register_worker` extrinsic using the #[extrinsic_call] macro, which will benchmark the extrinsic.
