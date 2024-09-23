@@ -2463,6 +2463,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cyborg-primitives"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "orml-oracle",
+ "orml-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "cyborg-runtime"
 version = "0.1.0"
 dependencies = [
@@ -2475,6 +2492,7 @@ dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-storage-weight-reclaim",
  "cumulus-primitives-utility",
+ "cyborg-primitives",
  "docify",
  "frame-benchmarking",
  "frame-executive",
@@ -2496,6 +2514,7 @@ dependencies = [
  "pallet-membership",
  "pallet-message-queue",
  "pallet-session",
+ "pallet-status-aggregator",
  "pallet-sudo",
  "pallet-task-management",
  "pallet-timestamp",
@@ -6905,6 +6924,7 @@ dependencies = [
 name = "pallet-edge-connect"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -7545,6 +7565,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-status-aggregator"
+version = "0.1.0"
+dependencies = [
+ "cyborg-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-oracle",
+ "orml-traits",
+ "pallet-edge-connect",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-sudo"
 version = "35.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7565,6 +7605,7 @@ dependencies = [
 name = "pallet-task-management"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

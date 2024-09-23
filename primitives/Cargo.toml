@@ -1,6 +1,5 @@
 [package]
-name = "pallet-edge-connect"
-description = "Pallet for managing connected workers"
+name = "cyborg-primitives"
 version = "0.1.0"
 authors.workspace = true
 homepage.workspace = true
@@ -19,7 +18,8 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
 
-cyborg-primitives = { workspace = true }
+orml-oracle = { workspace = true }
+orml-traits = { workspace = true }
 
 # frame deps
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -27,9 +27,9 @@ frame-support = { version = "35.0.0", default-features = false }
 frame-system = { version = "35.0.0", default-features = false }
 
 sp-std = { version = "14.0.0", default-features = false }
+sp-core = { version = "34.0.0", default-features = false }
 
 [dev-dependencies]
-sp-core = { version = "34.0.0" }
 sp-io = { version = "37.0.0" }
 sp-runtime = { version = "38.0.0" }
 
@@ -42,10 +42,14 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
+	"orml-oracle/std",
+	"orml-traits/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",
-	"cyborg-primitives/std",
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+]
