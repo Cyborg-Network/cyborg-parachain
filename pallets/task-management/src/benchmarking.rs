@@ -1,6 +1,7 @@
 //! Benchmarking setup for pallet-task-management
 use super::*;
 use crate::{Config, Pallet as TaskManagementModule};
+use cyborg_primitives::worker::WorkerAPI;
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
@@ -40,7 +41,7 @@ benchmarks! {
 				let domain=get_domain(WORKER_API_DOMAIN);
 
 				// Register a worker for the caller with the specified domain.
-				let api_info = pallet_edge_connect::WorkerAPI {
+				let api_info = WorkerAPI {
 						domain,
 				};
 
@@ -72,7 +73,7 @@ benchmarks! {
 
 				// Register the executor worker with a domain.
 				let domain=get_domain(WORKER_API_DOMAIN);
-				let api_info = pallet_edge_connect::WorkerAPI {
+				let api_info = WorkerAPI  {
 						domain,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info.domain)?;
@@ -84,7 +85,7 @@ benchmarks! {
 				// Register the verifier with a different domain.
 				let verifier: T::AccountId = account("verifier", 0, 0);
 				let domain2=get_domain(WORKER_API_DOMAIN2);
-				let api_info_verifier = pallet_edge_connect::WorkerAPI {
+				let api_info_verifier = WorkerAPI  {
 						domain:domain2,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.domain)?;
@@ -119,7 +120,7 @@ benchmarks! {
 
 				// Register the executor worker and schedule the task.
 				let domain=get_domain(WORKER_API_DOMAIN);
-				let api_info_executor = pallet_edge_connect::WorkerAPI {
+				let api_info_executor = WorkerAPI {
 						domain,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.domain)?;
@@ -131,7 +132,7 @@ benchmarks! {
 				// Register the verifier and complete the task by the executor.
 				let domain2=get_domain(WORKER_API_DOMAIN2);
 
-				let api_info_verifier = pallet_edge_connect::WorkerAPI {
+				let api_info_verifier = WorkerAPI  {
 						domain:domain2,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.domain)?;
@@ -163,7 +164,7 @@ benchmarks! {
 
 				// Register workers for the executor, verifier, and resolver.
 				let domain=get_domain(WORKER_API_DOMAIN);
-				let api_info_executor = pallet_edge_connect::WorkerAPI {
+				let api_info_executor = WorkerAPI {
 						domain,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(executor.clone()).into(), api_info_executor.domain)?;
@@ -175,7 +176,8 @@ benchmarks! {
 
 				// Register verifier and submit completed task by the executor.
 				let domain2=get_domain(WORKER_API_DOMAIN2);
-				let api_info_verifier = pallet_edge_connect::WorkerAPI {
+
+				let api_info_verifier = WorkerAPI {
 						domain:domain2,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(verifier.clone()).into(), api_info_verifier.domain)?;
@@ -187,7 +189,7 @@ benchmarks! {
 				// Register the resolver.
 				let domain3=get_domain(WORKER_API_DOMAIN3);
 
-				let api_info_resolver = pallet_edge_connect::WorkerAPI {
+				let api_info_resolver = WorkerAPI {
 						domain:domain3,
 				};
 				pallet_edge_connect::Pallet::<T>::register_worker(RawOrigin::Signed(resolver.clone()).into(), api_info_resolver.domain)?;

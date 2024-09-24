@@ -7,11 +7,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-// pub mod weights;
-// pub use weights::*;
+//pub mod weights;
+//pub use weights::*;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
@@ -235,6 +235,15 @@ pub mod pallet {
 			} else {
 				log::warn!("Worker cluster not found for the given account and worker_id.");
 			}
+		}
+
+		// This public wrapper function is exposed only when the `runtime-benchmarks` feature is enabled.
+		// It allows access to the private `derive_status_percentages_for_period` function for benchmarking purposes.
+		// The feature gate ensures that this function is only available in benchmarking builds and not in normal runtime builds,
+		// keeping the core functionality private while still enabling performance measurements.
+		#[cfg(feature = "runtime-benchmarks")]
+		pub fn benchmark_derive_status_percentages_for_period() {
+			Self::derive_status_percentages_for_period();
 		}
 	}
 
