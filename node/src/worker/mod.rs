@@ -1,16 +1,14 @@
-use sp_core::Pair;
-use std::env;
-use std::{fs, option, sync::Arc};
-
 use codec::{Decode, Encode};
 use cyborg_runtime::apis::TaskManagementEventsApi;
+use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
 use log::info;
 use sc_client_api::BlockchainEvents;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::sr25519;
+use sp_core::{sr25519, Pair};
 use sp_runtime::traits::Block;
+use std::{env, fs, option, sync::Arc};
 use substrate_api_client::ac_primitives::{
 	AssetRuntimeConfig, DefaultRuntimeConfig, GenericExtrinsicParams, PlainTip, WithExtrinsicParams,
 };
@@ -68,8 +66,13 @@ where
 
 	api.set_signer(key.clone().into());
 
+	let ipfs_client = IpfsClient::default();
+
+	let version_out = ipfs_client.version().await;
+	info!("version_out: {:?}", &version_out);
+
 	let worker_data = bootstrap_worker(api.clone(), worker_domain).await.unwrap();
-	custom_event_listener::event_listener_tester(client, api, worker_data).await;
+	custom_event_listener::event_listener_tester(client, api, ipfs_client, worker_data).await;
 }
 pub async fn bootstrap_worker(
 	api: SubstrateClientApi,

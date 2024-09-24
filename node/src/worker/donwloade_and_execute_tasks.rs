@@ -10,14 +10,11 @@ pub const WORK_FILES_DIR: &str = "tasks_binary";
 
 pub async fn download_and_execute_work_package(
 	ipfs_hash: &str,
+	ipfs_client: &IpfsClient,
 ) -> Option<Result<std::process::Child, std::io::Error>> {
 	info!("ipfs_hash: {}", ipfs_hash);
 	info!("============ download_file ============");
-	let ipfs_client = IpfsClient::default();
-
 	// TODO: validate its a valid ipfs hash
-	let version_out = ipfs_client.version().await;
-	info!("version_out: {:?}", &version_out);
 	match ipfs_client
 		.cat(&format!("/ipfs/{ipfs_hash}"))
 		.map_ok(|chunk| chunk.to_vec())

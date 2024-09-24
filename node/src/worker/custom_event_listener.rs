@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use cyborg_runtime::apis::TaskManagementEventsApi;
 use futures::StreamExt;
+use ipfs_api_backend_hyper::IpfsClient;
+
 use log::{error, info};
 use sc_client_api::BlockchainEvents;
 use sp_api::ProvideRuntimeApi;
@@ -19,6 +21,7 @@ use super::{SubstrateClientApi, WorkerData};
 pub async fn event_listener_tester<T, U>(
 	client: Arc<T>,
 	api: SubstrateClientApi,
+	ipfs_client: IpfsClient,
 	worker_data: WorkerData,
 ) where
 	U: Block,
@@ -51,10 +54,11 @@ pub async fn event_listener_tester<T, U>(
 							let ipfs_hash = String::from_utf8_lossy(task.as_bytes_ref());
 							info!("{}", &ipfs_hash);
 
-							let result = download_and_execute_work_package(ipfs_hash.as_ref()).await;
+							let result =
+								download_and_execute_work_package(ipfs_hash.as_ref(), &ipfs_client).await;
 							if let Some(Ok(output)) = result {
 								info!("{:?}", &output);
-								submit_result_onchain(&api, output, task_id).await;
+								submit_result_onchain(&api, &ipfs_client, output, task_id).await;
 							} else {
 								info!("result: {:?}", result);
 								error!("Failed to execute command");

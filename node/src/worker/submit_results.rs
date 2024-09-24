@@ -8,18 +8,21 @@ use substrate_api_client::{SubmitAndWatch, XtStatus};
 
 use super::SubstrateClientApi;
 
-pub async fn submit_result_onchain(api: &SubstrateClientApi, mut result: Child, task_id: u64) {
+pub async fn submit_result_onchain(
+	api: &SubstrateClientApi,
+	ipfs_client: &IpfsClient,
+	mut result: Child,
+	task_id: u64,
+) {
 	dbg!(&result);
 	let result_raw_data = result.stdout.take().unwrap();
 	dbg!(&result_raw_data);
 
-	let hash = publish_on_ipfs(result_raw_data).await;
+	let hash = publish_on_ipfs(result_raw_data, ipfs_client).await;
 	submit_to_chain(api, hash, task_id).await;
 }
 
-pub async fn publish_on_ipfs(result: ChildStdout) -> String {
-	let ipfs_client = IpfsClient::default();
-
+pub async fn publish_on_ipfs(result: ChildStdout, ipfs_client: &IpfsClient) -> String {
 	let ipfs_res = ipfs_client.add(result).await;
 	if let Ok(ipfs_res) = ipfs_res {
 		let hash = ipfs_res.hash;
