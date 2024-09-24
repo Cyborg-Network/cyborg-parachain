@@ -60,7 +60,7 @@ pub async fn register_worker_on_chain() -> Option<WorkerData> {
 			domain,
 		});
 
-	let tr_tx = api.compose_extrinsic_offline(register_call, 0);
+	let tr_tx = api.compose_extrinsic_offline(register_call, api.get_nonce().unwrap());
 	info!("{:?}", &tr_tx);
 
 	let ext_response = api.submit_and_watch_extrinsic_until(tr_tx, XtStatus::InBlock);

@@ -51,7 +51,7 @@ where
 							let result = download_and_execute_work_package(ipfs_hash.as_ref()).await;
 							if let Some(Ok(output)) = result {
 								info!("{:?}", &output);
-								submit_result_onchain(output).await;
+								submit_result_onchain(output, task_id).await;
 							} else {
 								info!("result: {:?}", result);
 								error!("Failed to execute command");
