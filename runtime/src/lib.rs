@@ -188,7 +188,6 @@ impl orml_oracle::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxFeedValues = ConstU32<100>;
 	#[cfg(feature = "runtime-benchmarks")]
-	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
 
