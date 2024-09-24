@@ -243,7 +243,7 @@ pub mod pallet {
 		// keeping the core functionality private while still enabling performance measurements.
 		#[cfg(feature = "runtime-benchmarks")]
 		pub fn benchmark_derive_status_percentages_for_period() {
-			Self::derive_status_percentages_for_period();
+			Self::process_aggregate_data_for_period()
 		}
 	}
 
