@@ -14,51 +14,14 @@ pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
-pub use pallet_edge_connect;
-use scale_info::{prelude::vec::Vec, TypeInfo};
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use scale_info::prelude::vec::Vec;
 use sp_core::hash::H256;
 
 pub type TaskId = u64;
 
-use pallet_edge_connect::types::{WorkerId, WorkerStatusType};
-
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
-pub enum TaskStatusType {
-	Assigned,
-	PendingValidation,
-	Completed,
-	Expired,
-}
-
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
-pub enum TaskType {
-	Docker,
-}
-
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct TaskInfo<AccountId, BlockNumber> {
-	pub task_owner: AccountId,
-	pub create_block: BlockNumber,
-	pub metadata: BoundedVec<u8, ConstU32<128>>,
-	pub time_elapsed: Option<BlockNumber>,
-	pub average_cpu_percentage_use: Option<u8>,
-	pub task_type: TaskType,
-}
-
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct VerificationHashes<AccountId> {
-	pub account: AccountId,
-	pub completed_hash: Option<H256>,
-}
-
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct Verifications<AccountId> {
-	executor: VerificationHashes<AccountId>,
-	verifier: Option<VerificationHashes<AccountId>>,
-	resolver: Option<VerificationHashes<AccountId>>,
-}
+pub use cyborg_primitives::task::*;
+use cyborg_primitives::worker::{WorkerId, WorkerStatusType};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -188,6 +151,7 @@ pub mod pallet {
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
+				result: None,
 			};
 
 			// Assign task to worker and set task owner.
@@ -213,6 +177,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_id: TaskId,
 			completed_hash: H256,
+			result: BoundedVec<u8, ConstU32<128>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -249,6 +214,12 @@ pub mod pallet {
 			ver.verifier = Some(VerificationHashes {
 				account: assigned_verifier.0.clone(),
 				completed_hash: None,
+			});
+
+			Tasks::<T>::mutate(task_id, |task| {
+				if let Some(ref mut raw_task) = task {
+					raw_task.result = Some(result);
+				}
 			});
 
 			TaskVerifications::<T>::insert(task_id, ver.clone());

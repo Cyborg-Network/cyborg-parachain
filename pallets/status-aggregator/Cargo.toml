@@ -1,6 +1,6 @@
 [package]
-name = "pallet-edge-connect"
-description = "Pallet for managing connected workers"
+name = "pallet-status-aggregator"
+description = "Pallet for determining worker status aggregated from oracle feed"
 version = "0.1.0"
 authors.workspace = true
 homepage.workspace = true
@@ -18,8 +18,11 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
-pallet-timestamp = { version = "34.0.0", default-features = false }
 
+log = { workspace = true }
+orml-traits = { workspace = true }
+orml-oracle = { workspace = true }
+pallet-edge-connect = { workspace = true }
 cyborg-primitives = { workspace = true }
 
 # frame deps
@@ -43,10 +46,13 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
+	"orml-traits/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",
-	"cyborg-primitives/std",
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+]

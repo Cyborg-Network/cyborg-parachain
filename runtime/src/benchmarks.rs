@@ -34,6 +34,7 @@ frame_benchmarking::define_benchmarks!(
 	[cumulus_pallet_parachain_system, ParachainSystem]
 	[cumulus_pallet_xcmp_queue, XcmpQueue]
 	[pallet_edge_connect, EdgeConnect]
+	[pallet_status_aggregator, StatusAggregator]
 	[pallet_task_management, TaskManagement]
 	[orml_oracle, Oracle]
 );

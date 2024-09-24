@@ -14,9 +14,7 @@ pub use weights::{WeightInfo as EdgeConnectWeightInfo, *};
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub mod types;
-
-pub use types::*;
+pub use cyborg_primitives::worker::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -145,14 +143,16 @@ pub mod pallet {
 				}
 			};
 
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let worker = Worker {
 				id: worker_id.clone(),
 				owner: creator.clone(),
 				location: worker_location,
 				specs: worker_specs,
 				reputation: 0,
-				start_block: <frame_system::Pallet<T>>::block_number(),
+				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
+				status_last_updated: blocknumber.clone(),
 				api: api,
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
@@ -241,6 +241,21 @@ pub mod pallet {
 			} else {
 				Some(workers)
 			}
+		}
+	}
+
+	impl<T: Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>> for Pallet<T> {
+		fn get_worker_cluster(
+			worker_key: &(T::AccountId, WorkerId),
+		) -> Option<Worker<T::AccountId, BlockNumberFor<T>>> {
+			WorkerClusters::<T>::get(worker_key)
+		}
+
+		fn update_worker_cluster(
+			worker_key: &(T::AccountId, WorkerId),
+			worker: Worker<T::AccountId, BlockNumberFor<T>>,
+		) {
+			WorkerClusters::<T>::insert(worker_key, worker);
 		}
 	}
 }

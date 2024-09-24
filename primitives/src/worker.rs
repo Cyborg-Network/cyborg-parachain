@@ -52,6 +52,17 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 	pub reputation: WorkerReputation,
 	pub start_block: BlockNumber,
 	pub status: WorkerStatusType,
+	pub status_last_updated: BlockNumber,
 	pub api: WorkerAPI,
 	pub last_status_check: TimeStamp,
+}
+
+pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber> {
+	fn get_worker_cluster(
+		worker_key: &(AccountId, WorkerId),
+	) -> Option<Worker<AccountId, BlockNumber>>;
+	fn update_worker_cluster(
+		worker_key: &(AccountId, WorkerId),
+		worker: Worker<AccountId, BlockNumber>,
+	);
 }

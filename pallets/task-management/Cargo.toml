@@ -27,6 +27,7 @@ frame-system = { version = "35.0.0", default-features = false }
 
 # Local
 pallet-edge-connect = { workspace = true }
+cyborg-primitives = { workspace = true }
 
 sp-io = { version = "37.0.0", default-features = false }
 sp-core = { version = "34.0.0", default-features = false }
