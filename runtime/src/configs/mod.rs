@@ -23,6 +23,8 @@
 //
 // For more information, please refer to <http://unlicense.org>
 
+use crate::weights::*;
+
 mod xcm_config;
 
 // Substrate and Polkadot dependencies

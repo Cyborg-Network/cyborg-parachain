@@ -9,8 +9,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
-mod configs;
-mod weights;
+pub mod configs;
+pub mod weights;
 
 use smallvec::smallvec;
 use sp_runtime::{
