@@ -24,6 +24,7 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub time_elapsed: Option<BlockNumber>,
 	pub average_cpu_percentage_use: Option<u8>,
 	pub task_type: TaskType,
+	pub result: Option<BoundedVec<u8, ConstU32<128>>>,
 }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]

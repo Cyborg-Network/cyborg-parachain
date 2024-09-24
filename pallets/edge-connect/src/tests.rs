@@ -1,4 +1,6 @@
-use crate::{mock::*, types::*, Error, Event};
+use crate::{mock::*, Error, Event};
+pub use cyborg_primitives::worker::*;
+
 use frame_support::sp_runtime::traits::ConstU32;
 use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
@@ -20,6 +22,7 @@ fn it_works_for_registering_domain() {
 			owner: alice,
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
+			status_last_updated: 10,
 			api: api_info.clone(),
 		};
 

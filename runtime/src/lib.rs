@@ -188,6 +188,7 @@ impl orml_oracle::Config for Runtime {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxFeedValues = ConstU32<100>;
 	#[cfg(feature = "runtime-benchmarks")]
+	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
 
@@ -226,6 +227,8 @@ impl pallet_status_aggregator::Config for Runtime {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
+
+	type WorkerInfoHandler = EdgeConnect;
 }
 
 #[sp_version::runtime_version]
