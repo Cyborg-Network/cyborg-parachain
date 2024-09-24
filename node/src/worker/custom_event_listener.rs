@@ -14,10 +14,13 @@ use crate::worker::{
 	submit_results::submit_result_onchain,
 };
 
-use super::WorkerData;
+use super::{SubstrateClientApi, WorkerData};
 
-pub async fn event_listener_tester<T, U>(client: Arc<T>, worker_data: WorkerData)
-where
+pub async fn event_listener_tester<T, U>(
+	client: Arc<T>,
+	api: SubstrateClientApi,
+	worker_data: WorkerData,
+) where
 	U: Block,
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
 	T::Api: TaskManagementEventsApi<U>,
@@ -51,7 +54,7 @@ where
 							let result = download_and_execute_work_package(ipfs_hash.as_ref()).await;
 							if let Some(Ok(output)) = result {
 								info!("{:?}", &output);
-								submit_result_onchain(output, task_id).await;
+								submit_result_onchain(&api, output, task_id).await;
 							} else {
 								info!("result: {:?}", result);
 								error!("Failed to execute command");

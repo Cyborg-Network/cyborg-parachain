@@ -5,18 +5,15 @@ use sp_core::crypto::Ss58Codec;
 use sp_core::hexdisplay::AsBytesRef;
 use sp_core::sr25519;
 use sp_core::ConstU32;
-use sp_core::Pair;
 use sp_runtime::BoundedVec;
-use std::env;
 use std::io::Write;
 use substrate_api_client::ac_node_api::StaticEvent;
-use substrate_api_client::ac_primitives::DefaultRuntimeConfig;
 use substrate_api_client::SubmitAndWatch;
 use substrate_api_client::XtStatus;
-use substrate_api_client::{rpc::TungsteniteRpcClient, Api};
 
 use crate::worker::CONFIG_FILE_NAME;
 
+use super::SubstrateClientApi;
 use super::WorkerData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Decode)]
@@ -31,28 +28,10 @@ impl StaticEvent for EventWorkerRegistered {
 	const EVENT: &'static str = "WorkerRegistered";
 }
 
-pub async fn register_worker_on_chain() -> Option<WorkerData> {
-	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" # //Alice
-	// export CYBORG_WORKER_DOMAIN="example.com" # replace with your domain
-	// run zombienet `zombienet --provider native spawn ./zombienet.toml`
-
-	let worker_key = env::var("CYBORG_WORKER_KEY").expect("CYBORG_WORKER_KEY not set");
-	let worker_domain = env::var("CYBORG_WORKER_DOMAIN").expect("CYBORG_WORKER_DOMAIN not set");
-
-	let mut key_32 = [0u8; 32];
-
-	key_32[..].copy_from_slice(&hex::decode(worker_key).unwrap());
-
-	let key = sr25519::Pair::from_seed(&key_32);
-
-	// WARNING: only works on zombienet because of port
-	// TODO: get the port from cli arg
-	let client = TungsteniteRpcClient::new_with_port("ws://127.0.0.1", 9988, 2).unwrap();
-
-	let mut api = Api::<DefaultRuntimeConfig, _>::new(client).unwrap();
-
-	api.set_signer(key.clone().into());
-
+pub async fn register_worker_on_chain(
+	api: SubstrateClientApi,
+	worker_domain: String,
+) -> Option<WorkerData> {
 	let domain = BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap();
 
 	let register_call =
