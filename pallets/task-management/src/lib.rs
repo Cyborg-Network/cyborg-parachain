@@ -277,14 +277,14 @@ pub mod pallet {
 
 						// Find available workers that are not the executor or current verifier (TODO: may be redesigned into a hook)
 						let workers: Vec<_> = WorkerClusters::<T>::iter()
-							.filter(|&(_, ref worker)| {
+							.filter(|(_, worker)| {
 								worker.status == WorkerStatusType::Inactive // TODO: change Inactive to Active with oracle 
 							&& verification.verifier.as_ref().map_or(false, |v| v.account != worker.owner)
 							&& worker.owner != verification.executor.account.clone()
 							})
 							.collect::<Vec<_>>();
 
-						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
+						ensure!(workers.is_empty(), Error::<T>::NoNewWorkersAvailable);
 
 						let mut task_verification_encoded = task_verification.encode();
 						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
@@ -372,7 +372,7 @@ pub mod pallet {
 						// reassign task to new executor
 						// reassign task to T::AccountId that is neither of the current executor or verifier or resolver for the next cycle
 						let workers: Vec<_> = WorkerClusters::<T>::iter()
-							.filter(|&(_, ref worker)| {
+							.filter(|(_, ref worker)| {
 								worker.status == WorkerStatusType::Inactive // change Inactive to Active with oracle 
 							&& worker.owner != resolver_account
 							&& verifier.as_ref().map_or(false, |v| v.account != worker.owner)
@@ -380,7 +380,7 @@ pub mod pallet {
 							})
 							.collect::<Vec<_>>();
 
-						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
+						ensure!(workers.is_empty(), Error::<T>::NoNewWorkersAvailable);
 
 						let mut task_verification_encoded = task_verification.encode();
 						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
