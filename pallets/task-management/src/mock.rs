@@ -28,6 +28,9 @@ mod test_runtime {
 
 	#[runtime::pallet_index(2)]
 	pub type TaskManagementModule = crate;
+
+	#[runtime::pallet_index(3)]
+	pub type Timestamp = pallet_timestamp;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -40,6 +43,13 @@ impl frame_system::Config for Test {
 
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type EdgeConnectWeightInfo = ();
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<0>;
 	type WeightInfo = ();
 }
 

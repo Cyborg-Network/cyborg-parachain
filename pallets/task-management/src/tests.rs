@@ -11,6 +11,11 @@ fn it_works_for_task_scheduler() {
 		System::set_block_number(1);
 		let alice = 1;
 		let executor = 2;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -22,7 +27,12 @@ fn it_works_for_task_scheduler() {
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info.domain
+			api_info.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic.
@@ -67,6 +77,11 @@ fn it_works_for_submit_completed_task() {
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -82,12 +97,22 @@ fn it_works_for_submit_completed_task() {
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-			api_info.domain
+			api_info.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
-			api_info_bob.domain
+			api_info_bob.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to schedule a task
@@ -126,6 +151,11 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -137,7 +167,12 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-			api_info.domain
+			api_info.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to schedule a task
@@ -170,6 +205,11 @@ fn it_works_when_verifying_task() {
 		let task_creator = 0;
 		let executor = 1;
 		let verifier = 2;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -180,7 +220,12 @@ fn it_works_when_verifying_task() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.domain
+			api_info_executor.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to schedule a task
@@ -201,7 +246,12 @@ fn it_works_when_verifying_task() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.domain
+			api_info_verifier.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to submit the completed task by executor
@@ -238,6 +288,11 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let executor = 1;
 		let verifier = 2;
 		let resolver = 3;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -248,7 +303,12 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.domain
+			api_info_executor.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to schedule a task
@@ -269,7 +329,12 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.domain
+			api_info_verifier.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to submit the completed task by executor
@@ -294,7 +359,12 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-			api_info_resolver.domain
+			api_info_resolver.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Submit differing completed hash
@@ -336,6 +406,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let executor = 1;
 		let verifier = 2;
 		let resolver = 3;
+		let worker_latitude: pallet_edge_connect::types::Latitude = 590000;
+		let worker_longitude: pallet_edge_connect::types::Longitude = 120000;
+		let worker_ram: pallet_edge_connect::types::RamBytes = 100000000;
+		let worker_storage: pallet_edge_connect::types::StorageBytes = 100000000;
+		let worker_cpu: pallet_edge_connect::types::CpuCores = 12;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -346,7 +421,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-			api_info_executor.domain
+			api_info_executor.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to schedule a task
@@ -367,7 +447,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-			api_info_verifier.domain
+			api_info_verifier.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Dispatch a signed extrinsic to submit the completed task by executor
@@ -392,7 +477,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-			api_info_resolver.domain
+			api_info_resolver.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Submit differing completed hash
@@ -433,7 +523,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		};
 		assert_ok!(edgeConnectModule::register_worker(
 			RuntimeOrigin::signed(new_executor),
-			api_info_new_executor.domain
+			api_info_new_executor.domain,
+			worker_latitude,
+			worker_longitude,
+			worker_ram,
+			worker_storage,
+			worker_cpu
 		));
 
 		// Reassigns a new executor when resolver cannot find a matching completed hash

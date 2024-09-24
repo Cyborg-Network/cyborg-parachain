@@ -33,25 +33,25 @@ pub struct WorkerAPI {
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Location {
 	pub latitude: Latitude,
-  pub longitude: Longitude,
+	pub longitude: Longitude,
 }
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct WorkerSpecs {
 	pub ram: RamBytes,
-  pub storage: StorageBytes,
-  pub cpu: CpuCores,
+	pub storage: StorageBytes,
+	pub cpu: CpuCores,
 }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 	pub id: WorkerId,
 	pub owner: AccountId,
-  pub location: Location,
-  pub specs: WorkerSpecs,
-  pub reputation: WorkerReputation,
+	pub location: Location,
+	pub specs: WorkerSpecs,
+	pub reputation: WorkerReputation,
 	pub start_block: BlockNumber,
 	pub status: WorkerStatusType,
 	pub api: WorkerAPI,
-  pub last_status_check: TimeStamp,
+	pub last_status_check: TimeStamp,
 }
