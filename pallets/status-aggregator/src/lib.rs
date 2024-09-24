@@ -7,8 +7,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-//pub mod weights;
-//pub use weights::*;
+pub mod weights;
+pub use weights::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -57,8 +57,6 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use scale_info::prelude::vec::Vec;
-
-	use frame_system::WeightInfo; //remove later
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]

@@ -5,8 +5,8 @@ use cyborg_primitives::worker::WorkerAPI;
 use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_support::BoundedVec;
 use frame_system::RawOrigin;
-use sp_core::H256;
 use scale_info::prelude::vec;
+use sp_core::H256;
 
 // Define a constant for the worker API domain.
 const WORKER_API_DOMAIN: &str = "https://api-worker.testing";
@@ -61,8 +61,8 @@ benchmarks! {
 				assert_eq!(task_info.metadata, task_data);
 				assert_eq!(task_info.task_owner, caller);
 		}
-	
- 
+
+
 		// Benchmark for submitting a completed task
 		submit_completed_task {
 				let s in 0 .. 100;
@@ -109,7 +109,7 @@ benchmarks! {
 				assert_eq!(verifications.verifier.clone().unwrap().account, verifier);
 				assert_eq!(verifications.verifier.clone().unwrap().completed_hash, None);
 		}
-	
+
 		// Benchmark for verifying a completed task
 		verify_completed_task {
 				let s in 0 .. 100;
@@ -215,6 +215,6 @@ benchmarks! {
 				let task_status = TaskManagementModule::<T>::task_status(task_id).unwrap();
 				assert_eq!(task_status, TaskStatusType::Completed);
 		}
-	
+
 		impl_benchmark_test_suite!(TaskManagementModule, crate::mock::new_test_ext(), crate::mock::Test);
 }

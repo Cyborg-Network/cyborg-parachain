@@ -63,8 +63,6 @@ use super::{
 };
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
-
-
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 
@@ -129,7 +127,7 @@ impl frame_system::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+		pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
