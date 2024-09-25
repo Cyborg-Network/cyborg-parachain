@@ -24,6 +24,7 @@ orml-traits = { workspace = true }
 orml-oracle = { workspace = true }
 pallet-edge-connect = { workspace = true }
 cyborg-primitives = { workspace = true }
+pallet-timestamp = { workspace = true }
 
 # frame deps
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
