@@ -9,7 +9,7 @@ mod mock;
 mod tests;
 
 pub mod weights;
-pub use weights::{WeightInfo as EdgeConnectWeightInfo, *};
+pub use weights::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -32,7 +32,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		// /// A type representing the weights required by the dispatchables of this pallet.
-		type WeightInfo: EdgeConnectWeightInfo;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
