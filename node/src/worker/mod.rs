@@ -1,5 +1,6 @@
 use codec::{Decode, Encode};
 use cyborg_runtime::apis::TaskManagementEventsApi;
+use ipfs_api_backend_hyper::TryFromUri;
 use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
 use log::info;
 use sc_client_api::BlockchainEvents;
@@ -13,12 +14,17 @@ use substrate_api_client::ac_primitives::{
 	AssetRuntimeConfig, DefaultRuntimeConfig, GenericExtrinsicParams, PlainTip, WithExtrinsicParams,
 };
 use substrate_api_client::{rpc::TungsteniteRpcClient, Api};
+use url::Url;
+
 pub mod custom_event_listener;
 pub mod donwloade_and_execute_tasks;
 pub mod register_worker;
 pub mod submit_results;
 
 pub const CONFIG_FILE_NAME: &str = "registered_worker_config.json";
+
+pub const IPFS_DEFAULT_URI: &str =
+	"https://8be9886d720942e0be9c10bc4351e9dd:ea84a88bd688458188735bff8c576e90@ipfs.infura.io:5001/api/v0";
 
 pub type SubstrateClientApi = Api<
 	WithExtrinsicParams<
@@ -47,10 +53,22 @@ where
 
 	// export CYBORG_WORKER_KEY="e5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a" # //Alice
 	// export CYBORG_WORKER_DOMAIN="example.com" # replace with your domain
+
+	// IPFS="https://<infura_project_api_key>:<infura_api_secret_key>@ipfs.infura.io:5001/api/v0"
 	// run zombienet `zombienet --provider native spawn ./zombienet.toml`
 
 	let worker_key = env::var("CYBORG_WORKER_KEY").expect("CYBORG_WORKER_KEY not set");
 	let worker_domain = env::var("CYBORG_WORKER_DOMAIN").expect("CYBORG_WORKER_DOMAIN not set");
+	let ipfs_credentials = env::var("IPFS");
+
+	let ipfs_url = ipfs_credentials
+		.ok()
+		.and_then(|creds| creds.parse::<Url>().ok())
+		.unwrap_or_else(|| {
+			IPFS_DEFAULT_URI
+				.parse::<Url>()
+				.expect("Invalid default IPFS URI")
+		});
 
 	let mut key_32 = [0u8; 32];
 
@@ -66,7 +84,8 @@ where
 
 	api.set_signer(key.clone().into());
 
-	let ipfs_client = IpfsClient::default();
+	let ipfs_client = IpfsClient::build_with_base_uri(ipfs_url.to_string().parse().unwrap())
+		.with_credentials(ipfs_url.username(), ipfs_url.password().unwrap());
 
 	let version_out = ipfs_client.version().await;
 	info!("version_out: {:?}", &version_out);
