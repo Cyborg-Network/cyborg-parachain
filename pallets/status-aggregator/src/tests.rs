@@ -16,7 +16,7 @@ use orml_traits::{CombineData, OnNewData};
 
 use cyborg_primitives::{
 	oracle::{ProcessStatus, TimestampedValue},
-	worker::{WorkerId, WorkerStatusType},
+	worker::*,
 };
 use std::error::Error;
 
@@ -71,6 +71,13 @@ fn on_new_data_works_as_expected() {
 		let worker_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
+        // basic worker spec
+        let worker_latitude: Latitude = 590000;
+		let worker_longitude:Longitude = 120000;
+		let worker_ram: RamBytes = 100000000;
+		let worker_storage: StorageBytes = 100000000;
+		let worker_cpu: CpuCores = 12;
+
 		// register workers
 		for worker in worker_addrs.iter() {
 			for id in 0..worker_ids.len() {
@@ -79,7 +86,12 @@ fn on_new_data_works_as_expected() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnect::register_worker(
 					RuntimeOrigin::signed(*worker),
-					domain.clone()
+					domain.clone(),
+                    worker_latitude,
+                    worker_longitude,
+                    worker_ram,
+                    worker_storage,
+                    worker_cpu
 				));
 			}
 		}
@@ -244,6 +256,13 @@ fn on_finalize_works_as_expected() {
 		let worker_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
+        // basic worker spec
+        let worker_latitude: Latitude = 590000;
+		let worker_longitude:Longitude = 120000;
+		let worker_ram: RamBytes = 100000000;
+		let worker_storage: StorageBytes = 100000000;
+		let worker_cpu: CpuCores = 12;
+
 		// register workers
 		for worker in worker_addrs.iter() {
 			for id in 0..worker_ids.len() {
@@ -252,7 +271,12 @@ fn on_finalize_works_as_expected() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnect::register_worker(
 					RuntimeOrigin::signed(*worker),
-					domain.clone()
+					domain.clone(),
+                    worker_latitude,
+                    worker_longitude,
+                    worker_ram,
+                    worker_storage,
+                    worker_cpu
 				));
 			}
 		}

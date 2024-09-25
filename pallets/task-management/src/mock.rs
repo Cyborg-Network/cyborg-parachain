@@ -43,7 +43,7 @@ impl frame_system::Config for Test {
 
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type EdgeConnectWeightInfo = ();
+	type WeightInfo = ();
 }
 
 impl pallet_timestamp::Config for Test {

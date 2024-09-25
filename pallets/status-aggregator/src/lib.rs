@@ -14,7 +14,7 @@ mod tests;
 mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, Parameter, pallet_prelude::IsType};
 use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
@@ -23,6 +23,7 @@ use cyborg_primitives::{
 	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType},
 };
 use frame_support::{traits::Get, LOG_TARGET};
+use pallet_timestamp;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
@@ -62,7 +63,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -83,7 +84,7 @@ pub mod pallet {
 		type MaxAggregateParamLength: Get<u32>;
 
 		/// Updates Worker Status for Edge Connect
-		type WorkerInfoHandler: WorkerInfoHandler<Self::AccountId, WorkerId, BlockNumberFor<Self>>;
+		type WorkerInfoHandler: WorkerInfoHandler<Self::AccountId, WorkerId, BlockNumberFor<Self>, Self::Moment>;
 	}
 
 	#[pallet::pallet]

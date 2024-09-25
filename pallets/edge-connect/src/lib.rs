@@ -32,7 +32,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		// /// A type representing the weights required by the dispatchables of this pallet.
-		type EdgeConnectWeightInfo: EdgeConnectWeightInfo;
+		type WeightInfo: EdgeConnectWeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -99,7 +99,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::EdgeConnectWeightInfo::register_worker())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_worker())]
 		pub fn register_worker(
 			origin: OriginFor<T>,
 			domain: Domain,
@@ -174,7 +174,7 @@ pub mod pallet {
 
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::EdgeConnectWeightInfo::remove_worker())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
 		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
@@ -194,7 +194,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::EdgeConnectWeightInfo::toggle_worker_visibility())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
 		pub fn toggle_worker_visibility(
 			origin: OriginFor<T>,
 			worker_id: WorkerId,
@@ -244,16 +244,16 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>> for Pallet<T> {
+	impl<T: Config + timestamp::Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T> {
 		fn get_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
-		) -> Option<Worker<T::AccountId, BlockNumberFor<T>>> {
+		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			WorkerClusters::<T>::get(worker_key)
 		}
 
 		fn update_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
-			worker: Worker<T::AccountId, BlockNumberFor<T>>,
+			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		) {
 			WorkerClusters::<T>::insert(worker_key, worker);
 		}

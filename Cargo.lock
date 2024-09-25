@@ -7310,6 +7310,7 @@ dependencies = [
  "orml-oracle",
  "orml-traits",
  "pallet-edge-connect",
+ "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

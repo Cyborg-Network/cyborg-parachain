@@ -57,12 +57,12 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 	pub last_status_check: TimeStamp,
 }
 
-pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber> {
+pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
 	fn get_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
-	) -> Option<Worker<AccountId, BlockNumber>>;
+	) -> Option<Worker<AccountId, BlockNumber, TimeStamp>>;
 	fn update_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
-		worker: Worker<AccountId, BlockNumber>,
+		worker: Worker<AccountId, BlockNumber, TimeStamp>,
 	);
 }
