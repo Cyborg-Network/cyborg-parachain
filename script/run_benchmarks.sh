@@ -1,21 +1,19 @@
 #!/bin/bash
 
 pallets=(
-    #"frame_system"
-    "cumulus_pallet_parachain_system"
-    #"pallet_membership"
-    "cumulus_pallet_xcmp_queue"
-    "orml_oracle"
-    "pallet_balances"
-    "pallet_collator_selection"
-    "pallet_message_queue"
-    "pallet_session"
-    "pallet_sudo"
-    "pallet_timestamp"
-    "pallet_session"
-    "pallet_edge_connect"
-    "pallet_task_management"
-    #"pallet_status_aggregator"
+    #"cumulus_pallet_parachain_system"
+    #"cumulus_pallet_xcmp_queue"
+    #"orml_oracle"
+    #"pallet_balances"
+    #"pallet_collator_selection"
+    #"pallet_message_queue"
+    #"pallet_session"
+    #"pallet_sudo"
+    #"pallet_timestamp"
+    #"pallet_session"
+    #"pallet_edge_connect"
+    #"pallet_task_management"
+    "pallet_status_aggregator"
 )
 
 #./target/release/cyborg-node benchmark pallet --list --chain=dev| tail -n+2 | cut -d',' -f1 | uniq 

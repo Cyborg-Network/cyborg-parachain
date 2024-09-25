@@ -35,7 +35,7 @@ use frame_support::{
 	traits::{
 		ConstBool, ConstU32, ConstU64, ConstU8, EitherOfDiverse, TransformOrigin, VariantCountOf,
 	},
-	weights::{self, ConstantMultiplier, Weight},
+	weights::{ConstantMultiplier, Weight},
 	PalletId,
 };
 use frame_system::{

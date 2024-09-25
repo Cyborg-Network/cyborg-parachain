@@ -173,24 +173,28 @@ parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 use core::marker::PhantomData;
 //use std::simd::SupportedLaneCount;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking::account;
-use sp_runtime::{traits::Get, BoundedVec};
-
 #[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::{traits::Get,BoundedVec};
+
+
 // Struct to implement the BenchmarkHelper trait for benchmarking. It takes a generic MaxFeedValues,
 // which defines the maximum number of values (or pairs) the benchmark will generate.
 // The `PhantomData<MaxFeedValues>` is used because MaxFeedValues is a type-level constant,
 // and we need to associate it with this struct but don't actually store it.
+#[cfg(feature = "runtime-benchmarks")]
 pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
 
-#[cfg(feature = "runtime-benchmarks")]
+
 // Implementing the orml_oracle::BenchmarkHelper trait for the BenchmarkHelperImpl struct.
 // The trait is specialized for key-value pairs with the key being a tuple of (AccountId, WorkerId)
 // and the value being ProcessStatus. MaxFeedValues is a type constant that defines the upper limit
 // on the number of pairs that can be generated.
+#[cfg(feature = "runtime-benchmarks")]
 impl<MaxFeedValues>
 	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
 	for BenchmarkHelperImpl<MaxFeedValues>
@@ -272,6 +276,7 @@ impl orml_oracle::Config for Runtime {
 	type BenchmarkHelper = BenchmarkHelperImpl<Self::MaxFeedValues>;
 }
 
+
 impl pallet_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AddOrigin = EnsureRoot<AccountId>;
@@ -279,12 +284,13 @@ impl pallet_membership::Config for Runtime {
 	type SwapOrigin = EnsureRoot<AccountId>;
 	type ResetOrigin = EnsureRoot<AccountId>;
 	type PrimeOrigin = EnsureRoot<AccountId>;
-
 	type MembershipInitialized = ();
-	type MembershipChanged = ();
+	type MembershipChanged =  ();
 	type MaxMembers = ConstU32<16>;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
+
+
 
 /// OracleMembership wrapper used by benchmarks
 #[cfg(feature = "runtime-benchmarks")]
