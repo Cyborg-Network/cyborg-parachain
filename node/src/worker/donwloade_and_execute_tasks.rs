@@ -1,12 +1,13 @@
 use futures::TryStreamExt;
 use ipfs_api_backend_hyper::{self, IpfsApi, IpfsClient};
 use log::{error, info};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
-pub const WORK_FILES_DIR: &str = "tasks_binary";
+pub const WORK_PACKAGE_DIR: &str = "work_package_binary";
 
 pub async fn download_and_execute_work_package(
 	ipfs_hash: &str,
@@ -27,8 +28,11 @@ pub async fn download_and_execute_work_package(
 		}
 		Ok(data) => {
 			info!("got data from ipfs with length of {}", &data.len());
-			// TODO: check and create directory
-			let file_path = format!("./{WORK_FILES_DIR}/{ipfs_hash}");
+			let w_package_path = Path::new(WORK_PACKAGE_DIR);
+			if !w_package_path.exists() {
+				fs::create_dir(w_package_path).unwrap();
+			}
+			let file_path = format!("./{WORK_PACKAGE_DIR}/{ipfs_hash}");
 
 			let mut file = File::create(&file_path).unwrap();
 			let mut perms = file.metadata().unwrap().permissions();

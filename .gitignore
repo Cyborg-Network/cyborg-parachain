@@ -3,4 +3,4 @@ zombienet-linux-x64
 binaries
 .DS_Store
 registered_worker_config*
-tasks_binary
+work_package_binary
