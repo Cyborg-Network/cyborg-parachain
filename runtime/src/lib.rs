@@ -9,6 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
+
 pub mod configs;
 pub mod weights;
 
@@ -50,7 +51,6 @@ pub use cyborg_primitives::{
 pub use pallet_edge_connect;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
-
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -174,6 +174,7 @@ parameter_types! {
 }
 
 use core::marker::PhantomData;
+//use std::simd::SupportedLaneCount;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking::account;
 use sp_runtime::{traits::Get, BoundedVec};
@@ -262,7 +263,7 @@ impl orml_oracle::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type Members = OracleMembershipWrapper;
 	type MaxHasDispatchedSize = ConstU32<8>;
-	type WeightInfo = ();
+	type WeightInfo = weights::orml_oracle::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type MaxFeedValues = ConstU32<100>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
@@ -305,12 +306,12 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_edge_connect::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
 }
 
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_task_management::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -319,7 +320,7 @@ parameter_types! {
 
 impl pallet_status_aggregator::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_status_aggregator::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_status_aggregator::SubstrateWeight<Runtime>;
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
@@ -475,7 +476,6 @@ mod runtime {
 
 	#[runtime::pallet_index(44)]
 	pub type StatusAggregator = pallet_status_aggregator;
-
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
