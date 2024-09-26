@@ -1,14 +1,16 @@
-//! Benchmarking setup for pallet-template
 #![cfg(feature = "runtime-benchmarks")]
+
 use super::*;
 
 #[allow(unused)]
-use crate::Pallet as edgeConnectPallet;
+use super::{Config, Pallet};
+use cyborg_primitives::worker::*;
 use frame_benchmarking::v2::*;
-use frame_support::sp_runtime::traits::ConstU32;
-use frame_support::sp_runtime::traits::One;
-use frame_support::BoundedVec;
+use frame_support::{sp_runtime::traits::ConstU32, BoundedVec};
 use frame_system::RawOrigin;
+use pallet_timestamp;
+use scale_info::prelude::format;
+// use frame_support::sp_runtime::traits::One;
 
 // Define a constant for the worker API domain.
 const WORKER_API_DOMAIN: &str = "https://some_api_domain.com";
@@ -21,89 +23,180 @@ fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 		.expect("Domain string exceeds maximum length")
 }
 
+fn set_initial_benchmark_data<T: Config>() {
+	for i in 0..100 {
+		let index = i;
+		let seed = i * 3;
+		// Generate the creator account for this worker
+		let creator = account::<T::AccountId>("benchmark_account", index, seed);
+
+		// Create the WorkerAPI object
+		let api = WorkerAPI {
+			domain: get_domain(WORKER_API_DOMAIN),
+		};
+
+		// Create the location object for the worker
+		let worker_location = Location {
+			latitude: i as i32,
+			longitude: (103 + i) as i32,
+		};
+
+		// Define the worker's specifications (RAM, storage, CPU)
+		let worker_specs = WorkerSpecs {
+			ram: 5_000_000_000u64,
+			storage: 100_000_000_000u64,
+			cpu: 5u16,
+		};
+
+		// Maximum number of worker IDs to generate
+		const MAX_WORKER_ID: u64 = 6;
+
+		// Insert the MAX_WORKER_ID into the AccountWorkers map for the creator
+		AccountWorkers::<T>::insert(creator.clone(), MAX_WORKER_ID);
+
+		// Loop to create multiple workers for the same creator
+		for worker_id in 0..MAX_WORKER_ID {
+			// Get the current block number
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
+
+			// Create a Worker struct with all the required data
+			let worker = Worker {
+				id: worker_id,
+				owner: creator.clone(),
+				location: worker_location.clone(),
+				specs: worker_specs.clone(),
+				reputation: 0,
+				start_block: blocknumber,
+				status: WorkerStatusType::Inactive,
+				status_last_updated: blocknumber,
+				api: api.clone(),
+				last_status_check: pallet_timestamp::Pallet::<T>::get(),
+			};
+
+			// Insert the worker into the WorkerClusters map
+			WorkerClusters::<T>::insert((creator.clone(), worker_id), worker);
+		}
+	}
+}
+
 #[benchmarks]
 mod benchmarks {
 	use super::*;
 
 	#[benchmark]
-	fn register_worker() {
-		// Retrieve a whitelisted account to use as the caller (sender of the transaction)
-		// This is a pre-authorized account used for benchmarking purposes.
+	fn register_worker<T: Config>() -> Result<(), BenchmarkError> {
+		// Setup initial benchmark data (this function is assumed to prepopulate necessary state)
+		// This function could be used to set up the initial state required for benchmarking.
+		set_initial_benchmark_data::<T>();
+
+		// Define the caller (account) that will be used to register the worker.
+		// `whitelisted_caller()` provides a benchmark-friendly account for testing.
 		let caller: T::AccountId = whitelisted_caller();
 
-		// Define a domain string that will be part of the WorkerAPI (represent the worker's domain).
+		// Create a signed origin for the caller, which is required for the extrinsic call.
+		let origin = RawOrigin::Signed(caller.clone());
+
+		// Define the worker's domain and specifications for registration.
 		let domain = get_domain(WORKER_API_DOMAIN);
+		let latitude = 1i32;
+		let longitude = 103i32;
+		let ram = 5_000_000_000u64;
+		let storage = 100_000_000_000u64;
+		let cpu = 8u16;
 
-		// Create a WorkerAPI struct that contains the domain information.
-		let api_info = WorkerAPI {
-			domain, // Store the domain in the API Info
-		};
+		// Benchmark the execution of registering the worker.
+		// The `#[block]` attribute indicates that the following block of code is being benchmarked.
+		#[block]
+		{
+			Pallet::<T>::register_worker(
+				origin.into(),
+				domain,
+				latitude,
+				longitude,
+				ram,
+				storage,
+				cpu,
+			)?;
+		}
 
-		// Create a Worker struct with the relevant details.
-		// The worker is assigned an ID of 0, owned by the caller, start at block 1, and  is initially inactive.
-		// The worker's API information includes the domain created above.
-		let worker = Worker {
-			id: 0,
-			owner: caller.clone(),
-			start_block: One::one(),
-			status: WorkerStatusType::Inactive,
-			api: api_info.clone(),
-			status_last_updated: One::one(),
-		};
+		// Verification code
+		// We will check the worker's details by looking them up in the worker cluster storage map.
+		let worker_id = 0;
 
-		// Call the `register_worker` extrinsic using the #[extrinsic_call] macro, which will benchmark the extrinsic.
-		// The `RawOrigin::Signed(caller.clone())` indicates that this transaction is signed by the caller.
-		// The domain  from `api_info` is passed as part of the worker registration process.
-		#[extrinsic_call]
-		register_worker(RawOrigin::Signed(caller.clone()), api_info.domain);
+		// Match the result of querying the worker from the worker cluster storage.
+		// The key is (T::AccountId, WorkerId), where `caller` is the account and `worker_id` is the ID.
+		let worker_id = 0;
+		match Pallet::<T>::get_worker_clusters((caller.clone(), worker_id)) {
+			Some(worker) => {
+				let id = worker.id;
+				let owner = worker.owner;
+				let location = worker.location;
+				let specs = worker.specs;
 
-		// After the worker is registered, assert that the worker was correctly stored in the pallet's storage.
-		// `get_worker_cluster` (getter fn for workercluster) retrieves the worker by the tuple (caller, worker ID).
-		// If the worker exists in storage, the assertion passes, indicating that the registration succeeded.
-		assert_eq!(
-			edgeConnectPallet::<T>::get_worker_clusters((caller.clone(), 0)),
-			Some(worker)
-		);
+				// Verification: Ensure that the worker's ID matches the expected worker_id.
+				assert!(id == worker_id)
+			}
+			None => {
+				// If the worker is not found, we panic because it indicates that the worker was not registered properly.
+				panic!("Worker not found!")
+			}
+		}
+
+		Ok(())
 	}
 
 	#[benchmark]
-	fn remove_worker() {
-		// Retrieve a whitelisted account to use as the caller (sender of the transaction)
-		// This is a pre-authorized account used for benchmarking purposes.
+	fn remove_worker<T: Config>() -> Result<(), BenchmarkError> {
+		// Setup initial benchmark data (this function is assumed to prepopulate necessary state)
+		set_initial_benchmark_data::<T>();
+
+		// Assign a caller account that will act as the worker's owner.
 		let caller: T::AccountId = whitelisted_caller();
 
-		// Define a domain string that will be part of the WorkerAPI (represent the worker's domain).
+		// Create a signed origin for the caller, required for dispatchable function calls.
+		let origin = RawOrigin::Signed(caller.clone());
+
+		// Define worker's location and specifications.
 		let domain = get_domain(WORKER_API_DOMAIN);
+		let latitude = 1i32;
+		let longitude = 103i32;
+		let ram = 5_000_000_000u64;
+		let storage = 100_000_000_000u64;
+		let cpu = 8u16;
 
-		// First, register a worker to ensure there is one to remove
-		// This step simulates the existence of a worker in the system before we benchmark the removal process.
-		let api_info = WorkerAPI { domain };
+		// Register the worker under the specified caller with the above configurations.
+		Pallet::<T>::register_worker(
+			origin.into(),
+			domain,
+			latitude,
+			longitude,
+			ram,
+			storage,
+			cpu,
+		)?;
 
-		// Call the `register_worker` extrinsic to create and register a worker.
-		// This step is necessary before calling `remove_worker` because we need to remove an existing worker.
-		edgeConnectPallet::<T>::register_worker(
-			RawOrigin::Signed(caller.clone()).into(),
-			api_info.domain,
-		)
-		.unwrap();
+		// Create a new origin for the same caller to simulate the worker removal.
+		let removal_origin = RawOrigin::Signed(caller.clone());
+		let worker_id = 0;
 
-		// Call the `remove_worker` extrinsic using the #[extrinsic_call] macro, which will benchmark the extrinsic.
-		// the `RawOrigin::Signed(caller.clone())` indicates that this transaction is signed by the caller.
-		// Remove the worker with ID 0
-		#[extrinsic_call]
-		remove_worker(RawOrigin::Signed(caller.clone()), 0);
+		// Benchmark the execution of removing the worker (block of code to measure).
+		#[block]
+		{
+			Pallet::<T>::remove_worker(removal_origin.into(), worker_id)?;
+		}
 
-		// After the `remove_worker` extrinsic is called, assert that the worker has been succesfully removed from storage.
-		// `get_worker_cluster` (getter fn for workercluster) should return `None` for the worker with ID 0, indicating the worker no longer exists.
-		assert_eq!(
-			edgeConnectPallet::<T>::get_worker_clusters((caller.clone(), 0)),
-			None
-		);
+		// Verification code:
+		// Ensure that the worker has been removed from the storage map.
+		// Key used: (T::AccountId, WorkerId)
+
+		// Retrieve the worker cluster to check if the worker is still present.
+		let worker_cluster = Pallet::<T>::get_worker_clusters((caller.clone(), worker_id));
+
+		// Assert that the worker is no longer in the cluster (i.e., must be `None` after deletion).
+		assert!(worker_cluster.is_none(), "Worker not deleted");
+
+		Ok(())
 	}
 
-	impl_benchmark_test_suite!(
-		edgeConnectPallet,
-		crate::mock::new_test_ext(),
-		crate::mock::Test
-	);
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }
