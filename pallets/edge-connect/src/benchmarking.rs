@@ -1,16 +1,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-
-#[allow(unused)]
-use super::{Config, Pallet};
-use cyborg_primitives::worker::*;
 use frame_benchmarking::v2::*;
+
+use cyborg_primitives::worker::*;
 use frame_support::{sp_runtime::traits::ConstU32, BoundedVec};
 use frame_system::RawOrigin;
-use pallet_timestamp;
-use scale_info::prelude::format;
-// use frame_support::sp_runtime::traits::One;
 
 // Define a constant for the worker API domain.
 const WORKER_API_DOMAIN: &str = "https://some_api_domain.com";
@@ -23,6 +18,14 @@ fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 		.expect("Domain string exceeds maximum length")
 }
 
+/// A function to initialize benchmarking data by creating multiple worker accounts with various attributes
+/// for each worker, including location, specifications, and status.
+///
+/// The function generates 100 creators, and for each creator, it creates up to `MAX_WORKER_ID` workers.
+/// It inserts these workers into the `WorkerClusters` map, associating them with their respective creators.
+///
+/// # Type Parameters
+/// - `T`: The configuration trait for the pallet, which provides the necessary types like `AccountId`.
 fn set_initial_benchmark_data<T: Config>() {
 	for i in 0..100 {
 		let index = i;
@@ -197,6 +200,6 @@ mod benchmarks {
 
 		Ok(())
 	}
-
+	// Defines the benchmark test suite, linking it to the pallet and mock runtime
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

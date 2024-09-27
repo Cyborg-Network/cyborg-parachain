@@ -244,7 +244,9 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config + timestamp::Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T> {
+	impl<T: Config + timestamp::Config>
+		WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
+	{
 		fn get_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
 		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {

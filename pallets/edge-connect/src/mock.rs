@@ -1,5 +1,6 @@
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
+use pallet_timestamp;
 use sp_runtime::{traits::ConstU64, BuildStorage};
 
 // Configure a mock runtime to test the pallet.
@@ -22,7 +23,7 @@ mod test_runtime {
 	#[runtime::pallet_index(0)]
 	pub type System = frame_system;
 	#[runtime::pallet_index(1)]
-	pub type edgeConnectModule = crate;
+	pub type EdgeConnectModule = crate;
 	#[runtime::pallet_index(2)]
 	pub type Timestamp = pallet_timestamp;
 }
@@ -35,15 +36,15 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
+impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
 impl pallet_timestamp::Config for Test {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = ConstU64<0>;
-	type WeightInfo = ();
-}
-
-impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

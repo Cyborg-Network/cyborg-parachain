@@ -26,7 +26,7 @@ mod test_runtime {
 	#[runtime::pallet_index(0)]
 	pub type System = frame_system;
 
-    #[runtime::pallet_index(1)]
+	#[runtime::pallet_index(1)]
 	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
@@ -47,6 +47,19 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
+parameter_types! {
+	pub const MaxBlockRangePeriod: BlockNumber = 5u32;
+}
+
+impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxBlockRangePeriod = MaxBlockRangePeriod;
+	type ThresholdUptimeStatus = ConstU8<75>;
+	type MaxAggregateParamLength = ConstU32<10>;
+	type WorkerInfoHandler = EdgeConnect;
+}
+
 impl pallet_timestamp::Config for Test {
 	type Moment = u64;
 	type OnTimestampSet = ();
@@ -57,20 +70,6 @@ impl pallet_timestamp::Config for Test {
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-		pub const MaxBlockRangePeriod: BlockNumber = 5u32;
-}
-
-impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-
-	type MaxBlockRangePeriod = MaxBlockRangePeriod;
-	type ThresholdUptimeStatus = ConstU8<75>;
-	type MaxAggregateParamLength = ConstU32<10>;
-	type WorkerInfoHandler = EdgeConnect;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -1,4 +1,4 @@
-#![cfg(feature = "runtime-benchmarks")] // Ensures this code is only compiled when benchmarking is enabled
+#![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 pub use cyborg_primitives::{oracle::ProcessStatus, worker::WorkerId};
@@ -115,9 +115,5 @@ mod benchmarks {
 	}
 
 	// Defines the benchmark test suite, linking it to the pallet and mock runtime
-	impl_benchmark_test_suite!(
-		Pallet,
-		crate::benchmarking::test::new_test_ext(),
-		crate::mock::Test,
-	);
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test,);
 }

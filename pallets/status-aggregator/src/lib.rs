@@ -14,7 +14,7 @@ pub use weights::*;
 mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{sp_runtime::RuntimeDebug, BoundedVec, Parameter, pallet_prelude::IsType};
+use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec, Parameter};
 use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
@@ -82,7 +82,12 @@ pub mod pallet {
 		type MaxAggregateParamLength: Get<u32>;
 
 		/// Updates Worker Status for Edge Connect
-		type WorkerInfoHandler: WorkerInfoHandler<Self::AccountId, WorkerId, BlockNumberFor<Self>, Self::Moment>;
+		type WorkerInfoHandler: WorkerInfoHandler<
+			Self::AccountId,
+			WorkerId,
+			BlockNumberFor<Self>,
+			Self::Moment,
+		>;
 	}
 
 	#[pallet::pallet]

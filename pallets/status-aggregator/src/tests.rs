@@ -5,10 +5,9 @@ use crate::{
 	WorkerStatusEntriesPerPeriod,
 };
 
-use frame_support::traits::OnFinalize;
 use frame_support::{
 	assert_noop, assert_ok, pallet_prelude::ConstU32, sp_runtime::RuntimeDebug,
-	testing_prelude::bounded_vec, BoundedVec,
+	testing_prelude::bounded_vec, traits::OnFinalize, BoundedVec,
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_oracle;
@@ -71,9 +70,9 @@ fn on_new_data_works_as_expected() {
 		let worker_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
-        // basic worker spec
-        let worker_latitude: Latitude = 590000;
-		let worker_longitude:Longitude = 120000;
+		// basic worker spec
+		let worker_latitude: Latitude = 590000;
+		let worker_longitude: Longitude = 120000;
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
@@ -87,11 +86,11 @@ fn on_new_data_works_as_expected() {
 				assert_ok!(EdgeConnect::register_worker(
 					RuntimeOrigin::signed(*worker),
 					domain.clone(),
-                    worker_latitude,
-                    worker_longitude,
-                    worker_ram,
-                    worker_storage,
-                    worker_cpu
+					worker_latitude,
+					worker_longitude,
+					worker_ram,
+					worker_storage,
+					worker_cpu
 				));
 			}
 		}
@@ -256,9 +255,9 @@ fn on_finalize_works_as_expected() {
 		let worker_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
-        // basic worker spec
-        let worker_latitude: Latitude = 590000;
-		let worker_longitude:Longitude = 120000;
+		// basic worker spec
+		let worker_latitude: Latitude = 590000;
+		let worker_longitude: Longitude = 120000;
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
@@ -272,11 +271,11 @@ fn on_finalize_works_as_expected() {
 				assert_ok!(EdgeConnect::register_worker(
 					RuntimeOrigin::signed(*worker),
 					domain.clone(),
-                    worker_latitude,
-                    worker_longitude,
-                    worker_ram,
-                    worker_storage,
-                    worker_cpu
+					worker_latitude,
+					worker_longitude,
+					worker_ram,
+					worker_storage,
+					worker_cpu
 				));
 			}
 		}
