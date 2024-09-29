@@ -30,7 +30,7 @@ mod test_runtime {
 	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
-	pub type EdgeConnect = pallet_edge_connect;
+	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
 	pub type StatusAggregator = crate;
@@ -57,7 +57,7 @@ impl crate::Config for Test {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<10>;
-	type WorkerInfoHandler = EdgeConnect;
+	type WorkerInfoHandler = EdgeConnectModule;
 }
 
 impl pallet_timestamp::Config for Test {

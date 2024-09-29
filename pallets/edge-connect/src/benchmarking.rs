@@ -96,9 +96,6 @@ mod benchmarks {
 		// `whitelisted_caller()` provides a benchmark-friendly account for testing.
 		let caller: T::AccountId = whitelisted_caller();
 
-		// Create a signed origin for the caller, which is required for the extrinsic call.
-		let origin = RawOrigin::Signed(caller.clone());
-
 		// Define the worker's domain and specifications for registration.
 		let domain = get_domain(WORKER_API_DOMAIN);
 		let latitude = 1i32;
@@ -112,7 +109,7 @@ mod benchmarks {
 		#[block]
 		{
 			Pallet::<T>::register_worker(
-				origin.into(),
+				RawOrigin::Signed(caller.clone()).into(),
 				domain,
 				latitude,
 				longitude,
@@ -156,9 +153,6 @@ mod benchmarks {
 		// Assign a caller account that will act as the worker's owner.
 		let caller: T::AccountId = whitelisted_caller();
 
-		// Create a signed origin for the caller, required for dispatchable function calls.
-		let origin = RawOrigin::Signed(caller.clone());
-
 		// Define worker's location and specifications.
 		let domain = get_domain(WORKER_API_DOMAIN);
 		let latitude = 1i32;
@@ -169,7 +163,7 @@ mod benchmarks {
 
 		// Register the worker under the specified caller with the above configurations.
 		Pallet::<T>::register_worker(
-			origin.into(),
+			RawOrigin::Signed(caller.clone()).into(),
 			domain,
 			latitude,
 			longitude,
@@ -178,20 +172,17 @@ mod benchmarks {
 			cpu,
 		)?;
 
-		// Create a new origin for the same caller to simulate the worker removal.
-		let removal_origin = RawOrigin::Signed(caller.clone());
 		let worker_id = 0;
 
 		// Benchmark the execution of removing the worker (block of code to measure).
 		#[block]
 		{
-			Pallet::<T>::remove_worker(removal_origin.into(), worker_id)?;
+			Pallet::<T>::remove_worker(RawOrigin::Signed(caller.clone()).into(), worker_id)?;
 		}
 
 		// Verification code:
 		// Ensure that the worker has been removed from the storage map.
 		// Key used: (T::AccountId, WorkerId)
-
 		// Retrieve the worker cluster to check if the worker is still present.
 		let worker_cluster = Pallet::<T>::get_worker_clusters((caller.clone(), worker_id));
 

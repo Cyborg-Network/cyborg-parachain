@@ -33,7 +33,7 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn register_worker() -> Weight;
 	fn remove_worker() -> Weight;
-  fn toggle_worker_visibility() -> Weight;
+    fn toggle_worker_visibility() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -102,7 +102,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-  /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+  	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
 	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
 	fn toggle_worker_visibility() -> Weight {
 		// Proof Size summary in bytes:

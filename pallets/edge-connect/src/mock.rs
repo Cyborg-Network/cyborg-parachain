@@ -23,9 +23,9 @@ mod test_runtime {
 	#[runtime::pallet_index(0)]
 	pub type System = frame_system;
 	#[runtime::pallet_index(1)]
-	pub type EdgeConnectModule = crate;
-	#[runtime::pallet_index(2)]
 	pub type Timestamp = pallet_timestamp;
+	#[runtime::pallet_index(2)]
+	pub type EdgeConnectModule = crate;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]

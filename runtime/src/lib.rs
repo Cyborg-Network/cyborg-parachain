@@ -179,8 +179,7 @@ use core::marker::PhantomData;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_benchmarking::account;
 #[cfg(feature = "runtime-benchmarks")]
-use sp_runtime::{traits::Get,BoundedVec};
-
+use sp_runtime::{traits::Get, BoundedVec};
 
 // Struct to implement the BenchmarkHelper trait for benchmarking. It takes a generic MaxFeedValues,
 // which defines the maximum number of values (or pairs) the benchmark will generate.
@@ -188,7 +187,6 @@ use sp_runtime::{traits::Get,BoundedVec};
 // and we need to associate it with this struct but don't actually store it.
 #[cfg(feature = "runtime-benchmarks")]
 pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
-
 
 // Implementing the orml_oracle::BenchmarkHelper trait for the BenchmarkHelperImpl struct.
 // The trait is specialized for key-value pairs with the key being a tuple of (AccountId, WorkerId)
@@ -225,8 +223,7 @@ where
 		let mut pairs: BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> =
 			BoundedVec::default();
 
-		// Get the value of MaxFeedValues to determine how many iterations the loop will run.
-		let max_limit = MaxFeedValues::get() - 1;
+		let max_limit = 100;
 
 		// Loop to generate pseudo-random key-value pairs for benchmarking,
 		// using max_values to control the number of iterations.
@@ -269,13 +266,12 @@ impl orml_oracle::Config for Runtime {
 	type MaxHasDispatchedSize = ConstU32<8>;
 	type WeightInfo = weights::orml_oracle::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type MaxFeedValues = ConstU32<100>;
+	type MaxFeedValues = ConstU32<500>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MaxFeedValues = ConstU32<100>;
+	type MaxFeedValues = ConstU32<500>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = BenchmarkHelperImpl<Self::MaxFeedValues>;
 }
-
 
 impl pallet_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -285,12 +281,10 @@ impl pallet_membership::Config for Runtime {
 	type ResetOrigin = EnsureRoot<AccountId>;
 	type PrimeOrigin = EnsureRoot<AccountId>;
 	type MembershipInitialized = ();
-	type MembershipChanged =  ();
+	type MembershipChanged = ();
 	type MaxMembers = ConstU32<16>;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
-
-
 
 /// OracleMembership wrapper used by benchmarks
 #[cfg(feature = "runtime-benchmarks")]

@@ -24,13 +24,13 @@ mod test_runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
-	pub type EdgeConnectModule = pallet_edge_connect;
+	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
-	pub type TaskManagementModule = crate;
+	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type Timestamp = pallet_timestamp;
+	pub type TaskManagementModule = crate;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]

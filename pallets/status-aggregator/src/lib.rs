@@ -8,13 +8,13 @@ mod mock;
 mod tests;
 
 pub mod weights;
-pub use weights::*;
+pub use weights::WeightInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec, Parameter};
+use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 // use crate::{Config, MomentOf, TimestampedValueOf};
@@ -23,7 +23,6 @@ use cyborg_primitives::{
 	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType},
 };
 use frame_support::{traits::Get, LOG_TARGET};
-use pallet_timestamp;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct StatusInstance<BlockNumber> {
@@ -61,7 +60,9 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_timestamp::Config {
+	pub trait Config:
+		frame_system::Config + pallet_timestamp::Config + pallet_edge_connect::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -245,13 +246,13 @@ pub mod pallet {
 		// It allows access to the private `derive_status_percentages_for_period` function for benchmarking purposes.
 		// The feature gate ensures that this function is only available in benchmarking builds and not in normal runtime builds,
 		// keeping the core functionality private while still enabling performance measurements.
-		#[cfg(feature = "runtime-benchmarks")]
-		pub fn benchmark_derive_status_percentages_for_period() {
-			Self::process_aggregate_data_for_period()
-		}
+		// #[cfg(feature = "runtime-benchmarks")]
+		// pub fn benchmark_derive_status_percentages_for_period() {
+		// 	Self::process_aggregate_data_for_period()
+		// }
 	}
 
-	/// Data from the oracle first enters into this pallet through this trait implmentation and updates this pallet's storage
+	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
 		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
 			if T::WorkerInfoHandler::get_worker_cluster(key).is_none() {

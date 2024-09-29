@@ -83,7 +83,7 @@ fn on_new_data_works_as_expected() {
 				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
 				let domain_vec = domain_str.as_bytes().to_vec();
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-				assert_ok!(EdgeConnect::register_worker(
+				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
 					domain.clone(),
 					worker_latitude,
@@ -268,7 +268,7 @@ fn on_finalize_works_as_expected() {
 				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
 				let domain_vec = domain_str.as_bytes().to_vec();
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-				assert_ok!(EdgeConnect::register_worker(
+				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
 					domain.clone(),
 					worker_latitude,
@@ -286,21 +286,25 @@ fn on_finalize_works_as_expected() {
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_1).unwrap().status,
+			EdgeConnectModule::get_worker_clusters(key_1)
+				.unwrap()
+				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_2).unwrap().status,
+			EdgeConnectModule::get_worker_clusters(key_2)
+				.unwrap()
+				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_1)
+			EdgeConnectModule::get_worker_clusters(key_1)
 				.unwrap()
 				.status_last_updated,
 			inital_block
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_2)
+			EdgeConnectModule::get_worker_clusters(key_2)
 				.unwrap()
 				.status_last_updated,
 			inital_block
@@ -471,21 +475,25 @@ fn on_finalize_works_as_expected() {
 
 		// 5. Ensure pallet edge connect properly updates
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_1).unwrap().status,
+			EdgeConnectModule::get_worker_clusters(key_1)
+				.unwrap()
+				.status,
 			WorkerStatusType::Active
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_2).unwrap().status,
+			EdgeConnectModule::get_worker_clusters(key_2)
+				.unwrap()
+				.status,
 			WorkerStatusType::Busy
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_1)
+			EdgeConnectModule::get_worker_clusters(key_1)
 				.unwrap()
 				.status_last_updated,
 			5
 		);
 		assert_eq!(
-			EdgeConnect::get_worker_clusters(key_2)
+			EdgeConnectModule::get_worker_clusters(key_2)
 				.unwrap()
 				.status_last_updated,
 			5
