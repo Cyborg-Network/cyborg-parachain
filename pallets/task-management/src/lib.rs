@@ -8,11 +8,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub mod weights;
-pub use weights::WeightInfo;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
+pub mod weights;
+pub use weights::*;
 
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::prelude::vec::Vec;

@@ -1,17 +1,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
+
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
 
-pub mod weights;
-pub use weights::WeightInfo;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
+pub mod weights;
+pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};

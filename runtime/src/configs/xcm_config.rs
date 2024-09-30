@@ -2,7 +2,7 @@ use crate::{
 	AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime,
 	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
-use cumulus_pallet_parachain_system::WeightInfo;
+
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, Contains, Everything, Nothing},
@@ -12,8 +12,6 @@ use frame_system::EnsureRoot;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
-use sp_core::ConstU128;
-//use sp_runtime::traits::ConstU32;
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
