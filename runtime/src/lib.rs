@@ -9,8 +9,9 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
-mod configs;
-mod weights;
+
+pub mod configs;
+pub mod weights;
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -172,6 +173,84 @@ parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+use core::marker::PhantomData;
+//use std::simd::SupportedLaneCount;
+#[cfg(feature = "runtime-benchmarks")]
+use frame_benchmarking::account;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::{traits::Get, BoundedVec};
+
+// Struct to implement the BenchmarkHelper trait for benchmarking. It takes a generic MaxFeedValues,
+// which defines the maximum number of values (or pairs) the benchmark will generate.
+// The `PhantomData<MaxFeedValues>` is used because MaxFeedValues is a type-level constant,
+// and we need to associate it with this struct but don't actually store it.
+#[cfg(feature = "runtime-benchmarks")]
+pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
+
+// Implementing the orml_oracle::BenchmarkHelper trait for the BenchmarkHelperImpl struct.
+// The trait is specialized for key-value pairs with the key being a tuple of (AccountId, WorkerId)
+// and the value being ProcessStatus. MaxFeedValues is a type constant that defines the upper limit
+// on the number of pairs that can be generated.
+#[cfg(feature = "runtime-benchmarks")]
+impl<MaxFeedValues>
+	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
+	for BenchmarkHelperImpl<MaxFeedValues>
+where
+	MaxFeedValues: Get<u32>,
+{
+	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
+	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
+	fn get_currency_id_value_pairs(
+	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
+		BenchmarkHelperImpl::status_aggregator_benchmark_data()
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl<MaxFeedValues> BenchmarkHelperImpl<MaxFeedValues>
+where
+	MaxFeedValues: Get<u32>,
+{
+	// This method generates key-value pairs of (AccountId, WorkerId) -> ProcessStatus,
+	// used in the context of benchmarking the status-aggregator pallet.
+	// The number of pairs generated is limited by the value of MaxFeedValues.
+
+	fn status_aggregator_benchmark_data(
+	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
+		// Initialize a BoundedVec to store the generated key-value pairs,
+		// constrained by MaxFeedValues, which defines the upper limit.
+		let mut pairs: BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> =
+			BoundedVec::default();
+
+		let max_limit = 100;
+
+		// Loop to generate pseudo-random key-value pairs for benchmarking,
+		// using max_values to control the number of iterations.
+		for seed in 0..max_limit {
+			//generate pseudo-random accountId
+			let account_id: AccountId = account("benchmark_account", 0, seed);
+
+			//generate pseudo-random workerId
+			let worker_id: WorkerId = (seed as u64) * 12345;
+
+			//generate pseudo-random ProcessStatus
+			let process_status = ProcessStatus {
+				online: seed % 2 == 0,
+				available: seed % 3 == 0,
+			};
+
+			// Add the generated key-value pair to the BoundedVec.
+			// The number of entries pushed is limited by MaxFeedValues.
+			pairs
+				.try_push(((account_id, worker_id), process_status))
+				.expect("Exceeded MaxFeedValues limit");
+		}
+
+		pairs
+	}
+}
+
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type OnNewData = StatusAggregator;
@@ -180,15 +259,18 @@ impl orml_oracle::Config for Runtime {
 	type OracleKey = (AccountId, WorkerId);
 	type OracleValue = ProcessStatus;
 	type RootOperatorAccountId = RootOperatorAccountId;
-	type Members = OracleMembership;
-	type MaxHasDispatchedSize = ConstU32<8>;
-	type WeightInfo = ();
-	#[cfg(feature = "runtime-benchmarks")]
-	type MaxFeedValues = ConstU32<100>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MaxFeedValues = ConstU32<100>;
+	type Members = OracleMembership;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
+	type Members = OracleMembershipWrapper;
+	type MaxHasDispatchedSize = ConstU32<8>;
+	type WeightInfo = weights::orml_oracle::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxFeedValues = ConstU32<500>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type MaxFeedValues = ConstU32<500>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = BenchmarkHelperImpl<Self::MaxFeedValues>;
 }
 
 impl pallet_membership::Config for Runtime {
@@ -198,21 +280,38 @@ impl pallet_membership::Config for Runtime {
 	type SwapOrigin = EnsureRoot<AccountId>;
 	type ResetOrigin = EnsureRoot<AccountId>;
 	type PrimeOrigin = EnsureRoot<AccountId>;
-
 	type MembershipInitialized = ();
 	type MembershipChanged = ();
 	type MaxMembers = ConstU32<16>;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
+/// OracleMembership wrapper used by benchmarks
+#[cfg(feature = "runtime-benchmarks")]
+pub struct OracleMembershipWrapper;
+
+#[cfg(feature = "runtime-benchmarks")]
+impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper {
+	fn sorted_members() -> Vec<AccountId> {
+		OracleMembership::sorted_members()
+	}
+
+	fn add(account: &AccountId) {
+		frame_support::assert_ok!(OracleMembership::add_member(
+			frame_system::RawOrigin::Root.into(),
+			account.to_owned().into()
+		));
+	}
+}
+
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_edge_connect::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
 }
 
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_task_management::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -221,12 +320,10 @@ parameter_types! {
 
 impl pallet_status_aggregator::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-
+	type WeightInfo = weights::pallet_status_aggregator::SubstrateWeight<Runtime>;
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
-
 	type WorkerInfoHandler = EdgeConnect;
 }
 

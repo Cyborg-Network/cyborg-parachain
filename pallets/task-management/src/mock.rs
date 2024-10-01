@@ -24,13 +24,13 @@ mod test_runtime {
 	pub type System = frame_system;
 
 	#[runtime::pallet_index(1)]
-	pub type edgeConnectModule = pallet_edge_connect;
+	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
-	pub type TaskManagementModule = crate;
+	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type Timestamp = pallet_timestamp;
+	pub type TaskManagementModule = crate;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -39,6 +39,11 @@ impl frame_system::Config for Test {
 	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
+}
+
+impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_edge_connect::Config for Test {
@@ -50,11 +55,6 @@ impl pallet_timestamp::Config for Test {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = ConstU64<0>;
-	type WeightInfo = ();
-}
-
-impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

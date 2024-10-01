@@ -1,9 +1,7 @@
 use crate::{mock::*, Error, Event};
-pub use cyborg_primitives::worker::*;
+use frame_support::{assert_noop, assert_ok, sp_runtime::traits::ConstU32, BoundedVec};
 
-use frame_support::sp_runtime::traits::ConstU32;
-use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
+use cyborg_primitives::worker::*;
 use sp_std::convert::TryFrom;
 
 #[test]
@@ -42,7 +40,7 @@ fn it_works_for_registering_domain() {
 		};
 
 		// Dispatch a signed extrinsic.
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain,
 			latitude,
@@ -53,7 +51,7 @@ fn it_works_for_registering_domain() {
 		));
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
-			edgeConnectModule::get_worker_clusters((alice, 0)),
+			EdgeConnectModule::get_worker_clusters((alice, 0)),
 			Some(worker)
 		);
 	});
@@ -76,7 +74,7 @@ fn it_fails_for_registering_duplicate_worker() {
 		let api_info = WorkerAPI { domain: domain };
 
 		// Register the first worker
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain.clone(),
 			latitude,
@@ -87,7 +85,7 @@ fn it_fails_for_registering_duplicate_worker() {
 		));
 		// Try to register the same worker again
 		assert_noop!(
-			edgeConnectModule::register_worker(
+			EdgeConnectModule::register_worker(
 				RuntimeOrigin::signed(alice),
 				api_info.domain,
 				latitude,
@@ -118,7 +116,7 @@ fn it_works_for_removing_worker() {
 		let api_info = WorkerAPI { domain: domain };
 
 		// Register a worker first
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain.clone(),
 			latitude,
@@ -129,12 +127,12 @@ fn it_works_for_removing_worker() {
 		));
 
 		// Remove the worker
-		assert_ok!(edgeConnectModule::remove_worker(
+		assert_ok!(EdgeConnectModule::remove_worker(
 			RuntimeOrigin::signed(alice),
 			0
 		));
 		// Assert that the worker no longer exists
-		assert_eq!(edgeConnectModule::get_worker_clusters((alice, 0)), None);
+		assert_eq!(EdgeConnectModule::get_worker_clusters((alice, 0)), None);
 	});
 }
 
@@ -145,7 +143,7 @@ fn it_fails_for_removing_non_existent_worker() {
 
 		// Attempt to remove a worker that doesn't exist
 		assert_noop!(
-			edgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0),
+			EdgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), 0),
 			Error::<Test>::WorkerDoesNotExist
 		);
 	});
@@ -166,7 +164,7 @@ fn emiting_proper_event_for_registering_worker() {
 		let cpu: CpuCores = 12;
 
 		System::set_block_number(10);
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			domain.clone(),
 			latitude,
@@ -175,7 +173,7 @@ fn emiting_proper_event_for_registering_worker() {
 			storage,
 			cpu
 		));
-		System::assert_last_event(RuntimeEvent::edgeConnectModule(Event::WorkerRegistered {
+		System::assert_last_event(RuntimeEvent::EdgeConnectModule(Event::WorkerRegistered {
 			creator: alice,
 			worker: (alice, alice_first_worker_id),
 			domain: domain,
@@ -198,7 +196,7 @@ fn it_works_for_changing_visibility() {
 		let cpu: CpuCores = 12;
 
 		System::set_block_number(10);
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			domain.clone(),
 			latitude,
@@ -208,27 +206,27 @@ fn it_works_for_changing_visibility() {
 			cpu
 		));
 
-		let _ = edgeConnectModule::toggle_worker_visibility(
+		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
 			alice_first_worker_id,
 			true,
 		);
 
 		assert_eq!(
-			edgeConnectModule::get_worker_clusters((alice, 0))
+			EdgeConnectModule::get_worker_clusters((alice, 0))
 				.unwrap()
 				.status,
 			WorkerStatusType::Active
 		);
 
-		let _ = edgeConnectModule::toggle_worker_visibility(
+		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
 			alice_first_worker_id,
 			false,
 		);
 
 		assert_eq!(
-			edgeConnectModule::get_worker_clusters((alice, 0))
+			EdgeConnectModule::get_worker_clusters((alice, 0))
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
@@ -244,7 +242,7 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 
 		System::set_block_number(10);
 		assert_noop!(
-			edgeConnectModule::toggle_worker_visibility(
+			EdgeConnectModule::toggle_worker_visibility(
 				RuntimeOrigin::signed(alice),
 				alice_first_worker_id,
 				true
@@ -273,13 +271,13 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 	};
 
 	// Dispatch a signed extrinsic.
-	assert_ok!(edgeConnectModule::register_worker(
+	assert_ok!(EdgeConnectModule::register_worker(
 		RuntimeOrigin::signed(alice),
 		api_info.domain
 	));
 	// Read pallet storage and assert an expected result.
 	assert_eq!(
-		edgeConnectModule::get_worker_clusters((alice, 0)),
+		EdgeConnectModule::get_worker_clusters((alice, 0)),
 		Some(worker)
 	);
 

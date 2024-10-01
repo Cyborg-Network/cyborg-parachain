@@ -1,8 +1,9 @@
-use crate::TaskStatusType;
 use crate::{mock::*, Error};
+use frame_support::{assert_noop, assert_ok};
+
+use crate::TaskStatusType;
 pub use cyborg_primitives::worker::*;
 use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
 use sp_core::H256;
 use sp_std::convert::TryFrom;
 
@@ -13,7 +14,7 @@ fn it_works_for_task_scheduler() {
 		let alice = 1;
 		let executor = 2;
 		let worker_latitude: Latitude = 590000;
-		let worker_longitude:Longitude = 120000;
+		let worker_longitude: Longitude = 120000;
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
@@ -26,7 +27,7 @@ fn it_works_for_task_scheduler() {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
 			api_info.domain,
 			worker_latitude,
@@ -96,7 +97,7 @@ fn it_works_for_submit_completed_task() {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain,
 			worker_latitude,
@@ -106,7 +107,7 @@ fn it_works_for_submit_completed_task() {
 			worker_cpu
 		));
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
 			api_info_bob.domain,
 			worker_latitude,
@@ -175,7 +176,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain,
 			latitude,
@@ -185,7 +186,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 			cpu
 		));
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
 			api_info_bob.domain,
 			latitude,
@@ -260,7 +261,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
 			api_info.domain,
 			worker_latitude,
@@ -317,7 +318,7 @@ fn it_works_when_verifying_task() {
 		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
 			api_info_executor.domain,
 			worker_latitude,
@@ -343,7 +344,7 @@ fn it_works_when_verifying_task() {
 		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
 			api_info_verifier.domain,
 			worker_latitude,
@@ -404,7 +405,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
 			api_info_executor.domain,
 			worker_latitude,
@@ -430,7 +431,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
 			api_info_verifier.domain,
 			worker_latitude,
@@ -464,7 +465,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let api_info_resolver = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
 			api_info_resolver.domain,
 			worker_latitude,
@@ -526,7 +527,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let api_info_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
 			api_info_executor.domain,
 			worker_latitude,
@@ -552,7 +553,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let api_info_verifier = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
 			api_info_verifier.domain,
 			worker_latitude,
@@ -586,7 +587,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let api_info_resolver = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker3.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
 			api_info_resolver.domain,
 			worker_latitude,
@@ -632,7 +633,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let api_info_new_executor = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker4.testing".to_vec()).unwrap(),
 		};
-		assert_ok!(edgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(new_executor),
 			api_info_new_executor.domain,
 			worker_latitude,
