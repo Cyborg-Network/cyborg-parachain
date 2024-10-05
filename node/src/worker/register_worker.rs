@@ -14,6 +14,7 @@ use substrate_api_client::XtStatus;
 use crate::worker::CONFIG_FILE_NAME;
 
 use super::SubstrateClientApi;
+use super::WorkerConfig;
 use super::WorkerData;
 
 #[derive(Debug, Clone, PartialEq, Eq, Decode)]
@@ -30,13 +31,27 @@ impl StaticEvent for EventWorkerRegistered {
 
 pub async fn register_worker_on_chain(
 	api: SubstrateClientApi,
-	worker_domain: String,
+	worker_config: WorkerConfig,
 ) -> Option<WorkerData> {
-	let domain = BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap();
+	// let domain = BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap();
+
+	let WorkerConfig {
+		domain,
+		latitude,
+		longitude,
+		ram,
+		storage,
+		cpu,
+	} = worker_config;
 
 	let register_call =
 		runtime::RuntimeCall::EdgeConnect(runtime::pallet_edge_connect::Call::register_worker {
 			domain,
+			latitude,
+			longitude,
+			ram,
+			storage,
+			cpu,
 		});
 
 	let tr_tx = api.compose_extrinsic_offline(register_call, api.get_nonce().unwrap());

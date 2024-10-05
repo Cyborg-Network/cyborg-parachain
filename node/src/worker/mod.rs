@@ -7,8 +7,9 @@ use sc_client_api::BlockchainEvents;
 use serde::{Deserialize, Serialize};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::{sr25519, Pair};
+use sp_core::{sr25519, ConstU32, Pair};
 use sp_runtime::traits::Block;
+use sp_runtime::BoundedVec;
 use std::{env, fs, option, sync::Arc};
 use substrate_api_client::ac_primitives::{
 	AssetRuntimeConfig, DefaultRuntimeConfig, GenericExtrinsicParams, PlainTip, WithExtrinsicParams,
@@ -20,6 +21,7 @@ pub mod custom_event_listener;
 pub mod donwloade_and_execute_tasks;
 pub mod register_worker;
 pub mod submit_results;
+pub mod worker_spec;
 
 pub const CONFIG_FILE_NAME: &str = "registered_worker_config.json";
 
@@ -41,6 +43,15 @@ pub struct WorkerData {
 	worker: (sr25519::Public, u64),
 	domain: String,
 	domain_encoded: Vec<u8>,
+}
+
+pub struct WorkerConfig {
+	domain: BoundedVec<u8, ConstU32<128>>,
+	latitude: i32,
+	longitude: i32,
+	ram: u64,
+	storage: u64,
+	cpu: u16,
 }
 
 pub async fn start_worker<T, U>(client: Arc<T>)
@@ -90,17 +101,26 @@ where
 	let version_out = ipfs_client.version().await;
 	info!("version_out: {:?}", &version_out);
 
-	let worker_data = bootstrap_worker(api.clone(), worker_domain).await.unwrap();
+	let worker_config = WorkerConfig {
+		domain: BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap(),
+		latitude: 0,
+		longitude: 0,
+		ram: 0,
+		storage: 0,
+		cpu: 0,
+	};
+
+	let worker_data = bootstrap_worker(api.clone(), worker_config).await.unwrap();
 	custom_event_listener::event_listener_tester(client, api, ipfs_client, worker_data).await;
 }
 pub async fn bootstrap_worker(
 	api: SubstrateClientApi,
-	worker_domain: String,
+	worker_config: WorkerConfig,
 ) -> option::Option<WorkerData> {
 	match fs::read_to_string(CONFIG_FILE_NAME) {
 		Err(_e) => {
 			info!("worker registation not found, registering worker");
-			register_worker::register_worker_on_chain(api, worker_domain).await
+			register_worker::register_worker_on_chain(api, worker_config).await
 		}
 		Ok(data) => {
 			// TODO: verify worker registration on chain
