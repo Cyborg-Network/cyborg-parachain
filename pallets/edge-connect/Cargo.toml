@@ -18,6 +18,7 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
+pallet-timestamp = { version = "34.0.0", default-features = false }
 
 cyborg-primitives = { workspace = true }
 

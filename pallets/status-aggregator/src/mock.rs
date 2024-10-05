@@ -26,10 +26,13 @@ mod test_runtime {
 	#[runtime::pallet_index(0)]
 	pub type System = frame_system;
 
-	#[runtime::pallet_index(1)]
-	pub type EdgeConnect = pallet_edge_connect;
+    #[runtime::pallet_index(1)]
+	pub type Timestamp = pallet_timestamp;
 
 	#[runtime::pallet_index(2)]
+	pub type EdgeConnect = pallet_edge_connect;
+
+	#[runtime::pallet_index(3)]
 	pub type StatusAggregator = crate;
 }
 
@@ -42,6 +45,13 @@ impl frame_system::Config for Test {
 	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
+}
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<0>;
+	type WeightInfo = ();
 }
 
 impl pallet_edge_connect::Config for Test {
@@ -60,7 +70,6 @@ impl crate::Config for Test {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<10>;
-
 	type WorkerInfoHandler = EdgeConnect;
 }
 
