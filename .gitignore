@@ -2,3 +2,5 @@ target/
 zombienet-linux-x64
 binaries
 .DS_Store
+registered_worker_config*
+work_package_binary

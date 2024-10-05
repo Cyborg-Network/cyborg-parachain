@@ -370,6 +370,12 @@ pub async fn start_parachain_node(
 		}
 	}
 
+	task_manager.spawn_handle().spawn(
+		"worker_node",
+		None,
+		crate::worker::start_worker(client.clone()),
+	);
+
 	let announce_block = {
 		let sync_service = sync_service.clone();
 		Arc::new(move |hash, data| sync_service.announce_block(hash, data))
