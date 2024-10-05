@@ -14,20 +14,19 @@ pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-pub mod types;
-
-pub use types::*;
+pub use cyborg_primitives::worker::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
+	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -44,6 +43,11 @@ pub mod pallet {
 		0
 	}
 
+	#[pallet::type_value]
+	pub fn WorkerReputationDefault() -> WorkerReputation {
+		0
+	}
+
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
 	#[pallet::getter(fn account_workers)]
@@ -57,7 +61,7 @@ pub mod pallet {
 		_,
 		Twox64Concat,
 		(T::AccountId, WorkerId),
-		Worker<T::AccountId, BlockNumberFor<T>>,
+		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
 
@@ -66,10 +70,17 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		WorkerRegistered {
 			creator: T::AccountId,
+			worker: (T::AccountId, WorkerId),
+			domain: Domain,
 		},
 		WorkerRemoved {
 			creator: T::AccountId,
 			worker_id: WorkerId,
+		},
+		WorkerStatusUpdated {
+			creator: T::AccountId,
+			worker_id: WorkerId,
+			worker_status: WorkerStatusType,
 		},
 	}
 
@@ -88,24 +99,25 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::register_worker())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_worker())]
 		pub fn register_worker(
 			origin: OriginFor<T>,
-			ip: Option<Ip>,
-			domain: Option<Domain>,
+			domain: Domain,
+			latitude: Latitude,
+			longitude: Longitude,
+			ram: RamBytes,
+			storage: StorageBytes,
+			cpu: CpuCores,
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			// check ip or domain exists
-			ensure!(
-				ip.clone().and_then(|ip| ip.ipv4).is_some()
-					|| ip.clone().and_then(|ip| ip.ipv6).is_some()
-					|| domain.is_some(),
-				Error::<T>::WorkerRegisterMissingIpOrDomain
-			);
-
-			let api = WorkerAPI { ip, domain };
+			let api = WorkerAPI { domain };
 			let worker_keys = AccountWorkers::<T>::get(creator.clone());
+			let worker_location = Location {
+				latitude,
+				longitude,
+			};
+			let worker_specs = WorkerSpecs { ram, storage, cpu };
 
 			match worker_keys {
 				Some(keys) => {
@@ -131,20 +143,30 @@ pub mod pallet {
 				}
 			};
 
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let worker = Worker {
 				id: worker_id.clone(),
 				owner: creator.clone(),
-				start_block: <frame_system::Pallet<T>>::block_number(),
+				location: worker_location,
+				specs: worker_specs,
+				reputation: 0,
+				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
+				status_last_updated: blocknumber.clone(),
 				api: api,
+				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
 			// update storage
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
-			WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker);
+			WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
 
 			// Emit an event.
-			Self::deposit_event(Event::WorkerRegistered { creator });
+			Self::deposit_event(Event::WorkerRegistered {
+				creator: creator.clone(),
+				worker: (worker.owner, worker.id),
+				domain: worker.api.domain,
+			});
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
@@ -152,7 +174,7 @@ pub mod pallet {
 
 		/// Remove Worker from storage
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::remove_worker())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
 		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
@@ -170,13 +192,44 @@ pub mod pallet {
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
+		pub fn toggle_worker_visibility(
+			origin: OriginFor<T>,
+			worker_id: WorkerId,
+			visibility: bool,
+		) -> DispatchResultWithPostInfo {
+			let creator = ensure_signed(origin)?;
+
+			let mut worker = WorkerClusters::<T>::get((creator.clone(), worker_id))
+				.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			worker.status = if visibility {
+				WorkerStatusType::Active
+			} else {
+				WorkerStatusType::Inactive
+			};
+
+			worker.last_status_check = timestamp::Pallet::<T>::get();
+
+			WorkerClusters::<T>::insert((creator.clone(), worker_id), worker.clone());
+
+			Self::deposit_event(Event::WorkerStatusUpdated {
+				creator,
+				worker_id,
+				worker_status: worker.status,
+			});
+
+			Ok(().into())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
 		pub fn get_active_workers() -> Option<
 			Vec<(
 				(T::AccountId, WorkerId),
-				Worker<T::AccountId, BlockNumberFor<T>>,
+				Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 			)>,
 		> {
 			let workers = WorkerClusters::<T>::iter()
@@ -188,6 +241,21 @@ pub mod pallet {
 			} else {
 				Some(workers)
 			}
+		}
+	}
+
+	impl<T: Config + timestamp::Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T> {
+		fn get_worker_cluster(
+			worker_key: &(T::AccountId, WorkerId),
+		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			WorkerClusters::<T>::get(worker_key)
+		}
+
+		fn update_worker_cluster(
+			worker_key: &(T::AccountId, WorkerId),
+			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		) {
+			WorkerClusters::<T>::insert(worker_key, worker);
 		}
 	}
 }

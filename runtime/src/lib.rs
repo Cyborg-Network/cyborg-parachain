@@ -10,7 +10,6 @@ pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 mod configs;
-mod oracle;
 mod weights;
 
 use smallvec::smallvec;
@@ -27,7 +26,7 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	parameter_types,
-	traits::ConstU32,
+	traits::{ConstU32, ConstU8},
 	weights::{
 		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
@@ -43,9 +42,13 @@ use weights::ExtrinsicBaseWeight;
 
 pub use frame_system::EnsureRoot;
 
-use oracle::{DummyCombineData, ProcessId, ProcessStatus};
+pub use cyborg_primitives::{
+	oracle::{DummyCombineData, ProcessStatus},
+	worker::WorkerId,
+};
 
 pub use pallet_edge_connect;
+pub use pallet_status_aggregator;
 pub use pallet_task_management;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -171,21 +174,21 @@ parameter_types! {
 
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnNewData = ();
+	type OnNewData = StatusAggregator;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = ProcessId;
+	type OracleKey = (AccountId, WorkerId);
 	type OracleValue = ProcessStatus;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	type Members = OracleMembership;
 	type MaxHasDispatchedSize = ConstU32<8>;
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
-	type MaxFeedValues = ConstU32<2>;
+	type MaxFeedValues = ConstU32<100>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type MaxFeedValues = ConstU32<1>;
-	// #[cfg(not(feature = "runtime-benchmarks"))]
-	// type BenchmarkHelper = ();
+	type MaxFeedValues = ConstU32<100>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 impl pallet_membership::Config for Runtime {
@@ -210,6 +213,21 @@ impl pallet_edge_connect::Config for Runtime {
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_task_management::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+		pub const MaxBlockRangePeriod: BlockNumber = 50u32; // Set the max block range to 100 blocks
+}
+
+impl pallet_status_aggregator::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+
+	type MaxBlockRangePeriod = MaxBlockRangePeriod;
+	type ThresholdUptimeStatus = ConstU8<75>;
+	type MaxAggregateParamLength = ConstU32<300>;
+
+	type WorkerInfoHandler = EdgeConnect;
 }
 
 #[sp_version::runtime_version]
@@ -358,6 +376,9 @@ mod runtime {
 
 	#[runtime::pallet_index(43)]
 	pub type TaskManagement = pallet_task_management;
+
+	#[runtime::pallet_index(44)]
+	pub type StatusAggregator = pallet_status_aggregator;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

@@ -1,0 +1,59 @@
+[package]
+name = "pallet-status-aggregator"
+description = "Pallet for determining worker status aggregated from oracle feed"
+version = "0.1.0"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.11.1", default-features = false, features = [
+	"derive",
+] }
+
+log = { workspace = true }
+orml-traits = { workspace = true }
+orml-oracle = { workspace = true }
+pallet-edge-connect = { workspace = true }
+cyborg-primitives = { workspace = true }
+pallet-timestamp = { workspace = true }
+
+# frame deps
+frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
+frame-support = { version = "35.0.0", default-features = false }
+frame-system = { version = "35.0.0", default-features = false }
+
+sp-std = { version = "14.0.0", default-features = false }
+
+[dev-dependencies]
+sp-core = { version = "34.0.0" }
+sp-io = { version = "37.0.0" }
+sp-runtime = { version = "38.0.0" }
+
+[features]
+default = ["std"]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+]
+std = [
+	"codec/std",
+	"orml-traits/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+]

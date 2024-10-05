@@ -18,6 +18,9 @@ codec = { package = "parity-scale-codec", version = "3.6.12", default-features =
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
+pallet-timestamp = { version = "34.0.0", default-features = false }
+
+cyborg-primitives = { workspace = true }
 
 # frame deps
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -44,8 +47,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"scale-info/std",
+	"cyborg-primitives/std",
 ]
-try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-]
+try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
