@@ -78,6 +78,7 @@ ipfs-api-backend-hyper = { version = "0.6.0", features = [
 	"with-hyper-tls",
 ] }
 url = "2.5.2"
+sys-info = "0.9.1"
 
 [build-dependencies]
 substrate-build-script-utils = { version = "11.0.0" }

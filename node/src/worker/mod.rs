@@ -16,6 +16,7 @@ use substrate_api_client::ac_primitives::{
 };
 use substrate_api_client::{rpc::TungsteniteRpcClient, Api};
 use url::Url;
+use worker_spec::gather_worker_spec;
 
 pub mod custom_event_listener;
 pub mod donwloade_and_execute_tasks;
@@ -101,15 +102,7 @@ where
 	let version_out = ipfs_client.version().await;
 	info!("version_out: {:?}", &version_out);
 
-	let worker_config = WorkerConfig {
-		domain: BoundedVec::try_from(worker_domain.as_bytes().to_vec()).unwrap(),
-		latitude: 0,
-		longitude: 0,
-		ram: 0,
-		storage: 0,
-		cpu: 0,
-	};
-
+	let worker_config = gather_worker_spec(worker_domain);
 	let worker_data = bootstrap_worker(api.clone(), worker_config).await.unwrap();
 	custom_event_listener::event_listener_tester(client, api, ipfs_client, worker_data).await;
 }
