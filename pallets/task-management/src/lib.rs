@@ -108,6 +108,7 @@ pub mod pallet {
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
 	#[pallet::error]
 	pub enum Error<T> {
+		WorkerDoesNotExist,
 		UnassignedTaskId,
 		InvalidTaskOwner,
 		RequireAssignedTask,
@@ -130,6 +131,8 @@ pub mod pallet {
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_data: BoundedVec<u8, ConstU32<128>>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -139,10 +142,12 @@ pub mod pallet {
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-			// Select one worker randomly.
-			let workers: Vec<_> = WorkerClusters::<T>::iter().collect::<Vec<_>>(); // TODO: Update for only active workers in production
-			let random_index = (sp_io::hashing::blake2_256(&task_data)[0] as usize) % workers.len();
-			let selected_worker: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+			let selected_worker = (worker_owner, worker_id);
+
+			ensure!(
+				WorkerClusters::<T>::contains_key(&selected_worker),
+				Error::<T>::WorkerDoesNotExist
+			);
 
 			let task_info = TaskInfo {
 				task_owner: who.clone(),
