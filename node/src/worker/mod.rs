@@ -1,5 +1,5 @@
-use codec::{Decode, Encode};
-use cyborg_runtime::apis::TaskManagementEventsApi;
+use codec::{Decode, Encode, EncodeLike};
+use cyborg_runtime::apis::{TaskManagementEventsApi, VerifyWorkerRegistration};
 use ipfs_api_backend_hyper::TryFromUri;
 use ipfs_api_backend_hyper::{IpfsApi, IpfsClient};
 use log::info;
@@ -40,10 +40,10 @@ pub type SubstrateClientApi = Api<
 // datastructure for worker registartion persistence
 #[derive(Debug, Clone, PartialEq, Eq, Decode, Encode, Serialize, Deserialize)]
 pub struct WorkerData {
-	creator: String,
-	worker: (sr25519::Public, u64),
-	domain: String,
-	domain_encoded: Vec<u8>,
+	pub creator: String,
+	pub worker: (sr25519::Public, u64),
+	pub domain: String,
+	pub domain_encoded: Vec<u8>,
 }
 
 pub struct WorkerConfig {
@@ -55,11 +55,14 @@ pub struct WorkerConfig {
 	cpu: u16,
 }
 
-pub async fn start_worker<T, U>(client: Arc<T>)
+pub async fn start_worker<T, U, V, W>(client: Arc<T>)
 where
 	U: Block,
+	V: EncodeLike<sp_runtime::AccountId32>
+		+ std::convert::From<sp_core::crypto::CryptoBytes<32, sp_core::sr25519::Sr25519PublicTag>>,
+	W: EncodeLike<u64> + std::convert::From<u64>,
 	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
-	T::Api: TaskManagementEventsApi<U>,
+	T::Api: TaskManagementEventsApi<U> + VerifyWorkerRegistration<U, V, W>,
 {
 	info!("worker_starting");
 
@@ -103,22 +106,55 @@ where
 	info!("version_out: {:?}", &version_out);
 
 	let worker_config = gather_worker_spec(worker_domain);
-	let worker_data = bootstrap_worker(api.clone(), worker_config).await.unwrap();
+	let worker_data = bootstrap_worker(client.clone(), api.clone(), worker_config)
+		.await
+		.unwrap();
 	custom_event_listener::event_listener_tester(client, api, ipfs_client, worker_data).await;
 }
-pub async fn bootstrap_worker(
+pub async fn bootstrap_worker<T, U, V, W>(
+	client: Arc<T>,
 	api: SubstrateClientApi,
 	worker_config: WorkerConfig,
-) -> option::Option<WorkerData> {
+) -> option::Option<WorkerData>
+where
+	U: Block,
+	V: EncodeLike<sp_runtime::AccountId32>
+		+ std::convert::From<sp_core::crypto::CryptoBytes<32, sp_core::sr25519::Sr25519PublicTag>>,
+	W: EncodeLike<u64> + std::convert::From<u64>,
+	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
+	T::Api: TaskManagementEventsApi<U> + VerifyWorkerRegistration<U, V, W>,
+{
 	match fs::read_to_string(CONFIG_FILE_NAME) {
 		Err(_e) => {
 			info!("worker registation not found, registering worker");
 			register_worker::register_worker_on_chain(api, worker_config).await
 		}
 		Ok(data) => {
-			// TODO: verify worker registration on chain
 			let worker_data: WorkerData = serde_json::from_str(&data).unwrap();
-			Some(worker_data)
+			if verify_worker_registration(client, worker_data.clone()).await {
+				Some(worker_data)
+			} else {
+				register_worker::register_worker_on_chain(api, worker_config).await
+			}
 		}
 	}
+}
+
+pub async fn verify_worker_registration<T, U, V, W>(client: Arc<T>, worker_data: WorkerData) -> bool
+where
+	U: Block,
+	V: EncodeLike<sp_runtime::AccountId32>
+		+ std::convert::From<sp_core::crypto::CryptoBytes<32, sp_core::sr25519::Sr25519PublicTag>>,
+	W: EncodeLike<u64> + std::convert::From<u64>,
+	T: ProvideRuntimeApi<U> + HeaderBackend<U> + BlockchainEvents<U>,
+	T::Api: TaskManagementEventsApi<U> + VerifyWorkerRegistration<U, V, W>,
+{
+	client
+		.runtime_api()
+		.verify_worker_registration(
+			client.info().best_hash,
+			(worker_data.worker.0.into(), worker_data.worker.1.into()),
+			worker_data.domain_encoded.try_into().unwrap_or_default(),
+		)
+		.unwrap_or(false)
 }
