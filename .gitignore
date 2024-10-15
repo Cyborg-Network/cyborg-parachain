@@ -2,3 +2,4 @@ target/
 zombienet-linux-x64
 binaries
 .DS_Store
+.vscode

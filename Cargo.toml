@@ -11,6 +11,7 @@ members = [
     "pallets/edge-connect",
     "pallets/task-management",
     "pallets/status-aggregator",
+    "pallets/payment",
     "runtime",
     "orml/oracle",
     "orml/traits",

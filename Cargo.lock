@@ -7039,6 +7039,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-payment"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-preimage"
 version = "35.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
