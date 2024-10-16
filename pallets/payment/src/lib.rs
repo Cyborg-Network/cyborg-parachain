@@ -19,7 +19,11 @@ pub use weights::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::{ValueQuery, *}, traits::Currency};
+	use frame_support::{
+		dispatch::DispatchResultWithPostInfo,
+		pallet_prelude::{ValueQuery, *},
+		traits::Currency,
+	};
 	use frame_system::pallet_prelude::*;
 	//use pallet_timestamp as timestamp;
 	//use scale_info::prelude::vec::Vec;
@@ -41,8 +45,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_compute_hours)]
-	pub type ComputeHours<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
+	pub type ComputeHours<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u64, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_price_per_hour)]
@@ -55,8 +58,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		HoursPurchased (T::AccountId, u64, u64),
-		HoursConsumed (T::AccountId, u64),
+		HoursPurchased(T::AccountId, u64, u64),
+		HoursConsumed(T::AccountId, u64),
 	}
 
 	/// Pallet Errors
