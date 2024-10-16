@@ -31,16 +31,18 @@ use frame_support::{
 use pallet_aura::Authorities;
 use sp_api::{decl_runtime_apis, impl_runtime_apis};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, ConstU32, OpaqueMetadata};
 use sp_runtime::{
 	traits::Block as BlockT,
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult,
+	ApplyExtrinsicResult, BoundedVec,
 };
 use sp_std::prelude::Vec;
 use sp_version::RuntimeVersion;
 
 use pallet_task_management::Event as TaskManagementPalletEvent;
+
+use cyborg_primitives::worker::WorkerId;
 
 // Local module imports
 use super::{
@@ -231,7 +233,7 @@ impl_runtime_apis! {
 		) {
 			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
-			use frame_system_benchmarking::Pallet as SystemBench;
+			//use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use super::*;
 
@@ -248,7 +250,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
 			use super::*;
 
-			use frame_system_benchmarking::Pallet as SystemBench;
+			//use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
 					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);
@@ -295,11 +297,27 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl crate::apis::VerifyWorkerRegistration<Block, AccountId, WorkerId> for Runtime {
+		fn verify_worker_registration(worker: (AccountId, WorkerId), domain:BoundedVec<u8, ConstU32<128>> ) -> bool {
+			let (account, worker_id) = worker;
+			pallet_edge_connect::WorkerClusters::<Runtime>::get((account, worker_id))
+				.filter(|worker| worker.api.domain == domain)
+				.is_some()
+		}
+	}
 }
 
 decl_runtime_apis! {
 	#[api_version(1)]
 	pub trait TaskManagementEventsApi {
 			fn get_recent_events() -> Vec<TaskManagementPalletEvent<Runtime>>;
+	}
+
+	#[api_version(1)]
+	pub trait VerifyWorkerRegistration<AccountId, WorkerId> where
+	AccountId: codec::EncodeLike<sp_runtime::AccountId32>,
+	WorkerId: codec::EncodeLike<u64>,
+	{
+		fn verify_worker_registration(worker: (AccountId,  WorkerId), domain: BoundedVec<u8, ConstU32<128>>) -> bool;
 	}
 }
