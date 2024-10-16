@@ -8,11 +8,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-pub mod weights;
-pub use weights::*;
-
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
+pub mod weights;
+pub use weights::*;
 
 pub use cyborg_primitives::worker::*;
 
@@ -244,7 +244,9 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config + timestamp::Config> WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T> {
+	impl<T: Config + timestamp::Config>
+		WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
+	{
 		fn get_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
 		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {

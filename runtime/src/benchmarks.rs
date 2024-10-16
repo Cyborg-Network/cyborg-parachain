@@ -24,15 +24,15 @@
 // For more information, please refer to <http://unlicense.org>
 
 frame_benchmarking::define_benchmarks!(
-	[frame_system, SystemBench::<Runtime>]
+	[cumulus_pallet_parachain_system, ParachainSystem]
+	[cumulus_pallet_xcmp_queue, XcmpQueue]
 	[pallet_balances, Balances]
+	[pallet_collator_selection, CollatorSelection]
 	[pallet_session, SessionBench::<Runtime>]
 	[pallet_timestamp, Timestamp]
 	[pallet_message_queue, MessageQueue]
+	[pallet_membership, OracleMembership]
 	[pallet_sudo, Sudo]
-	[pallet_collator_selection, CollatorSelection]
-	[cumulus_pallet_parachain_system, ParachainSystem]
-	[cumulus_pallet_xcmp_queue, XcmpQueue]
 	[pallet_edge_connect, EdgeConnect]
 	[pallet_status_aggregator, StatusAggregator]
 	[pallet_task_management, TaskManagement]
