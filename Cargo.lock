@@ -7048,6 +7048,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
+ "pallet-sudo",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",

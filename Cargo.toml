@@ -46,6 +46,7 @@ pallet-message-queue = { version = "38.0.0", default-features = false }
 pallet-preimage = { version = "35.0.0", default-features = false }
 pallet-root-testing = { version = "11.0.0", default-features = false }
 pallet-scheduler = { version = "36.0.0", default-features = false }
+pallet-sudo = { version = "35.0.0", default-features = false }
 pallet-timestamp = { version = "34.0.0", default-features = false }
 pallet-treasury = { version = "34.0.0", default-features = false }
 pallet-xcm = { version = "14.0.0", default-features = false }

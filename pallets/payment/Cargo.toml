@@ -26,8 +26,8 @@ cyborg-primitives = { workspace = true }
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
 frame-support = { version = "35.0.0", default-features = false }
 frame-system = { version = "35.0.0", default-features = false }
-
 sp-std = { version = "14.0.0", default-features = false }
+pallet-sudo = { workspace = true }
 
 [dev-dependencies]
 sp-core = { version = "34.0.0" }
@@ -49,6 +49,7 @@ std = [
 	"scale-info/std",
 	"pallet-balances/std",
 	"cyborg-primitives/std",
+	"pallet-sudo/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

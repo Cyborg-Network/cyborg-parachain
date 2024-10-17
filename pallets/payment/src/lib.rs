@@ -76,19 +76,33 @@ pub mod pallet {
 		InsufficientBalance,
 		InsufficientComputeHours,
 		ServiceProviderAccountNotFound,
-		NotAuthorized,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_price_per_hour() )]
-		pub fn set_price_per_hour(origin: OriginFor<T>, price: BalanceOf<T>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+		pub fn set_price_per_hour(origin: OriginFor<T>, new_price: BalanceOf<T>) -> DispatchResult {
+			ensure_root(origin)?;
 
-			PricePerHour::<T>::put(price);
+			PricePerHour::<T>::put(new_price);
 
-			Self::deposit_event(Event::PricePerHourSet(price));
+			Self::deposit_event(Event::PricePerHourSet(new_price));
+
+			Ok(())
+		}
+
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_service_provider_account() )]
+		pub fn set_service_provider_account(
+			origin: OriginFor<T>,
+			new_account: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ServiceProviderAccount::<T>::put(new_account.clone());
+
+			Self::deposit_event(Event::ServiceProviderAccountSet(new_account));
 
 			Ok(())
 		}

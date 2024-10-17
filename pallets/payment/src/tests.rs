@@ -1,22 +1,20 @@
 use crate::mock::*;
+use crate::BalanceOf;
 use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
 use sp_std::convert::TryFrom;
-
-const ADMIN: u64 = 2;
-const USER: u64 = 1;
 
 #[test]
 fn it_works_for_purchasing_compute_hours() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-		let initial_balance = Balances::free_balance(USER);
+		//let initial_balance = Balances::free_balance(USER);
 
 		// Set price per hour (admin operation)
-		assert_ok!(PaymentModule::set_price_per_hour(
-			RuntimeOrigin::signed(2),
-			100
-		));
+		// assert_ok!(PaymentModule::set_price_per_hour(
+		// 	RuntimeOrigin::signed(2),
+		// 	100
+		// ));
 
 		/*
 
@@ -113,50 +111,75 @@ fn it_fails_when_consuming_more_hours_than_owned() {
 		);
 	});
 }
-
+*/
 #[test]
 fn admin_can_set_price_per_hour() {
 	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let new_price: BalanceOf<Test> = 100u64.into();
 		// Admin sets the price per hour
-		assert_ok!(PaymentModule::set_price_per_hour(
-			RuntimeOrigin::signed(ADMIN),
-			200
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN), // Sudo account ID
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_price_per_hour { new_price }
+			)),
 		));
 
+		let expected_event = RuntimeEvent::PaymentModule(crate::Event::PricePerHourSet(new_price));
+		assert!(System::events()
+			.iter()
+			.any(|record| record.event == expected_event));
+
 		// Verify the price has been updated in storage
-		assert_eq!(PaymentModule::price_per_hour(), 200);
+		assert_eq!(PaymentModule::price_per_hour(), new_price);
 	});
 }
 
 #[test]
 fn admin_can_set_service_provider_account() {
 	new_test_ext().execute_with(|| {
-		let new_service_provider = 3;
+		System::set_block_number(1);
 
-		// Admin sets the service provider account
-		assert_ok!(PaymentModule::set_service_provider_account(
+		let new_account = USER3;
+
+		assert_ok!(Sudo::sudo(
 			RuntimeOrigin::signed(ADMIN),
-			new_service_provider
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_service_provider_account {
+					new_account: new_account.clone()
+				}
+			)),
 		));
 
-		// Verify the service provider account has been updated
-		assert_eq!(
-			PaymentModule::service_provider_account(),
-			new_service_provider
-		);
+		let expected_event =
+			RuntimeEvent::PaymentModule(crate::Event::ServiceProviderAccountSet(new_account.clone()));
+		assert!(System::events()
+			.iter()
+			.any(|record| record.event == expected_event));
+
+		assert_eq!(PaymentModule::service_provider_account(), Some(new_account));
 	});
 }
 
 #[test]
 fn non_admin_cannot_set_price_per_hour() {
 	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let new_price: BalanceOf<Test> = 100u64.into();
+
 		// Non-admin user tries to set the price per hour
 		assert_noop!(
-			PaymentModule::set_price_per_hour(RuntimeOrigin::signed(USER), 200),
-			Error::<Test>::NotAuthorized
+			PaymentModule::set_price_per_hour(RuntimeOrigin::signed(USER2), new_price),
+			sp_runtime::DispatchError::BadOrigin
 		);
+
+		// Verify the price not updated
+		assert_eq!(PaymentModule::price_per_hour(), 0);
 	});
 }
+/*
 
 #[test]
 fn non_admin_cannot_set_service_provider_account() {
