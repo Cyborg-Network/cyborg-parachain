@@ -36,6 +36,7 @@ orml-traits = { workspace = true }
 pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-status-aggregator = { workspace = true }
+pallet-payment= { workspace = true}
 cyborg-primitives = { workspace = true }
 
 # Substrate / FRAME
@@ -128,6 +129,7 @@ std = [
 	"pallet-edge-connect/std",
 	"pallet-task-management/std",
 	"pallet-status-aggregator/std",
+	"pallet-payment/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",

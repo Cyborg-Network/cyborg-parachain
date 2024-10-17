@@ -15,8 +15,7 @@ pub trait WeightInfo {
 }
 
 pub struct SubstrateWeight<T>(PhantomData<T>);
-
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> {
     fn purchase_compute_hours() -> Weight {
         Weight::from_parts(10_000, 3513)
         .saturating_add(T::DbWeight::get().reads(1_u64))
@@ -41,8 +40,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
         .saturating_add(T::DbWeight::get().writes(2_u64))
     }
 }
-
-
 
 
 
@@ -72,5 +69,3 @@ impl WeightInfo for () {
     }
 
 }
-
-

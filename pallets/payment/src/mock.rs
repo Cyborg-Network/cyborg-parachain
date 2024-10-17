@@ -1,7 +1,13 @@
-use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
-use frame_system::mocking::MockBlock;
-use sp_io::TestExternalities;
-use sp_runtime::{traits::ConstU64, BuildStorage};
+use frame_support::{
+	derive_impl, parameter_types, traits::VariantCountOf, weights::constants::RocksDbWeight,
+};
+use frame_system::{mocking::MockBlock, GenesisConfig};
+use sp_runtime::{
+	traits::{ConstU32, ConstU64},
+	BuildStorage,
+};
+
+pub type Balance = u128;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -35,6 +41,14 @@ impl frame_system::Config for Test {
 	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
+	type AccountData = pallet_balances::AccountData<Balance>;
+}
+
+// Implementation of the Payment pallet's configuration for the Test runtime
+impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type WeightInfo = ();
 }
 
 // Parameter types for the Balances pallet (defines token properties such as existential deposit)
@@ -51,20 +65,16 @@ impl pallet_balances::Config for Test {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type WeightInfo = ();
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type FreezeIdentifier = RuntimeFreezeReason;
+	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 }
 
-// Implementation of the Payment pallet's configuration for the Test runtime
-impl crate::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-}
-
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> TestExternalities {
-	// Create a default genesis configuration for the runtime
-	let mut storage = frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap();
+pub fn new_test_ext() -> sp_io::TestExternalities {
+	let mut storage = GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	// Initialize the Balances pallet with some default values
 	pallet_balances::GenesisConfig::<Test> {

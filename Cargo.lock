@@ -2429,6 +2429,7 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-payment",
  "pallet-session",
  "pallet-status-aggregator",
  "pallet-sudo",
@@ -7042,9 +7043,11 @@ dependencies = [
 name = "pallet-payment"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
