@@ -102,6 +102,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		balances: vec![
 			(1, 10_000), // Account 1 starts with 10,000 tokens
 			(2, 50_000), // Account 2 (Admin) starts with 50,000 tokens
+			(3, 50_000),
+			(4, 50_000),
 		],
 	}
 	.assimilate_storage(&mut storage)

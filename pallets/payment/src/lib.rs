@@ -6,6 +6,7 @@ use frame_support::{
 	traits::Currency,
 };
 use frame_system::pallet_prelude::*;
+use sp_runtime::traits::CheckedMul;
 
 pub use pallet::*;
 
@@ -26,7 +27,9 @@ pub use weights::*;
 #[frame_support::pallet]
 pub mod pallet {
 
+	use frame_support::traits::{ExistenceRequirement, WithdrawReasons};
 	use frame_system::Origin;
+	use sp_runtime::ArithmeticError;
 
 	use super::*;
 
@@ -64,8 +67,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		HoursPurchased(T::AccountId, u32, BalanceOf<T>),
 		HoursConsumed(T::AccountId, u32),
+		HoursPurchased(T::AccountId, u32, BalanceOf<T>),
 		PricePerHourSet(BalanceOf<T>),
 		ServiceProviderAccountSet(T::AccountId),
 	}
@@ -75,6 +78,7 @@ pub mod pallet {
 	pub enum Error<T> {
 		InsufficientBalance,
 		InsufficientComputeHours,
+		InvalidHoursInput,
 		ServiceProviderAccountNotFound,
 	}
 
@@ -103,6 +107,46 @@ pub mod pallet {
 			ServiceProviderAccount::<T>::put(new_account.clone());
 
 			Self::deposit_event(Event::ServiceProviderAccountSet(new_account));
+
+			Ok(())
+		}
+
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::purchase_compute_hours() )]
+		pub fn purchase_compute_hours(origin: OriginFor<T>, hours: u32) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// Check if the user is trying to purchase 0 hours (invalid input)
+			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
+
+			// Get the price per hour from storage
+			let price_per_hour = PricePerHour::<T>::get();
+
+			// Calculate the total cost
+			let total_cost = price_per_hour
+				.checked_mul(&hours.into())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Ensure the user has enough balance to cover the cost
+			ensure!(
+				T::Currency::free_balance(&who) >= total_cost,
+				Error::<T>::InsufficientBalance
+			);
+
+			// Deduct the amount from user's balance
+			let _imbalance = T::Currency::withdraw(
+				&who,
+				total_cost,
+				WithdrawReasons::TRANSFER,
+				ExistenceRequirement::KeepAlive,
+			)?;
+
+			ComputeHours::<T>::mutate(&who, |current_hours| {
+				*current_hours += hours;
+			});
+
+			// emit the event
+			Self::deposit_event(Event::HoursPurchased(who, hours, total_cost));
 
 			Ok(())
 		}

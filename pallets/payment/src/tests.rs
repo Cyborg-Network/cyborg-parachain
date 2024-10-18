@@ -8,39 +8,84 @@ use sp_std::convert::TryFrom;
 fn it_works_for_purchasing_compute_hours() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-		//let initial_balance = Balances::free_balance(USER);
 
-		// Set price per hour (admin operation)
-		// assert_ok!(PaymentModule::set_price_per_hour(
-		// 	RuntimeOrigin::signed(2),
-		// 	100
-		// ));
+		// Admin sets the price per hour
+		let new_price: BalanceOf<Test> = 100u64.into();
 
-		/*
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN), // Sudo account ID
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_price_per_hour { new_price }
+			)),
+		));
+		// Verify the price has been updated in storage
+		assert_eq!(PaymentModule::price_per_hour(), new_price);
 
+		let initial_balance = Balances::free_balance(USER2);
 
-
-
-		// User 1 purchases 10 compute hours
+		// User 2 purchases 10 compute hours
+		let purchased_hours = 10u32;
 		assert_ok!(PaymentModule::purchase_compute_hours(
-			RuntimeOrigin::signed(USER),
-			10
+			RuntimeOrigin::signed(USER2),
+			purchased_hours
 		));
 
-		// Check if user's balance is reduced by the expected amount
-		let final_balance = Balances::free_balance(USER);
-		assert_eq!(final_balance, initial_balance - 1000); // 100 (price per hour) * 10 hours
-
 		// Check if the compute hours are credited correctly
-		assert_eq!(PaymentModule::compute_hours(USER), 10);
+		assert_eq!(PaymentModule::compute_hours(USER2), purchased_hours);
 
-		// Verify event was emitted
-		let expected_event = Event::PaymentModule(crate::Event::HoursPurchased(USER, 10, 1000));
-		assert!(System::events().iter().any(|a| a.event == expected_event));
-
-		*/
+		// Check if user's balance is reduced by the expected amount
+		let final_balance = Balances::free_balance(USER2);
+		let total_cost = new_price.checked_mul(purchased_hours.into()).unwrap(); // 100 (price per hour) * 10 hours
+		assert_eq!(final_balance, initial_balance - total_cost);
 	});
 }
+
+#[test]
+fn it_fails_when_purchasing_zero_hours() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Admin sets the price per hour
+		let new_price: BalanceOf<Test> = 100u64.into();
+
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN), // Sudo account ID
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_price_per_hour { new_price }
+			)),
+		));
+
+		// Users tries to purchase 0 hours
+		assert_noop!(
+			PaymentModule::purchase_compute_hours(RuntimeOrigin::signed(USER2), 0),
+			crate::Error::<Test>::InvalidHoursInput
+		);
+	});
+}
+
+#[test]
+fn it_fails_when_purchasing_with_insufficient_balance() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Admin sets the price per hour
+		let new_price: BalanceOf<Test> = 10000u64.into();
+
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN), // Sudo account ID
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_price_per_hour { new_price }
+			)),
+		));
+
+		// Users tries to purchase 0 hours
+		assert_noop!(
+			PaymentModule::purchase_compute_hours(RuntimeOrigin::signed(USER2), 10),
+			crate::Error::<Test>::InsufficientBalance
+		);
+	});
+}
+
 /*
 #[test]
 fn it_fails_when_purchasing_with_insufficient_balance() {
@@ -179,22 +224,21 @@ fn non_admin_cannot_set_price_per_hour() {
 		assert_eq!(PaymentModule::price_per_hour(), 0);
 	});
 }
-/*
 
 #[test]
 fn non_admin_cannot_set_service_provider_account() {
 	new_test_ext().execute_with(|| {
-		let new_service_provider = 3;
+		System::set_block_number(1);
+
+		let new_account = USER3;
 
 		// Non-admin user tries to set the service provider account
 		assert_noop!(
-			PaymentModule::set_service_provider_account(
-				RuntimeOrigin::signed(USER),
-				new_service_provider
-			),
-			Error::<Test>::NotAuthorized
+			PaymentModule::set_service_provider_account(RuntimeOrigin::signed(USER2), new_account),
+			sp_runtime::DispatchError::BadOrigin
 		);
+
+		// Verify the service provider accouint not updated
+		assert_eq!(PaymentModule::service_provider_account(), None);
 	});
 }
-
-	*/
