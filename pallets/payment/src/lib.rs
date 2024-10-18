@@ -1,13 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	dispatch::DispatchResultWithPostInfo,
-	pallet_prelude::{ValueQuery, *},
-	traits::Currency,
-};
 use frame_system::pallet_prelude::*;
-use sp_runtime::traits::CheckedMul;
-
 pub use pallet::*;
 
 #[cfg(test)]
@@ -22,14 +15,14 @@ pub use weights::*;
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 
-//pub use cyborg_primitives::worker::*;
-
 #[frame_support::pallet]
 pub mod pallet {
 
-	use frame_support::traits::{ExistenceRequirement, WithdrawReasons};
-	use frame_system::Origin;
-	use sp_runtime::ArithmeticError;
+	use frame_support::{
+		pallet_prelude::*,
+		sp_runtime::{traits::CheckedMul, ArithmeticError},
+		traits::{Currency, ExistenceRequirement, WithdrawReasons},
+	};
 
 	use super::*;
 
