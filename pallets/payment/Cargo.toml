@@ -1,38 +1,32 @@
 [package]
-name = "pallet-payment"
-description = "Pallet allow users to purchase compute hours from a single service (Cyborg). Users can buy compute hours by transferring tokens, which are credited to their account for future consumption."
-version = "0.1.0"
 authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
+description = "Pallet allow users to purchase compute hours from a single service (Cyborg). Users can buy compute hours by transferring tokens, which are credited to their account for future consumption."
 edition.workspace = true
+homepage.workspace = true
+name = "pallet-payment"
 publish = false
+repository.workspace = true
+version = "0.1.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.10.0", default-features = false, features = [
-	"derive",
-] }
-pallet-timestamp = { version = "34.0.0", default-features = false }
-pallet-balances = { workspace = true }
+codec = { workspace = true, features = ["derive"]}
 cyborg-primitives = { workspace = true }
-
-# frame deps
-frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
-frame-support = { version = "35.0.0", default-features = false }
-frame-system = { version = "35.0.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
+frame-benchmarking = { workspace = true, optional=true } 
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-sudo = { workspace = true }
+pallet-timestamp = { workspace = true }
+scale-info = { workspace = true}
+sp-std = { workspace = true }
 
 [dev-dependencies]
-sp-core = { version = "34.0.0" }
-sp-io = { version = "37.0.0" }
-sp-runtime = { version = "38.0.0" }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [features]
 default = ["std"]
@@ -43,13 +37,13 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
+	"cyborg-primitives/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"scale-info/std",
 	"pallet-balances/std",
-	"cyborg-primitives/std",
 	"pallet-sudo/std",
+	"scale-info/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

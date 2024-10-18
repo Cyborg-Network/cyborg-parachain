@@ -7,33 +7,33 @@ repository = "https://github.com/Cyborg-Network/cyborg-node/"
 [workspace]
 members = [
     "node",
-    "primitives",
-    "pallets/edge-connect",
-    "pallets/task-management",
-    "pallets/status-aggregator",
-    "pallets/payment",
-    "runtime",
     "orml/oracle",
     "orml/traits",
+    "pallets/edge-connect",
+    "pallets/payment",
+    "pallets/status-aggregator",
+    "pallets/task-management",
+    "primitives",
+    "runtime",
 ]
 resolver = "2"
 
 [workspace.dependencies]
+codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false }
 log = { version = "0.4.21", default-features = false }
-serde = { version = "1.0.197", default-features = false }
-serde_json = { version = "1.0.114", default-features = false }
-scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
-parity-scale-codec = { version = "3.6.12", default-features = false, features = ["max-encoded-len"] }
-
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
+parity-scale-codec = { version = "3.6.12", default-features = false, features = ["max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+serde = { version = "1.0.197", default-features = false }
+serde_json = { version = "1.0.114", default-features = false }
 
 # Local 
 cyborg-primitives = { path = "primitives", default-features = false }
 pallet-edge-connect = { path = "pallets/edge-connect", default-features = false, version = "0.1.0" }
-pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
-pallet-status-aggregator = { path = "pallets/status-aggregator", default-features = false, version = "0.1.0" }
 pallet-payment= { path = "pallets/payment", default-features = false, version = "0.1.0"}
+pallet-status-aggregator = { path = "pallets/status-aggregator", default-features = false, version = "0.1.0" }
+pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 
 cumulus-pallet-xcm = { version = "0.14.0", default-features = false }
 cumulus-primitives-core = { version = "0.14.0", default-features = false }
@@ -66,5 +66,4 @@ sp-storage = { version = "21.0.0", default-features = false }
 xcm = { version = "14.0.0", package = "staging-xcm", default-features = false }
 xcm-builder = { version = "14.0.0", package = "staging-xcm-builder", default-features = false }
 xcm-executor = { version = "14.0.0", package = "staging-xcm-executor", default-features = false }
-
 xcm-simulator = { version = "14.0.0" }
