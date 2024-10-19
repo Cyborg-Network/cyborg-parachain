@@ -1,6 +1,4 @@
-use frame_support::{
-	derive_impl, parameter_types, traits::VariantCountOf, weights::constants::RocksDbWeight,
-};
+use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_sudo;
 use sp_runtime::{
@@ -14,7 +12,6 @@ pub type AccountId = u128;
 pub const ADMIN: AccountId = 1;
 pub const USER2: AccountId = 2;
 pub const USER3: AccountId = 3;
-pub const USER4: AccountId = 4;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -64,7 +61,7 @@ impl crate::Config for Test {
 
 // Parameter types for the Balances pallet (defines token properties such as existential deposit)
 parameter_types! {
-	pub const ExistentialDeposit: u128=500;
+	pub const ExistentialDeposit: u128=10;
 }
 
 // Implementation of the Balances pallet's configuration for the Test runtime
@@ -103,7 +100,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			(1, 10_000), // Account 1 starts with 10,000 tokens
 			(2, 50_000), // Account 2 (Admin) starts with 50,000 tokens
 			(3, 50_000),
-			(4, 50_000),
 		],
 	}
 	.assimilate_storage(&mut storage)

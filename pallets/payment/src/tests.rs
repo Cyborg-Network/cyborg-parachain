@@ -1,10 +1,6 @@
 use crate::mock::*;
 use crate::BalanceOf;
-use frame_support::BoundedVec;
 use frame_support::{assert_noop, assert_ok};
-use frame_system::Event;
-use sp_runtime::print;
-use sp_std::convert::TryFrom;
 
 // Test for purchasing compute hours successfully
 #[test]
