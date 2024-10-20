@@ -36,6 +36,7 @@ orml-traits = { workspace = true }
 pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-status-aggregator = { workspace = true }
+pallet-zk-verifier = { workspace = true }
 cyborg-primitives = { workspace = true }
 
 # Substrate / FRAME
@@ -128,6 +129,7 @@ std = [
 	"pallet-edge-connect/std",
 	"pallet-task-management/std",
 	"pallet-status-aggregator/std",
+	"pallet-zk-verifier/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -176,6 +178,7 @@ runtime-benchmarks = [
 	"pallet-edge-connect/runtime-benchmarks",
 	"pallet-status-aggregator/runtime-benchmarks",
 	"pallet-task-management/runtime-benchmarks",
+	"pallet-zk-verifier/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",

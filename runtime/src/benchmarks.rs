@@ -37,4 +37,5 @@ frame_benchmarking::define_benchmarks!(
 	[pallet_status_aggregator, StatusAggregator]
 	[pallet_task_management, TaskManagement]
 	[orml_oracle, Oracle]
+	[pallet_zk_verifier, ZKVerifier]
 );
