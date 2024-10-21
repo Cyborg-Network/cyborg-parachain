@@ -49,17 +49,14 @@ pub mod pallet {
 
 	// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
-	#[pallet::getter(fn compute_hours)]
 	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
 	// Storage value that holds the price per compute hour, defined by the admin.
 	#[pallet::storage]
-	#[pallet::getter(fn price_per_hour)]
 	pub type PricePerHour<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	// Storage that holds the service provider's account ID.
 	#[pallet::storage]
-	#[pallet::getter(fn service_provider_account)]
 	pub type ServiceProviderAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
 	#[pallet::event]

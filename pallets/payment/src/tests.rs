@@ -20,7 +20,7 @@ fn it_works_for_purchasing_compute_hours() {
 		));
 
 		// Verify the price has been updated correctly in storage
-		assert_eq!(PaymentModule::price_per_hour(), new_price);
+		assert_eq!(pallet_payment::PricePerHour::<Test>::get(), new_price);
 
 		// Admin uses Sudo to set the service provider account
 		let service_provider_account = USER3;
@@ -35,7 +35,7 @@ fn it_works_for_purchasing_compute_hours() {
 
 		// Verify the service provider account is updated in storage
 		assert_eq!(
-			PaymentModule::service_provider_account(),
+			pallet_payment::ServiceProviderAccount::<Test>::get(),
 			Some(service_provider_account)
 		);
 
@@ -57,7 +57,10 @@ fn it_works_for_purchasing_compute_hours() {
 		));
 
 		// Check that the compute hours have been correctly credited to the user
-		assert_eq!(PaymentModule::compute_hours(USER2), purchased_hours);
+		assert_eq!(
+			pallet_payment::ComputeHours::<Test>::get(USER2),
+			purchased_hours
+		);
 
 		// Verify that the user's balance is reduced by the correct total cost
 		let final_balance = Balances::free_balance(USER2);
@@ -166,7 +169,7 @@ fn it_works_for_consuming_compute_hours() {
 		));
 
 		// Verify the price has been updated correctly
-		assert_eq!(PaymentModule::price_per_hour(), new_price);
+		assert_eq!(pallet_payment::PricePerHour::<Test>::get(), new_price);
 
 		// Admin uses Sudo to set the service provider account
 		let service_provider_account = USER3;
@@ -181,7 +184,7 @@ fn it_works_for_consuming_compute_hours() {
 
 		// Verify the service provider account is updated in storage
 		assert_eq!(
-			PaymentModule::service_provider_account(),
+			pallet_payment::ServiceProviderAccount::<Test>::get(),
 			Some(service_provider_account)
 		);
 
@@ -193,7 +196,10 @@ fn it_works_for_consuming_compute_hours() {
 		));
 
 		// Ensure compute hours are correctly credited
-		assert_eq!(PaymentModule::compute_hours(USER2), purchased_hours);
+		assert_eq!(
+			pallet_payment::ComputeHours::<Test>::get(USER2),
+			purchased_hours
+		);
 
 		// User2 consumes 5 compute hours
 		let consumed_hours = 5u32;
@@ -204,7 +210,10 @@ fn it_works_for_consuming_compute_hours() {
 
 		// Check the remaining compute hours after consumption
 		let remaining_hours = purchased_hours - consumed_hours;
-		assert_eq!(PaymentModule::compute_hours(USER2), remaining_hours);
+		assert_eq!(
+			pallet_payment::ComputeHours::<Test>::get(USER2),
+			remaining_hours
+		);
 
 		// Verify that the HoursConsumed event was emitted
 		let expected_event =
@@ -232,7 +241,7 @@ fn it_fails_when_consuming_more_hours_than_owned() {
 		));
 
 		// Verify the price has been updated in storage
-		assert_eq!(PaymentModule::price_per_hour(), new_price);
+		assert_eq!(pallet_payment::PricePerHour::<Test>::get(), new_price);
 
 		// Admin uses Sudo to set the service provider account
 		let service_provider_account = USER3;
@@ -247,7 +256,7 @@ fn it_fails_when_consuming_more_hours_than_owned() {
 
 		// Verify the service provider account is updated in storage
 		assert_eq!(
-			PaymentModule::service_provider_account(),
+			pallet_payment::ServiceProviderAccount::<Test>::get(),
 			Some(service_provider_account)
 		);
 
@@ -259,7 +268,10 @@ fn it_fails_when_consuming_more_hours_than_owned() {
 		));
 
 		// Check that 10 hours were credited to the user
-		assert_eq!(PaymentModule::compute_hours(USER2), purchased_hours);
+		assert_eq!(
+			pallet_payment::ComputeHours::<Test>::get(USER2),
+			purchased_hours
+		);
 
 		// User 2attempts to consume 20 hours, but only has 10
 		assert_noop!(
@@ -307,7 +319,7 @@ fn admin_can_set_price_per_hour() {
 			.any(|record| record.event == expected_event));
 
 		// Verify the price is correctly updated in storage
-		assert_eq!(PaymentModule::price_per_hour(), new_price);
+		assert_eq!(pallet_payment::PricePerHour::<Test>::get(), new_price);
 	});
 }
 
@@ -330,7 +342,10 @@ fn admin_can_set_service_provider_account() {
 		));
 
 		// Verify the service provider account is updated in storage
-		assert_eq!(PaymentModule::service_provider_account(), Some(new_account));
+		assert_eq!(
+			pallet_payment::ServiceProviderAccount::<Test>::get(),
+			Some(new_account)
+		);
 
 		// Check that the ServiceProviderAccountSet event was emitted
 		let expected_event =
@@ -356,7 +371,7 @@ fn non_admin_cannot_set_price_per_hour() {
 		);
 
 		// Verify that the price has not been updated
-		assert_eq!(PaymentModule::price_per_hour(), 0);
+		assert_eq!(pallet_payment::PricePerHour::<Test>::get(), 0);
 	});
 }
 
@@ -375,6 +390,6 @@ fn non_admin_cannot_set_service_provider_account() {
 		);
 
 		// Verify that the service provider account has not been updated
-		assert_eq!(PaymentModule::service_provider_account(), None);
+		assert_eq!(pallet_payment::ServiceProviderAccount::<Test>::get(), None);
 	});
 }

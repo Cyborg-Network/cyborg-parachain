@@ -1,3 +1,4 @@
+pub use crate as pallet_payment;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_sudo;
@@ -35,7 +36,7 @@ mod test_runtime {
 	#[runtime::pallet_index(1)]
 	pub type Sudo = pallet_sudo;
 	#[runtime::pallet_index(2)]
-	pub type PaymentModule = crate;
+	pub type PaymentModule = pallet_payment;
 	#[runtime::pallet_index(3)]
 	pub type Balances = pallet_balances;
 }
@@ -53,7 +54,7 @@ impl frame_system::Config for Test {
 }
 
 // Implementation of the Payment pallet's configuration for the Test runtime
-impl crate::Config for Test {
+impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();

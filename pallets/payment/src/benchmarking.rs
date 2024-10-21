@@ -31,7 +31,7 @@ mod benchmarks {
 
 		// Verification code:
 		// Ensure that the price was set correctly by asserting its value.
-		assert_eq!(Pallet::<T>::price_per_hour(), new_price);
+		assert_eq!(PricePerHour::<T>::get(), new_price);
 
 		Ok(())
 	}
@@ -58,7 +58,7 @@ mod benchmarks {
 
 		// Verification code:
 		// Ensure that the service provider account was set correctly.
-		assert_eq!(Pallet::<T>::service_provider_account(), Some(new_account));
+		assert_eq!(ServiceProviderAccount::<T>::get(), Some(new_account));
 
 		Ok(())
 	}
@@ -73,7 +73,7 @@ mod benchmarks {
 		// Set the price per hour for compute hours.
 		let new_price: BalanceOf<T> = 10u32.saturated_into();
 		Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_price).unwrap();
-		assert_eq!(Pallet::<T>::price_per_hour(), new_price);
+		assert_eq!(PricePerHour::<T>::get(), new_price);
 
 		// Create a new service provider account and deposit the initial balance.
 		let new_service_account: T::AccountId = account("service_account", 0, 0);
@@ -89,7 +89,7 @@ mod benchmarks {
 		Pallet::<T>::set_service_provider_account(RawOrigin::Root.into(), new_service_account.clone())
 			.unwrap();
 		assert_eq!(
-			Pallet::<T>::service_provider_account(),
+			ServiceProviderAccount::<T>::get(),
 			Some(new_service_account.clone())
 		);
 
@@ -105,7 +105,7 @@ mod benchmarks {
 
 		// Verification code:
 		// Assert the final compute hours and balances after the purchases.
-		assert_eq!(Pallet::<T>::compute_hours(&caller), 5_000u32);
+		assert_eq!(ComputeHours::<T>::get(&caller), 5_000u32);
 		assert_eq!(
 			T::Currency::free_balance(&new_service_account),
 			100_000_050_000u128.saturated_into()
@@ -128,7 +128,7 @@ mod benchmarks {
 		// Set the price per hour for compute hours.
 		let new_price: BalanceOf<T> = 10u32.into();
 		Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_price).unwrap();
-		assert_eq!(Pallet::<T>::price_per_hour(), new_price);
+		assert_eq!(PricePerHour::<T>::get(), new_price);
 
 		// Create a new service provider account and deposit the initial balance.
 		let new_service_account: T::AccountId = account("service_account", 0, 0);
@@ -144,14 +144,14 @@ mod benchmarks {
 		Pallet::<T>::set_service_provider_account(RawOrigin::Root.into(), new_service_account.clone())
 			.unwrap();
 		assert_eq!(
-			Pallet::<T>::service_provider_account(),
+			ServiceProviderAccount::<T>::get(),
 			Some(new_service_account.clone())
 		);
 
 		// Set up initial purchase computer hours
 		Pallet::<T>::purchase_compute_hours(RawOrigin::Signed(caller.clone()).into(), 5_000u32)
 			.unwrap();
-		assert_eq!(Pallet::<T>::compute_hours(&caller), 5_000u32);
+		assert_eq!(ComputeHours::<T>::get(&caller), 5_000u32);
 
 		// Start a benchmarking block for purchasing compute hours.
 		#[block]
@@ -165,7 +165,7 @@ mod benchmarks {
 
 		// Verification code:
 		// Assert the final compute hours and balances after the purchases.
-		assert_eq!(Pallet::<T>::compute_hours(&caller), 0u32);
+		assert_eq!(ComputeHours::<T>::get(&caller), 0u32);
 		assert_eq!(
 			T::Currency::free_balance(&new_service_account),
 			100_000_050_000u128.saturated_into()
