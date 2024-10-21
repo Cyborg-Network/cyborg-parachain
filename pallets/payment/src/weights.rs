@@ -40,7 +40,7 @@ pub trait WeightInfo {
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> {
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `Payment::PricePerHour` (r:0 w:1)
 	/// Proof: `Payment::PricePerHour` (`max_values`: Some(1), `max_size`: Some(16), added: 511, mode: `MaxEncodedLen`)
 	fn set_price_per_hour() -> Weight {
