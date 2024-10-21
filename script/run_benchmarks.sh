@@ -13,14 +13,21 @@ pallets=(
     #"pallet_session"
     #"pallet_edge_connect"
     #"pallet_task_management"
-    "pallet_status_aggregator"
+    #"pallet_status_aggregator"
+    "pallet_payment"
 )
 
-#./target/release/cyborg-node benchmark pallet --list --chain=dev| tail -n+2 | cut -d',' -f1 | uniq 
+# List all unique pallets and extrinsics available for benchmarking
+# Command: 
+# ./target/release/cyborg-node benchmark pallet --list --chain=dev | tail -n+2 | cut -d',' -f1 | uniq
+#
+# Note: Execute this script from the project root folder: cyborg-parachain
+#
+
 
 
 NODE_PATH="./target/release/cyborg-node"
-#RUNTIME_BLOB="./target/release/wbuild/cyborg-runtime/cyborg_runtime.wasm"
+RUNTIME_BLOB="./target/release/wbuild/cyborg-runtime/cyborg_runtime.wasm"
 TEMPLATE_PATH=".maintain/frame-weight-template.hbs"
 OUTPUT_PATH="./runtime/src/weights"
 
@@ -30,7 +37,8 @@ do
     OUTPUT_FILE="${OUTPUT_PATH}/${pallet}.rs"
 
     $NODE_PATH benchmark pallet \
-        --chain=dev \
+        --runtime=$RUNTIME_BLOB \
+        --genesis-builder=runtime \
         --pallet=$pallet \
         --extrinsic="*" \
         --steps=50 \

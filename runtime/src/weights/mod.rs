@@ -29,6 +29,7 @@ pub mod pallet_balances;
 pub mod pallet_collator_selection;
 pub mod pallet_edge_connect;
 pub mod pallet_message_queue;
+pub mod pallet_payment;
 pub mod pallet_session;
 pub mod pallet_status_aggregator;
 pub mod pallet_sudo;
