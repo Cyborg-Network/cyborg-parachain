@@ -8,9 +8,7 @@ repository = "https://github.com/Cyborg-Network/cyborg-node/"
 members = [
     "node",
     "primitives",
-    "pallets/edge-connect",
-    "pallets/task-management",
-    "pallets/status-aggregator",
+    "pallets/*",
     "runtime",
     "orml/oracle",
     "orml/traits",
@@ -32,6 +30,7 @@ cyborg-primitives = { path = "primitives", default-features = false }
 pallet-edge-connect = { path = "pallets/edge-connect", default-features = false, version = "0.1.0" }
 pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 pallet-status-aggregator = { path = "pallets/status-aggregator", default-features = false, version = "0.1.0" }
+pallet-zk-verifier = { path = "pallets/zk-verifier", default-features = false, version = "0.1.0" }
 
 cumulus-pallet-xcm = { version = "0.14.0", default-features = false }
 cumulus-primitives-core = { version = "0.14.0", default-features = false }
