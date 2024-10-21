@@ -37,7 +37,7 @@ pub trait WeightInfo {
 
 /// Weights for `pallet_zk_verifier` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_zk_verifier::WeightInfo for SubstrateWeight<T> {
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `ZKVerifier::PublicInputStorage` (r:0 w:1)
 	/// Proof: `ZKVerifier::PublicInputStorage` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// Storage: `ZKVerifier::VerificationKeyStorage` (r:0 w:1)

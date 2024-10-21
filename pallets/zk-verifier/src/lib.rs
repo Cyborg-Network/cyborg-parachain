@@ -153,7 +153,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Store a verification key.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::setup_verification_benchmark(vec_vk.len()))]
+		#[pallet::weight(<T as Config>::WeightInfo::setup_verification_benchmark())]
 		pub fn setup_verification(
 			_origin: OriginFor<T>,
 			pub_input: Vec<u8>,
@@ -168,7 +168,7 @@ pub mod pallet {
 
 		/// Verify a proof.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::verify_benchmark(vec_proof.len()))]
+		#[pallet::weight(<T as Config>::WeightInfo::verify_benchmark())]
 		pub fn verify(origin: OriginFor<T>, vec_proof: Vec<u8>) -> DispatchResult {
 			let proof = store_proof::<T>(vec_proof)?;
 			let vk = get_verification_key::<T>()?;
