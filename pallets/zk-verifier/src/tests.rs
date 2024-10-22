@@ -26,6 +26,9 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+// MODIFICATIONS:
+// - Modified by ZCalz on 2024-10-22: Updated extrinsic parameter calls
+
 #![cfg(test)]
 
 use crate::{mock::*, *};
@@ -38,25 +41,25 @@ const taskId: TaskId = 0;
 
 #[test]
 fn test_setup_verification() {
-    new_test_ext().execute_with(|| {
-        let vk = prepare_vk_json("groth16", "bls12381", None);
-        // Call the function and verify it works correctly
-        assert_ok!(ZKVerifierModule::setup_verification(
-            RuntimeOrigin::none(),
+	new_test_ext().execute_with(|| {
+		let vk = prepare_vk_json("groth16", "bls12381", None);
+		// Call the function and verify it works correctly
+		assert_ok!(ZKVerifierModule::setup_verification(
+			RuntimeOrigin::none(),
 			taskId,
-            prepare_correct_public_inputs_json().as_bytes().into(),
-            vk.as_bytes().into()
-        ));
+			prepare_correct_public_inputs_json().as_bytes().into(),
+			vk.as_bytes().into()
+		));
 
-        // Updated storage check
-        let stored_vk = VerificationKeyStorage::<Test>::get(taskId);
-        assert_eq!(stored_vk.is_some(), true);
+		// Updated storage check
+		let stored_vk = VerificationKeyStorage::<Test>::get(taskId);
+		assert_eq!(stored_vk.is_some(), true);
 
-        // Verify the event was emitted
-        let events = zk_events();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
-    });
+		// Verify the event was emitted
+		let events = zk_events();
+		assert_eq!(events.len(), 1);
+		assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
+	});
 }
 #[test]
 fn test_not_supported_vk_curve() {
@@ -96,19 +99,19 @@ fn test_not_supported_vk_protocol() {
 
 #[test]
 fn test_too_long_verification_key() {
-    new_test_ext().execute_with(|| {
-        let too_long_vk = vec![0; (<Test as Config>::MaxVerificationKeyLength::get() + 1) as usize];
-        assert_err!(
-            ZKVerifierModule::setup_verification(
-                RuntimeOrigin::none(),
+	new_test_ext().execute_with(|| {
+		let too_long_vk = vec![0; (<Test as Config>::MaxVerificationKeyLength::get() + 1) as usize];
+		assert_err!(
+			ZKVerifierModule::setup_verification(
+				RuntimeOrigin::none(),
 				taskId,
-                prepare_correct_public_inputs_json().as_bytes().into(),
-                too_long_vk
-            ),
-            Error::<Test>::TooLongVerificationKey
-        );
-        assert_eq!(zk_events().len(), 0);
-    });
+				prepare_correct_public_inputs_json().as_bytes().into(),
+				too_long_vk
+			),
+			Error::<Test>::TooLongVerificationKey
+		);
+		assert_eq!(zk_events().len(), 0);
+	});
 }
 
 #[test]
@@ -119,7 +122,9 @@ fn test_too_long_public_inputs() {
 				RuntimeOrigin::none(),
 				taskId,
 				vec![0; (<Test as Config>::MaxPublicInputsLength::get() + 1) as usize],
-				prepare_vk_json("groth16", "bls12381", None).as_bytes().into()
+				prepare_vk_json("groth16", "bls12381", None)
+					.as_bytes()
+					.into()
 			),
 			Error::<Test>::TooLongPublicInputs
 		);
@@ -129,21 +134,23 @@ fn test_too_long_public_inputs() {
 
 #[test]
 fn test_public_inputs_mismatch() {
-    new_test_ext().execute_with(|| {
-        assert_err!(
-            ZKVerifierModule::setup_verification(
-                RuntimeOrigin::none(),
+	new_test_ext().execute_with(|| {
+		assert_err!(
+			ZKVerifierModule::setup_verification(
+				RuntimeOrigin::none(),
 				taskId,
-                prepare_empty_public_inputs_json().as_bytes().into(),
-                prepare_vk_json("groth16", "bls12381", None).as_bytes().into()
-            ),
-            Error::<Test>::PublicInputsMismatch
-        );
+				prepare_empty_public_inputs_json().as_bytes().into(),
+				prepare_vk_json("groth16", "bls12381", None)
+					.as_bytes()
+					.into()
+			),
+			Error::<Test>::PublicInputsMismatch
+		);
 
-        // Check storage to ensure no key was set
-        assert!(!VerificationKeyStorage::<Test>::contains_key(taskId));
-        assert_eq!(zk_events().len(), 0);
-    });
+		// Check storage to ensure no key was set
+		assert!(!VerificationKeyStorage::<Test>::contains_key(taskId));
+		assert_eq!(zk_events().len(), 0);
+	});
 }
 
 #[test]
@@ -213,28 +220,33 @@ fn test_verify_without_verification_key() {
 
 #[test]
 fn test_verification_success() {
-    new_test_ext().execute_with(|| {
-        let vk = prepare_vk_json("groth16", "bls12381", None);
-        let proof = prepare_proof_json("groth16", "bls12381", None);
+	new_test_ext().execute_with(|| {
+		let vk = prepare_vk_json("groth16", "bls12381", None);
+		let proof = prepare_proof_json("groth16", "bls12381", None);
 
-        assert_ok!(ZKVerifierModule::setup_verification(
-            RuntimeOrigin::none(),
+		assert_ok!(ZKVerifierModule::setup_verification(
+			RuntimeOrigin::none(),
 			taskId,
-            prepare_correct_public_inputs_json().as_bytes().into(),
-            vk.as_bytes().into()
-        ));
-        assert_ok!(ZKVerifierModule::verify(
-            RuntimeOrigin::signed(ALICE_ACCOUNT_ID),
+			prepare_correct_public_inputs_json().as_bytes().into(),
+			vk.as_bytes().into()
+		));
+		assert_ok!(ZKVerifierModule::verify(
+			RuntimeOrigin::signed(ALICE_ACCOUNT_ID),
 			taskId,
-            proof.as_bytes().into()
-        ));
+			proof.as_bytes().into()
+		));
 
-        let events = zk_events();
-        assert_eq!(events.len(), 3);
-        assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
-        assert_eq!(events[1], Event::<Test>::VerificationProofSet);
-        assert_eq!(events[2], Event::<Test>::VerificationSuccess { who: ALICE_ACCOUNT_ID });
-    });
+		let events = zk_events();
+		assert_eq!(events.len(), 3);
+		assert_eq!(events[0], Event::<Test>::VerificationSetupCompleted);
+		assert_eq!(events[1], Event::<Test>::VerificationProofSet);
+		assert_eq!(
+			events[2],
+			Event::<Test>::VerificationSuccess {
+				who: ALICE_ACCOUNT_ID
+			}
+		);
+	});
 }
 
 #[test]
@@ -313,20 +325,20 @@ fn prepare_correct_public_inputs_json() -> String {
 	r#"[
  "12"
 ]"#
-	.to_owned()
+		.to_owned()
 }
 
 fn prepare_incorrect_public_inputs_json() -> String {
 	r#"[
  "3"
 ]"#
-	.to_owned()
+		.to_owned()
 }
 
 fn prepare_empty_public_inputs_json() -> String {
 	r#"[
 ]"#
-	.to_owned()
+		.to_owned()
 }
 
 fn prepare_vk_json(protocol: &str, curve: &str, alpha_x: Option<String>) -> String {

@@ -114,7 +114,9 @@ where
 	let mut dec_numbers: [Number; 3] = [[0; 48]; 3];
 	let s: [&str; 3] = serde::Deserialize::deserialize(de)?;
 	for i in 0..3 {
-		U256::from_dec_str(s[i]).unwrap().to_big_endian(dec_numbers[i].as_mut_slice());
+		U256::from_dec_str(s[i])
+			.unwrap()
+			.to_big_endian(dec_numbers[i].as_mut_slice());
 	}
 	Ok(dec_numbers)
 }
@@ -126,16 +128,20 @@ where
 	D: Deserializer<'de>,
 {
 	let dec_numbers: Vec<[&str; 3]> = serde::Deserialize::deserialize(de)?;
-	Ok(dec_numbers
-		.iter()
-		.map(|ic| {
-			let mut arr: [Number; 3] = [[0; 48]; 3];
-			for i in 0..3 {
-				U256::from_dec_str(ic[i]).unwrap().to_big_endian(arr[i].as_mut_slice());
-			}
-			arr
-		})
-		.collect())
+	Ok(
+		dec_numbers
+			.iter()
+			.map(|ic| {
+				let mut arr: [Number; 3] = [[0; 48]; 3];
+				for i in 0..3 {
+					U256::from_dec_str(ic[i])
+						.unwrap()
+						.to_big_endian(arr[i].as_mut_slice());
+				}
+				arr
+			})
+			.collect(),
+	)
 }
 
 /// Turns G2 point represented by numbers in decimal format into G2 point represented by numbers in
@@ -385,15 +391,16 @@ mod tests {
 		let public_inputs_json = r#"[
  "33"
 ]"#;
-		let public_inputs =
-			deserialize_public_inputs(public_inputs_json.as_bytes().into()).unwrap();
+		let public_inputs = deserialize_public_inputs(public_inputs_json.as_bytes().into()).unwrap();
 		assert_eq!(public_inputs.len(), 1);
 		assert_eq!(public_inputs[0], 33);
 	}
 
 	fn from_dec_string(dec_str: &str) -> Number {
 		let mut number: Number = [0; 48];
-		U256::from_dec_str(dec_str).unwrap().to_big_endian(number.as_mut_slice());
+		U256::from_dec_str(dec_str)
+			.unwrap()
+			.to_big_endian(number.as_mut_slice());
 		number
 	}
 }

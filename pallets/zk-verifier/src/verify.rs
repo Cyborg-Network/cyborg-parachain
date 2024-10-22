@@ -126,24 +126,32 @@ impl VerificationKey {
 		delta: &G2UncompressedBytes,
 		ic: &Vec<G1UncompressedBytes>,
 	) -> Result<Self, VerificationKeyCreationError> {
-		let alpha =
-			alpha.try_into().map_err(|_| VerificationKeyCreationError::PointCreationError)?;
-		let beta: G2Affine =
-			beta.try_into().map_err(|_| VerificationKeyCreationError::PointCreationError)?;
-		let gamma: G2Affine =
-			gamma.try_into().map_err(|_| VerificationKeyCreationError::PointCreationError)?;
-		let delta: G2Affine =
-			delta.try_into().map_err(|_| VerificationKeyCreationError::PointCreationError)?;
+		let alpha = alpha
+			.try_into()
+			.map_err(|_| VerificationKeyCreationError::PointCreationError)?;
+		let beta: G2Affine = beta
+			.try_into()
+			.map_err(|_| VerificationKeyCreationError::PointCreationError)?;
+		let gamma: G2Affine = gamma
+			.try_into()
+			.map_err(|_| VerificationKeyCreationError::PointCreationError)?;
+		let delta: G2Affine = delta
+			.try_into()
+			.map_err(|_| VerificationKeyCreationError::PointCreationError)?;
 		let mut ic_2: Vec<G1Affine> = Vec::with_capacity(ic.len());
 
 		for i in ic {
-			ic_2.push(
-				G1Affine::try_from(i)
-					.map_err(|_| VerificationKeyCreationError::PointCreationError)?,
-			);
+			ic_2
+				.push(G1Affine::try_from(i).map_err(|_| VerificationKeyCreationError::PointCreationError)?);
 		}
 
-		Ok(VerificationKey { alpha, beta, gamma, delta, ic: ic_2 })
+		Ok(VerificationKey {
+			alpha,
+			beta,
+			gamma,
+			delta,
+			ic: ic_2,
+		})
 	}
 }
 
@@ -165,9 +173,15 @@ impl GProof {
 		b: &G2UncompressedBytes,
 		c: &G1UncompressedBytes,
 	) -> Result<Self, GProofCreationError> {
-		let a = a.try_into().map_err(|_| GProofCreationError::PointCreationError)?;
-		let b = b.try_into().map_err(|_| GProofCreationError::PointCreationError)?;
-		let c = c.try_into().map_err(|_| GProofCreationError::PointCreationError)?;
+		let a = a
+			.try_into()
+			.map_err(|_| GProofCreationError::PointCreationError)?;
+		let b = b
+			.try_into()
+			.map_err(|_| GProofCreationError::PointCreationError)?;
+		let c = c
+			.try_into()
+			.map_err(|_| GProofCreationError::PointCreationError)?;
 
 		Ok(GProof { a, b, c })
 	}
@@ -192,7 +206,7 @@ pub fn verify(vk: VerificationKey, proof: GProof, inputs: PublicInputs) -> Verif
 	let public_inputs: &[<Bls12 as Engine>::Fr] = &inputs;
 
 	if (public_inputs.len() + 1) != vk.ic.len() {
-		return Err(InvalidVerificationKey)
+		return Err(InvalidVerificationKey);
 	}
 
 	// ic contains Lᵢ(τ)/δ
@@ -224,8 +238,7 @@ pub fn verify(vk: VerificationKey, proof: GProof, inputs: PublicInputs) -> Verif
 #[cfg(test)]
 mod tests {
 	use crate::verify::{
-		verify, G1UncompressedBytes, G2UncompressedBytes, GProof, VerificationError,
-		VerificationKey,
+		verify, G1UncompressedBytes, G2UncompressedBytes, GProof, VerificationError, VerificationKey,
 	};
 	use bls12_381::{G1Affine, G2Affine};
 
@@ -386,8 +399,18 @@ mod tests {
 
 		//----------VERIFICATION---------------//
 		assert!(verify(
-			VerificationKey { alpha, beta, gamma, delta, ic: vec![ic_1, ic_2] },
-			GProof { a: pi_a, b: pi_b, c: pi_c },
+			VerificationKey {
+				alpha,
+				beta,
+				gamma,
+				delta,
+				ic: vec![ic_1, ic_2]
+			},
+			GProof {
+				a: pi_a,
+				b: pi_b,
+				c: pi_c
+			},
 			// blog/data/public.json
 			[12.into()].into(),
 		)
@@ -463,8 +486,18 @@ mod tests {
 
 		//----------VERIFICATION---------------//
 		assert!(!verify(
-			VerificationKey { alpha, beta, gamma, delta, ic: vec![ic_1, ic_2] },
-			GProof { a: pi_a, b: pi_b, c: pi_c },
+			VerificationKey {
+				alpha,
+				beta,
+				gamma,
+				delta,
+				ic: vec![ic_1, ic_2]
+			},
+			GProof {
+				a: pi_a,
+				b: pi_b,
+				c: pi_c
+			},
 			[33.into()].into(),
 		)
 		.unwrap())
@@ -536,8 +569,18 @@ mod tests {
 		//----------VERIFICATION---------------//
 		assert_eq!(
 			verify(
-				VerificationKey { alpha, beta, gamma, delta, ic: vec![ic_1] },
-				GProof { a: pi_a, b: pi_b, c: pi_c },
+				VerificationKey {
+					alpha,
+					beta,
+					gamma,
+					delta,
+					ic: vec![ic_1]
+				},
+				GProof {
+					a: pi_a,
+					b: pi_b,
+					c: pi_c
+				},
 				[33.into()].into(),
 			)
 			.err()
@@ -549,7 +592,9 @@ mod tests {
 
 	fn from_dec_string(number: &str) -> [u8; 48] {
 		let mut bytes: [u8; 48] = [0; 48];
-		U256::from_dec_str(number).unwrap().to_big_endian(bytes.as_mut_slice());
+		U256::from_dec_str(number)
+			.unwrap()
+			.to_big_endian(bytes.as_mut_slice());
 		bytes
 	}
 }

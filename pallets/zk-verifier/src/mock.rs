@@ -52,19 +52,22 @@ impl crate::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut storage = GenesisConfig::<Test>::default()
-        .build_storage()
-        .unwrap();
-    let mut ext = sp_io::TestExternalities::new(storage);
-    ext.execute_with(|| frame_system::Pallet::<Test>::set_block_number(1));
-    ext
+	let mut storage = GenesisConfig::<Test>::default().build_storage().unwrap();
+	let mut ext = sp_io::TestExternalities::new(storage);
+	ext.execute_with(|| frame_system::Pallet::<Test>::set_block_number(1));
+	ext
 }
-
 
 pub fn zk_events() -> Vec<Event<Test>> {
 	System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let RuntimeEvent::ZKVerifierModule(inner) = e { Some(inner) } else { None })
+		.filter_map(|e| {
+			if let RuntimeEvent::ZKVerifierModule(inner) = e {
+				Some(inner)
+			} else {
+				None
+			}
+		})
 		.collect()
 }

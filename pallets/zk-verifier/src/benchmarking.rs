@@ -41,15 +41,15 @@ benchmarks! {
 	setup_verification_benchmark {
 		let key: Vec<u8> = prepare_vk_json().as_bytes().into();
 		let public_inputs: Vec<u8> = prepare_public_inputs_json().as_bytes().into();
-        let taskId: TaskId = 0;
+				let taskId: TaskId = 0;
 	}: setup_verification(RawOrigin::None, taskId, public_inputs, key)
 
 	verify_benchmark {
-        let caller: T::AccountId = whitelisted_caller();
+				let caller: T::AccountId = whitelisted_caller();
 		let key: Vec<u8> = prepare_vk_json().as_bytes().into();
 		let proof: Vec<u8> = prepare_proof_json().as_bytes().into();
 		let public_inputs: Vec<u8> = prepare_public_inputs_json().as_bytes().into();
-        let taskId: TaskId = 0;
+				let taskId: TaskId = 0;
 		ZKSnarks::<T>::setup_verification(RawOrigin::None.into(), taskId, public_inputs, key).expect("This should work...");
 	}: verify(RawOrigin::Signed(caller.clone()), taskId, proof)
 
@@ -60,7 +60,7 @@ fn prepare_public_inputs_json() -> String {
 	r#"[
  "33"
 ]"#
-	.to_owned()
+		.to_owned()
 }
 
 fn prepare_vk_json() -> String {

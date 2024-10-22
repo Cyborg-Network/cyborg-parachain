@@ -141,19 +141,21 @@ pub mod pallet {
 	/// Storing a public input.
 	#[pallet::storage]
 	#[pallet::getter(fn public_input)]
-	pub type PublicInputStorage<T: Config> = StorageMap<_, Twox64Concat, TaskId, PublicInputsDef<T>, OptionQuery>;
+	pub type PublicInputStorage<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, PublicInputsDef<T>, OptionQuery>;
 
 	/// Storing a proof.
 	#[pallet::storage]
 	#[pallet::getter(fn proof)]
 	pub type ProofStorage<T: Config> = StorageMap<_, Twox64Concat, TaskId, ProofDef<T>, OptionQuery>;
-	
+
 	/// Storing a verification key.
 	#[pallet::storage]
 	#[pallet::getter(fn verification_key)]
-	pub type VerificationKeyStorage<T: Config> = StorageMap<_, Twox64Concat, TaskId, VerificationKeyDef<T>, OptionQuery>;
+	pub type VerificationKeyStorage<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, VerificationKeyDef<T>, OptionQuery>;
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {	
+	impl<T: Config> Pallet<T> {
 		/// Store a verification key.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::setup_verification_benchmark())]
@@ -166,15 +168,18 @@ pub mod pallet {
 			// Store the public inputs and verification key under the given TaskId.
 			let inputs = store_public_inputs::<T>(task_id, pub_input)?;
 			let vk = store_verification_key::<T>(task_id, vec_vk)?;
-		
+
 			// Ensure the length of the inputs matches the expected length from the verification key.
-			ensure!(vk.public_inputs_len == inputs.len() as u8, Error::<T>::PublicInputsMismatch);
-		
+			ensure!(
+				vk.public_inputs_len == inputs.len() as u8,
+				Error::<T>::PublicInputsMismatch
+			);
+
 			// Emit an event to signal that verification setup is complete.
 			Self::deposit_event(Event::<T>::VerificationSetupCompleted);
-		
+
 			Ok(())
-		}	
+		}
 
 		/// Verify a proof.
 		#[pallet::call_index(1)]
@@ -185,109 +190,118 @@ pub mod pallet {
 			let inputs = get_public_inputs::<T>(task_id)?;
 			let sender = ensure_signed(origin)?;
 			Self::deposit_event(Event::<T>::VerificationProofSet);
-		
+
 			match verify(vk, proof, prepare_public_inputs(inputs)) {
 				Ok(true) => {
 					Self::deposit_event(Event::<T>::VerificationSuccess { who: sender });
 					Ok(())
-				},
+				}
 				Ok(false) => {
 					Self::deposit_event(Event::<T>::VerificationFailed);
 					Ok(())
-				},
+				}
 				Err(_) => Err(Error::<T>::ProofVerificationError.into()),
 			}
-		}	
-	}	
+		}
+	}
 
 	fn get_public_inputs<T: Config>(task_id: TaskId) -> Result<Vec<u64>, sp_runtime::DispatchError> {
-		let public_inputs = PublicInputStorage::<T>::get(task_id)
-			.ok_or(Error::<T>::PublicInputsMismatch)?;
+		let public_inputs =
+			PublicInputStorage::<T>::get(task_id).ok_or(Error::<T>::PublicInputsMismatch)?;
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
 			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
 		Ok(deserialized_public_inputs)
 	}
 
-	fn store_public_inputs<T: Config>(task_id: TaskId, pub_input: Vec<u8>) -> Result<Vec<u64>, sp_runtime::DispatchError> {
-		let public_inputs: PublicInputsDef<T> = pub_input.try_into().map_err(|_| Error::<T>::TooLongPublicInputs)?;
+	fn store_public_inputs<T: Config>(
+		task_id: TaskId,
+		pub_input: Vec<u8>,
+	) -> Result<Vec<u64>, sp_runtime::DispatchError> {
+		let public_inputs: PublicInputsDef<T> = pub_input
+			.try_into()
+			.map_err(|_| Error::<T>::TooLongPublicInputs)?;
 		let deserialized_public_inputs = deserialize_public_inputs(public_inputs.as_slice())
 			.map_err(|_| Error::<T>::MalformedPublicInputs)?;
 		PublicInputStorage::<T>::insert(task_id, public_inputs);
 		Ok(deserialized_public_inputs)
 	}
-		
 
-	fn get_verification_key<T: Config>(task_id: TaskId) -> Result<VerificationKey, sp_runtime::DispatchError> {
-		let vk = VerificationKeyStorage::<T>::get(task_id)
-			.ok_or(Error::<T>::VerificationKeyIsNotSet)?;
-		let deserialized_vk = VKey::from_json_u8_slice(vk.as_slice())
-			.map_err(|_| Error::<T>::MalformedVerificationKey)?;
+	fn get_verification_key<T: Config>(
+		task_id: TaskId,
+	) -> Result<VerificationKey, sp_runtime::DispatchError> {
+		let vk =
+			VerificationKeyStorage::<T>::get(task_id).ok_or(Error::<T>::VerificationKeyIsNotSet)?;
+		let deserialized_vk =
+			VKey::from_json_u8_slice(vk.as_slice()).map_err(|_| Error::<T>::MalformedVerificationKey)?;
 		let vk = prepare_verification_key(deserialized_vk)
 			.map_err(|_| Error::<T>::VerificationKeyCreationError)?;
 		Ok(vk)
-	}	
+	}
 
-	fn store_verification_key<T: Config>(task_id: TaskId, vec_vk: Vec<u8>) -> Result<VKey, sp_runtime::DispatchError> {
-		let vk: VerificationKeyDef<T> = vec_vk.try_into().map_err(|_| Error::<T>::TooLongVerificationKey)?;
-		let deserialized_vk = VKey::from_json_u8_slice(vk.as_slice())
-			.map_err(|_| Error::<T>::MalformedVerificationKey)?;
-		ensure!(deserialized_vk.curve == SUPPORTED_CURVE.as_bytes(), Error::<T>::NotSupportedCurve);
-		ensure!(deserialized_vk.protocol == SUPPORTED_PROTOCOL.as_bytes(), Error::<T>::NotSupportedProtocol);
+	fn store_verification_key<T: Config>(
+		task_id: TaskId,
+		vec_vk: Vec<u8>,
+	) -> Result<VKey, sp_runtime::DispatchError> {
+		let vk: VerificationKeyDef<T> = vec_vk
+			.try_into()
+			.map_err(|_| Error::<T>::TooLongVerificationKey)?;
+		let deserialized_vk =
+			VKey::from_json_u8_slice(vk.as_slice()).map_err(|_| Error::<T>::MalformedVerificationKey)?;
+		ensure!(
+			deserialized_vk.curve == SUPPORTED_CURVE.as_bytes(),
+			Error::<T>::NotSupportedCurve
+		);
+		ensure!(
+			deserialized_vk.protocol == SUPPORTED_PROTOCOL.as_bytes(),
+			Error::<T>::NotSupportedProtocol
+		);
 		VerificationKeyStorage::<T>::insert(task_id, vk);
 		Ok(deserialized_vk)
 	}
 
 	fn store_proof<T: Config>(
-		task_id: TaskId, 
-		vec_proof: Vec<u8>
+		task_id: TaskId,
+		vec_proof: Vec<u8>,
 	) -> Result<GProof, sp_runtime::DispatchError> {
 		// Ensure proof is not empty.
 		ensure!(!vec_proof.is_empty(), Error::<T>::ProofIsEmpty);
-	
+
 		// Try to convert the vector into the expected proof definition.
-		let proof: ProofDef<T> = vec_proof
-			.try_into()
-			.map_err(|_| Error::<T>::TooLongProof)?;
-	
+		let proof: ProofDef<T> = vec_proof.try_into().map_err(|_| Error::<T>::TooLongProof)?;
+
 		// Deserialize the proof from JSON-encoded bytes.
-		let deserialized_proof = Proof::from_json_u8_slice(proof.as_slice())
-			.map_err(|_| Error::<T>::MalformedProof)?;
-	
+		let deserialized_proof =
+			Proof::from_json_u8_slice(proof.as_slice()).map_err(|_| Error::<T>::MalformedProof)?;
+
 		// Ensure the curve used is supported.
 		ensure!(
 			deserialized_proof.curve == SUPPORTED_CURVE.as_bytes(),
 			Error::<T>::NotSupportedCurve
 		);
-	
+
 		// Ensure the protocol used is supported.
 		ensure!(
 			deserialized_proof.protocol == SUPPORTED_PROTOCOL.as_bytes(),
 			Error::<T>::NotSupportedProtocol
 		);
-	
+
 		// Store the proof in storage associated with the task_id.
 		ProofStorage::<T>::insert(task_id, proof.clone());
-	
+
 		// Construct the GProof from the deserialized data.
 		let g_proof = GProof::from_uncompressed(
-			&G1UncompressedBytes::new(
-				deserialized_proof.a[0], 
-				deserialized_proof.a[1]
-			),
+			&G1UncompressedBytes::new(deserialized_proof.a[0], deserialized_proof.a[1]),
 			&G2UncompressedBytes::new(
 				deserialized_proof.b[0][0],
 				deserialized_proof.b[0][1],
 				deserialized_proof.b[1][0],
 				deserialized_proof.b[1][1],
 			),
-			&G1UncompressedBytes::new(
-				deserialized_proof.c[0], 
-				deserialized_proof.c[1]
-			),
+			&G1UncompressedBytes::new(deserialized_proof.c[0], deserialized_proof.c[1]),
 		)
 		.map_err(|_| Error::<T>::ProofCreationError)?;
-	
+
 		// Return the constructed proof.
 		Ok(g_proof)
-	}	
+	}
 }
