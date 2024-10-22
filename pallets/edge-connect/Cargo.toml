@@ -12,41 +12,37 @@ version = "0.1.0"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-pallet-timestamp = { version = "34.0.0", default-features = false }
-
+codec =  { workspace = true }
 cyborg-primitives = { workspace = true }
-
-# frame deps
-frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
-frame-support = { version = "35.0.0", default-features = false }
-frame-system = { version = "35.0.0", default-features = false }
-
-sp-std = { version = "14.0.0", default-features = false }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-timestamp = { workspace = true }
+scale-info = { workspace = true }
+sp-std = { workspace = true }
 
 [dev-dependencies]
-sp-core = { version = "34.0.0" }
-sp-io = { version = "37.0.0" }
-sp-runtime = { version = "38.0.0" }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [features]
 default = ["std"]
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
 ]
 std = [
-	"codec/std",
-	"frame-benchmarking?/std",
-	"frame-support/std",
-	"frame-system/std",
-	"scale-info/std",
-	"cyborg-primitives/std",
+    "codec/std",
+    "cyborg-primitives/std",
+    "frame-benchmarking?/std",
+    "frame-support/std",
+    "frame-system/std",
+    "scale-info/std",
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+    "frame-support/try-runtime", 
+    "frame-system/try-runtime"
+]
+
