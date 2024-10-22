@@ -50,13 +50,11 @@ pub mod pallet {
 
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
-	#[pallet::getter(fn account_workers)]
 	pub type AccountWorkers<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
 
 	/// Worker Cluster information
 	#[pallet::storage]
-	#[pallet::getter(fn get_worker_clusters)]
 	pub type WorkerClusters<T: Config> = StorageMap<
 		_,
 		Twox64Concat,

@@ -1,12 +1,12 @@
 [package]
-name = "pallet-edge-connect"
-description = "Pallet for managing connected workers"
-version = "0.1.0"
 authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
+description = "Pallet for managing connected workers"
 edition.workspace = true
+homepage.workspace = true
+name = "pallet-edge-connect"
 publish = false
+repository.workspace = true
+version = "0.1.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

@@ -1,3 +1,4 @@
+pub use crate as pallet_edge_connect;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_timestamp;
@@ -25,7 +26,7 @@ mod test_runtime {
 	#[runtime::pallet_index(1)]
 	pub type Timestamp = pallet_timestamp;
 	#[runtime::pallet_index(2)]
-	pub type EdgeConnectModule = crate;
+	pub type EdgeConnectModule = pallet_edge_connect;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -36,7 +37,7 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
-impl crate::Config for Test {
+impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
