@@ -41,15 +41,17 @@ benchmarks! {
 	setup_verification_benchmark {
 		let key: Vec<u8> = prepare_vk_json().as_bytes().into();
 		let public_inputs: Vec<u8> = prepare_public_inputs_json().as_bytes().into();
-	}: setup_verification(RawOrigin::None, public_inputs, key)
+        let taskId: TaskId = 0;
+	}: setup_verification(RawOrigin::None, taskId, public_inputs, key)
 
 	verify_benchmark {
         let caller: T::AccountId = whitelisted_caller();
 		let key: Vec<u8> = prepare_vk_json().as_bytes().into();
 		let proof: Vec<u8> = prepare_proof_json().as_bytes().into();
 		let public_inputs: Vec<u8> = prepare_public_inputs_json().as_bytes().into();
-		ZKSnarks::<T>::setup_verification(RawOrigin::None.into(), public_inputs, key).expect("This should work...");
-	}: verify(RawOrigin::Signed(caller.clone()), proof)
+        let taskId: TaskId = 0;
+		ZKSnarks::<T>::setup_verification(RawOrigin::None.into(), taskId, public_inputs, key).expect("This should work...");
+	}: verify(RawOrigin::Signed(caller.clone()), taskId, proof)
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test)
 }

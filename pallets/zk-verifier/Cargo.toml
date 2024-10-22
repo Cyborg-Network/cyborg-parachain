@@ -28,6 +28,7 @@ group = "0.12.1"
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 serde_json = { workspace = true, default-features = false, features = ["alloc"]}
 uint = { version = "0.8", default-features = false }
+# cyborg-primitives = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }
