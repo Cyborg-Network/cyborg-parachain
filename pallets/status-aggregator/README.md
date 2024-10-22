@@ -1,4 +1,4 @@
-# Satus-Aggregator pallet
+# Status-Aggregator pallet
 
 This pallet serves as a support pallet to the oracle. It processes feed data utilizing the `T::OnNewData` trait from the oracle pallet onto this pallet. The pallet keeps aggregated data and entries up to a block interval defined by `MaxBlockRangePeriod` in the pallet config.
 
