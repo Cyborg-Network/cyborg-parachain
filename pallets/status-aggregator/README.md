@@ -4,7 +4,7 @@ This pallet serves as a support pallet to the oracle. It processes feed data uti
 
 ## Overview
 
-First an oracle data feeder must be register onto the `OracleMembership` pallet to gain `Oracle` feeder access. Afterwards, the feeder can call the `feed_value()` extrinsic on the `Oracle` pallet. 
+First an oracle data feeder must be register onto the `OracleMembership` pallet to gain `Oracle` feeder access. Afterwards, the feeder can call the `feed_value()` extrinsic on the `Oracle` pallet.
 
 The `feed_value()` extrinsic takes in a value type of `BoundedVec<(T::OracleKey, T::OracleValue), T::MaxFeedValues>
 
@@ -13,7 +13,6 @@ The `feed_value()` extrinsic takes in a value type of `BoundedVec<(T::OracleKey,
 - `T::OracleValue`: represents any data we assign to the worker which will be processesed by this aggregator pallet
 
 From here, the status feed aggregator handles all the heavy lifting to process data for each worker based on the values entered.
-
 
 **Pallet workflow:**
 Data first enters the the pallet through the implementation of the the `T::OnNewData` trait. The system checks whether the oracle feeder has already provided information for a specific worker during the current period by querying the`SubmittedPerPeriod` storage. If no data has been submitted yet for that worker, the pallet updates `WorkerStatusEntriesPerPeriod` by appending the new data, along with the current block number, to a bounded vector corresponding to that worker.
@@ -34,7 +33,6 @@ The supported dispatchable functions are documented in the
 * **Oracle Feeder:** A registered entity that provides data.
 * **OracleMembership:** Manages who can submit data.
 * **Status Feed Aggregator:** The system that processes and aggregates the data submitted by tghe oracle feeders.
-
 
 ## Interface
 
