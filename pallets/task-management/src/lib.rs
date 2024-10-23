@@ -18,8 +18,6 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::prelude::vec::Vec;
 use sp_core::hash::H256;
 
-pub type TaskId = u64;
-
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::{WorkerId, WorkerStatusType};
 

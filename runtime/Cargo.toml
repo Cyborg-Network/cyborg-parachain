@@ -33,11 +33,12 @@ orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 
 # Local
-pallet-edge-connect = { workspace = true }
-pallet-task-management = { workspace = true }
-pallet-status-aggregator = { workspace = true }
-pallet-payment= { workspace = true}
 cyborg-primitives = { workspace = true }
+pallet-edge-connect = { workspace = true }
+pallet-payment= { workspace = true}
+pallet-status-aggregator = { workspace = true }
+pallet-task-management = { workspace = true }
+pallet-zk-verifier = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -137,6 +138,7 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-xcm/std",
+  "pallet-zk-verifier/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"polkadot-parachain-primitives/std",
@@ -183,6 +185,7 @@ runtime-benchmarks = [
 	"pallet-task-management/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"pallet-zk-verifier/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",

@@ -38,4 +38,5 @@ frame_benchmarking::define_benchmarks!(
 	[pallet_sudo, Sudo]
 	[pallet_task_management, TaskManagement]
 	[pallet_timestamp, Timestamp]
+  [pallet_zk_verifier, ZKVerifier]
 );

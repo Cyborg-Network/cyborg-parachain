@@ -52,6 +52,7 @@ pub use pallet_edge_connect;
 pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
+pub use pallet_zk_verifier;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -334,6 +335,20 @@ impl pallet_status_aggregator::Config for Runtime {
 	type WorkerInfoHandler = EdgeConnect;
 }
 
+parameter_types! {
+	pub const MaxPublicInputsLength: u32 = 9;
+	pub const MaxVerificationKeyLength: u32 = 4143;
+	pub const MaxProofLength: u32 = 1133;
+}
+
+impl pallet_zk_verifier::Config for Runtime {
+	type MaxPublicInputsLength = MaxPublicInputsLength;
+	type MaxProofLength = MaxProofLength;
+	type MaxVerificationKeyLength = MaxVerificationKeyLength;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cyborg-runtime"),
@@ -485,7 +500,10 @@ mod runtime {
 	pub type StatusAggregator = pallet_status_aggregator;
 
 	#[runtime::pallet_index(45)]
-	pub type Payment = pallet_payment;
+  pub type Payment = pallet_payment;
+  
+  #[runtime::pallet_index(46)]
+	pub type ZKVerifier = pallet_zk_verifier;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

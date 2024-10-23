@@ -3,6 +3,8 @@ use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedV
 use scale_info::TypeInfo;
 use sp_core::hash::H256;
 
+pub type TaskId = u64;
+
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskStatusType {
 	Assigned,

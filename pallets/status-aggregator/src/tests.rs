@@ -349,7 +349,8 @@ fn on_finalize_works_as_expected() {
 		assert!(
 			WorkerStatusEntriesPerPeriod::<Test>::iter()
 				.collect::<Vec<_>>()
-				.len() > 0
+				.len()
+				> 0
 		);
 		// check total entries submitted this period
 		assert_eq!(
