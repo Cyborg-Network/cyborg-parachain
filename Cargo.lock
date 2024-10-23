@@ -2442,6 +2442,7 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-payment",
  "pallet-session",
  "pallet-status-aggregator",
  "pallet-sudo",
@@ -7079,6 +7080,25 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-payment"
+version = "0.1.0"
+dependencies = [
+ "cyborg-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]

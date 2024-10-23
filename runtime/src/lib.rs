@@ -49,6 +49,7 @@ pub use cyborg_primitives::{
 };
 
 pub use pallet_edge_connect;
+pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
 pub use pallet_zk_verifier;
@@ -315,6 +316,12 @@ impl pallet_task_management::Config for Runtime {
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
+impl pallet_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 		pub const MaxBlockRangePeriod: BlockNumber = 50u32; // Set the max block range to 100 blocks
 }
@@ -493,6 +500,9 @@ mod runtime {
 	pub type StatusAggregator = pallet_status_aggregator;
 
 	#[runtime::pallet_index(45)]
+  pub type Payment = pallet_payment;
+  
+  #[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
 }
 
