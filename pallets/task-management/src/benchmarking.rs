@@ -181,7 +181,7 @@ mod benchmarks {
 
 		// Submit the task completion by the executor.
 		// The executor submits the completed task's result, along with a result hash.
-		let task_id = Pallet::<T>::next_task_id() - 1;
+		let task_id = NextTaskId::<T>::get() - 1;
 		let completed_hash = H256([123; 32]);
 		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
 
@@ -200,7 +200,7 @@ mod benchmarks {
 		// Verification code
 		// Verify the task status and ensure it's pending validation.
 		// After submission, the task status should be updated to `PendingValidation`.
-		let task_status = Pallet::<T>::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<T>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Verify the task's execution and validation state.
@@ -257,7 +257,7 @@ mod benchmarks {
 
 		// Submit the task completion by the executor.
 		// The executor submits the result of the completed task along with a result hash.
-		let task_id = Pallet::<T>::next_task_id() - 1;
+		let task_id = NextTaskId::<T>::get() - 1;
 		let completed_hash = H256([123; 32]);
 		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
 		Pallet::<T>::submit_completed_task(
@@ -281,7 +281,7 @@ mod benchmarks {
 
 		// Verify the task status is updated and marked as `Completed`.
 		// After verification, the task should have a status of `Completed`.
-		let task_status = Pallet::<T>::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<T>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::Completed);
 
 		Ok(())
@@ -330,7 +330,7 @@ mod benchmarks {
 
 		// Submit the task completion by the executor.
 		// The executor submits the result of the completed task along with a result hash.
-		let task_id = Pallet::<T>::next_task_id() - 1;
+		let task_id = NextTaskId::<T>::get() - 1;
 		let completed_hash = H256([4; 32]);
 		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
 		Pallet::<T>::submit_completed_task(
@@ -389,7 +389,7 @@ mod benchmarks {
 
 		// Verify the task status is updated and marked as `Completed`.
 		// After the resolver finishes, the task should have a status of `Completed`.
-		let task_status = Pallet::<T>::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<T>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::Completed);
 
 		Ok(())

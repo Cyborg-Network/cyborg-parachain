@@ -47,8 +47,11 @@ _None available._
 ### Helper functions
 
 * `on_new_data`: This function is triggered when new data from an oracle is submitted. The data is processed and stored in this pallet by updating the relevant storage items, such as the worker's status entries, if the oracle feeder has not yet submitted data for the worker during the current period.
+
 * `on_finalize`:  This hook is executed at the end of each block and is responsible for calculating and processing the aggregated worker status data based on the information received during the current period. It is called at regular intervals defined by MaxBlockRangePeriod, after which the storage values are reset for the next period.
+
 * `process_aggregate_data_for_period`: This function processes the aggregated worker data collected during the period. It calculates key metrics, such as the worker's online and availability percentages, and updates the storage with these computed results. This step is critical for determining the final worker status.
+
 * `update_worker_clusters`: This function sends the updated worker status information to other pallets that implement the T::WorkerClusterHandler trait. It ensures that worker clusters across the system are updated with the latest status. After updating the worker data, the function emits an event to signal that the worker's status has been modified.
 
 License: Apache-2.0

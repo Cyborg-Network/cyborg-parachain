@@ -1,7 +1,8 @@
 use crate::{mock::*, Error};
+use crate::{NextTaskId, TaskAllocations, TaskOwners, TaskStatus, Tasks};
 use frame_support::{assert_noop, assert_ok};
 
-use crate::TaskStatusType;
+pub use cyborg_primitives::task::TaskStatusType;
 pub use cyborg_primitives::worker::*;
 use frame_support::BoundedVec;
 use sp_core::H256;
@@ -44,9 +45,9 @@ fn it_works_for_task_scheduler() {
 		));
 
 		// Check task allocation and owner
-		let task_id = TaskManagementModule::next_task_id() - 1;
-		let assigned_worker = TaskManagementModule::task_allocations(task_id).unwrap();
-		let task_owner = TaskManagementModule::task_owners(task_id).unwrap();
+		let task_id = NextTaskId::<Test>::get() - 1;
+		let assigned_worker = TaskAllocations::<Test>::get(task_id).unwrap();
+		let task_owner = TaskOwners::<Test>::get(task_id).unwrap();
 		assert_eq!(task_owner, alice);
 		assert_eq!(executor, assigned_worker.0);
 
@@ -124,7 +125,7 @@ fn it_works_for_submit_completed_task() {
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -141,7 +142,7 @@ fn it_works_for_submit_completed_task() {
 		));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
@@ -204,7 +205,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 
 		System::set_block_number(10);
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -231,7 +232,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 		);
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
@@ -278,7 +279,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -335,7 +336,7 @@ fn it_works_when_verifying_task() {
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -371,7 +372,7 @@ fn it_works_when_verifying_task() {
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		assert_ok!(TaskManagementModule::verify_completed_task(
@@ -380,7 +381,7 @@ fn it_works_when_verifying_task() {
 			completed_hash
 		));
 
-		let new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 	});
 }
@@ -422,7 +423,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256([123; 32]);
@@ -458,7 +459,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
@@ -485,7 +486,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Ensure task remains incompleted when invalid verification
-		let mut new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let mut new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
@@ -502,7 +503,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Check updated task status
-		new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 	});
 }
@@ -544,7 +545,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256([123; 32]);
@@ -580,7 +581,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
@@ -607,7 +608,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Ensure task remains incompleted when invalid verification
-		let mut new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let mut new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
@@ -651,11 +652,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Check updated task status
-		new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Assigned);
 
 		// Check task allocations for new executor for task
-		let task_allocated_to = TaskManagementModule::task_allocations(task_id).unwrap();
+		let task_allocated_to = TaskAllocations::<Test>::get(task_id).unwrap();
 		assert_eq!(task_allocated_to.0, new_executor);
 
 		// Ensure task verifications are empty
