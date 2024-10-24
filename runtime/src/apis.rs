@@ -231,7 +231,7 @@ impl_runtime_apis! {
 		) {
 			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
-			//use frame_system_benchmarking::Pallet as SystemBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
 			use super::*;
 
@@ -248,7 +248,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{BenchmarkError, Benchmarking, BenchmarkBatch};
 			use super::*;
 
-			//use frame_system_benchmarking::Pallet as SystemBench;
+			use frame_system_benchmarking::Pallet as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {
 				fn setup_set_code_requirements(code: &sp_std::vec::Vec<u8>) -> Result<(), BenchmarkError> {
 					ParachainSystem::initialize_for_set_code_benchmark(code.len() as u32);

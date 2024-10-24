@@ -205,7 +205,7 @@ mod benchmarks {
 
 		// Verify the task's execution and validation state.
 		// Check if the executor and verifier information is correctly stored.
-		let verifications = Pallet::<T>::task_verifications(task_id).unwrap();
+		let verifications = Pallet::<T>::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 		assert_eq!(verifications.verifier.clone().unwrap().account, verifier);
@@ -366,7 +366,7 @@ mod benchmarks {
 
 		// Check the task verification details.
 		// Ensure the executor, verifier, and their respective hashes are correctly stored.
-		let verifications = Pallet::<T>::task_verifications(task_id).unwrap();
+		let verifications = Pallet::<T>::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 		assert_eq!(verifications.verifier.clone().unwrap().account, verifier);

@@ -66,10 +66,18 @@ pub mod pallet {
 	pub type Tasks<T: Config> =
 		StorageMap<_, Identity, TaskId, TaskInfo<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
 
-	/// Verifications for tasks.
+	/// Private task verifications
 	#[pallet::storage]
 	type TaskVerifications<T: Config> =
 		StorageMap<_, Blake2_128Concat, TaskId, Verifications<T::AccountId>, OptionQuery>;
+
+	/// Getter for TaskVerifications.
+	impl<T: Config> Pallet<T> {
+		/// Public getter for TaskVerifications.
+		pub fn get_task_verifications(task_id: TaskId) -> Option<Verifications<T::AccountId>> {
+			TaskVerifications::<T>::get(task_id)
+		}
+	}
 
 	/// Pallets use events to inform users when important changes are made.
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
