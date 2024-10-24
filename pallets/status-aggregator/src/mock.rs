@@ -1,3 +1,4 @@
+pub use crate as pallet_status_aggregator;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
@@ -33,7 +34,7 @@ mod test_runtime {
 	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type StatusAggregator = crate;
+	pub type StatusAggregator = pallet_status_aggregator;
 }
 
 pub type AccountId = u64;
@@ -51,7 +52,7 @@ parameter_types! {
 	pub const MaxBlockRangePeriod: BlockNumber = 5u32;
 }
 
-impl crate::Config for Test {
+impl pallet_status_aggregator::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;

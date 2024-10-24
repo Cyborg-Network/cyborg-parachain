@@ -1,42 +1,34 @@
 [package]
-name = "pallet-status-aggregator"
-description = "Pallet for determining worker status aggregated from oracle feed"
-version = "0.1.0"
 authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
+description = "Pallet for determining worker status aggregated from oracle feed"
 edition.workspace = true
+homepage.workspace = true
+name = "pallet-status-aggregator"
 publish = false
+repository.workspace = true
+version = "0.1.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-
-log = { workspace = true }
-orml-traits = { workspace = true }
-orml-oracle = { workspace = true }
-pallet-edge-connect = { workspace = true }
+codec =  { workspace = true }
 cyborg-primitives = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true}
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+log = { workspace = true }
+orml-oracle = { workspace = true }
+orml-traits = { workspace = true }
+pallet-edge-connect = { workspace = true }
 pallet-timestamp = { workspace = true }
-
-# frame deps
-frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
-frame-support = { version = "35.0.0", default-features = false }
-frame-system = { version = "35.0.0", default-features = false }
-
-sp-std = { version = "14.0.0", default-features = false }
+scale-info = { workspace = true }
+sp-std = { workspace = true }
 
 [dev-dependencies]
-sp-core = { version = "34.0.0" }
-sp-io = { version = "37.0.0" }
-sp-runtime = { version = "38.0.0" }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [features]
 default = ["std"]
@@ -47,10 +39,10 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
-	"orml-traits/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
+	"orml-traits/std",
 	"scale-info/std",
 ]
 try-runtime = [

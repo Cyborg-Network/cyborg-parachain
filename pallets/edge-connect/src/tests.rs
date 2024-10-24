@@ -51,7 +51,7 @@ fn it_works_for_registering_domain() {
 		));
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters((alice, 0)),
+			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0)),
 			Some(worker)
 		);
 	});
@@ -132,7 +132,10 @@ fn it_works_for_removing_worker() {
 			0
 		));
 		// Assert that the worker no longer exists
-		assert_eq!(EdgeConnectModule::get_worker_clusters((alice, 0)), None);
+		assert_eq!(
+			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0)),
+			None
+		);
 	});
 }
 
@@ -213,7 +216,7 @@ fn it_works_for_changing_visibility() {
 		);
 
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters((alice, 0))
+			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0))
 				.unwrap()
 				.status,
 			WorkerStatusType::Active
@@ -226,7 +229,7 @@ fn it_works_for_changing_visibility() {
 		);
 
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters((alice, 0))
+			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0))
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
