@@ -52,7 +52,7 @@ fn it_works_for_task_scheduler() {
 		assert_eq!(executor, assigned_worker.0);
 
 		// Check if task information is correct
-		let task_info = TaskManagementModule::get_tasks(task_id).unwrap();
+		let task_info = Tasks::<Test>::get(task_id).unwrap();
 		assert_eq!(task_info.metadata, task_data);
 		assert_eq!(task_info.task_owner, alice);
 	});
@@ -146,7 +146,7 @@ fn it_works_for_submit_completed_task() {
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, alice);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 	});
@@ -223,20 +223,14 @@ fn result_on_taskinfo_works_on_result_submit() {
 
 		System::set_block_number(15);
 
-		assert_eq!(
-			TaskManagementModule::get_tasks(task_id)
-				.unwrap()
-				.result
-				.unwrap(),
-			result
-		);
+		assert_eq!(Tasks::<Test>::get(task_id).unwrap().result.unwrap(), result);
 
 		// Check task status
 		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, bob);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 	})
@@ -367,7 +361,7 @@ fn it_works_when_verifying_task() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
@@ -454,7 +448,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
@@ -490,7 +484,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
-		let updated_verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let updated_verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(
 			updated_verifications.resolver.clone().unwrap().account,
 			resolver
@@ -576,7 +570,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
@@ -612,7 +606,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
-		let updated_verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let updated_verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(updated_verifications.resolver.unwrap().account, resolver);
 
 		// Submit differing completed hash
@@ -661,7 +655,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 
 		// Ensure task verifications are empty
 		let updated_verifications_after_reassignment =
-			TaskManagementModule::task_verifications(task_id);
+			TaskManagementModule::get_task_verifications(task_id);
 		assert_eq!(updated_verifications_after_reassignment, None);
 	});
 }
