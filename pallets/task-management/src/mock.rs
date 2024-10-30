@@ -1,3 +1,4 @@
+pub use crate as pallet_task_management;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
@@ -30,7 +31,7 @@ mod test_runtime {
 	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type TaskManagementModule = crate;
+	pub type TaskManagementModule = pallet_task_management;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -41,7 +42,7 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
-impl crate::Config for Test {
+impl pallet_task_management::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }

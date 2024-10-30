@@ -19,7 +19,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = ["derive"] }
 log = { version = "0.4.21", default-features = false }
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
