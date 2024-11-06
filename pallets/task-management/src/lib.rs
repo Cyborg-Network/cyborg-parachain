@@ -89,7 +89,7 @@ pub mod pallet {
 			assigned_worker: (T::AccountId, WorkerId),
 			task_owner: T::AccountId,
 			task_id: TaskId,
-			task: BoundedVec<u8, ConstU32<128>>,
+			task: BoundedVec<u8, ConstU32<500>>,
 		},
 		/// A completed task has been submitted for verification.
 		SubmittedCompletedTask {
@@ -148,7 +148,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
-			task_data: BoundedVec<u8, ConstU32<128>>,
+			task_data: BoundedVec<u8, ConstU32<500>>,
       worker_owner: T::AccountId,
       worker_id: WorkerId,
 		) -> DispatchResult {

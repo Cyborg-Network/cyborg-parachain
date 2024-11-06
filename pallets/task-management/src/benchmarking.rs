@@ -23,8 +23,8 @@ fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 }
 
 // Helper function to convert task data into a BoundedVec with a maximum length of 128 bytes.
-// This ensures the task data string does not exceed the limit of 128 bytes.
-fn get_taskdata(task_data_str: &str) -> BoundedVec<u8, ConstU32<128>> {
+// This ensures the task data string does not exceed the limit of 500 bytes.
+fn get_taskdata(task_data_str: &str) -> BoundedVec<u8, ConstU32<500>> {
 	BoundedVec::try_from(task_data_str.as_bytes().to_vec())
 		.expect("Task Data string exceeds maximum length")
 }
@@ -111,16 +111,15 @@ mod benchmarks {
 		// Assign a caller account that will act as the worker's owner.
 		let caller: T::AccountId = whitelisted_caller();
 
+		let executor: T::AccountId = account::<T::AccountId>("benchmark_account", 0, 0);
+		let worker_id = 0;
+
 		// Create task data.
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
 
-    let worker_account = account::<T::AccountId>("benchmark_account", 0, 0);
-
-    let worker_id = 0;
-
 		#[block]
 		{
-			Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data, worker_account, worker_id)
+			Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data, executor.clone(), worker_id)
 				.expect("Failed to schedule task")
 		}
 
@@ -147,7 +146,7 @@ mod benchmarks {
 		// This registers an executor worker account and assigns it to a specific domain.
 		// The executor will later complete a task.mpleting a task.
 		let executor: T::AccountId = account("executor", 0, 0);
-    let worker_id = 0;
+		let worker_id = 0;
 		let latitude: Latitude = 1;
 		let longitude: Longitude = 100;
 		let ram: RamBytes = 5_000_000_000u64;
@@ -188,7 +187,7 @@ mod benchmarks {
 		// The executor submits the completed task's result, along with a result hash.
 		let task_id = NextTaskId::<T>::get() - 1;
 		let completed_hash = H256([123; 32]);
-		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 128]).unwrap();
+		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
 
 		// The executor submits the completed task.
 		#[block]
@@ -224,13 +223,13 @@ mod benchmarks {
 		// Register the executor worker with a domain.
 		// This registers an executor worker who will complete the task.
 		let executor: T::AccountId = account("executor", 0, 0);
-    let worker_id = 0;
 		let latitude: Latitude = 1;
 		let longitude: Longitude = 100;
 		let ram: RamBytes = 5_000_000_000u64;
 		let storage: StorageBytes = 100_000_000_000u64;
 		let cpu: CpuCores = 5u16;
 		let domain = get_domain(WORKER_API_DOMAIN1);
+		let worker_id = 0;
 		pallet_edge_connect::Pallet::<T>::register_worker(
 			RawOrigin::Signed(executor.clone()).into(),
 			domain,
@@ -298,13 +297,13 @@ mod benchmarks {
 		// Register the executor worker with a domain.
 		// This registers an executor worker who will complete the task.
 		let executor: T::AccountId = account("executor", 0, 0);
-    let worker_id = 0;
 		let latitude: Latitude = 1;
 		let longitude: Longitude = 100;
 		let ram: RamBytes = 5_000_000_000u64;
 		let storage: StorageBytes = 100_000_000_000u64;
 		let cpu: CpuCores = 5u16;
 		let domain = get_domain(WORKER_API_DOMAIN1);
+		let worker_id = 0;
 		pallet_edge_connect::Pallet::<T>::register_worker(
 			RawOrigin::Signed(executor.clone()).into(),
 			domain,
