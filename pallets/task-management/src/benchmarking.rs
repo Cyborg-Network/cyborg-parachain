@@ -116,8 +116,12 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data)
-				.expect("Failed to schedule task")
+			Pallet::<T>::task_scheduler(
+				RawOrigin::Signed(caller.clone()).into(),
+				task_data,
+				Some(10),
+			)
+			.expect("Failed to schedule task")
 		}
 
 		// Verification code
@@ -163,7 +167,11 @@ mod benchmarks {
 		// A caller schedules the task, which will be handled by the registered executor.
 		let caller: T::AccountId = whitelisted_caller();
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone())?;
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			task_data.clone(),
+			Some(10),
+		)?;
 
 		// Register a verifier worker with a different domain.
 		// The verifier is responsible for validating the results of the task completed by the executor.
@@ -239,7 +247,11 @@ mod benchmarks {
 		// A caller schedules the task, which will be completed by the executor.
 		let caller: T::AccountId = whitelisted_caller();
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone())?;
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			task_data.clone(),
+			Some(10),
+		)?;
 
 		// Register a verifier worker with a different domain.
 		// The verifier is responsible for validating the results of the task completed by the executor.
@@ -312,7 +324,11 @@ mod benchmarks {
 		// A caller schedules the task, which will be completed by the executor.
 		let caller: T::AccountId = whitelisted_caller();
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone())?;
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			task_data.clone(),
+			Some(10),
+		)?;
 
 		// Register a verifier worker with a different domain.
 		// The verifier is responsible for validating the results of the task completed by the executor.
