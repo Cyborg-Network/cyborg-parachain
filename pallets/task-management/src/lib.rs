@@ -89,7 +89,8 @@ pub mod pallet {
 			assigned_worker: (T::AccountId, WorkerId),
 			task_owner: T::AccountId,
 			task_id: TaskId,
-			task: BoundedVec<u8, ConstU32<128>>,
+			task: BoundedVec<u8, ConstU32<500>>,
+			zk_files_cid: BoundedVec<u8, ConstU32<500>>,
 		},
 		/// A completed task has been submitted for verification.
 		SubmittedCompletedTask {
@@ -134,6 +135,8 @@ pub mod pallet {
 		TaskVerificationNotFound,
 		/// No new workers are available for the task reassignment.
 		NoNewWorkersAvailable,
+    /// The worker, to which the task should be assigned does not exist.
+    WorkerDoesNotExist,
 	}
 
 	// #[pallet::hooks]
@@ -146,7 +149,10 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
-			task_data: BoundedVec<u8, ConstU32<128>>,
+			task_data: BoundedVec<u8, ConstU32<500>>,
+      zk_files_cid: BoundedVec<u8, ConstU32<500>>,
+      worker_owner: T::AccountId,
+      worker_id: WorkerId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -156,15 +162,18 @@ pub mod pallet {
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-			// Select one worker randomly.
-			let workers: Vec<_> = WorkerClusters::<T>::iter().collect::<Vec<_>>(); // TODO: Update for only active workers in production
-			let random_index = (sp_io::hashing::blake2_256(&task_data)[0] as usize) % workers.len();
-			let selected_worker: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+		  let selected_worker = (worker_owner, worker_id);
+
+			ensure!(
+				WorkerClusters::<T>::contains_key(&selected_worker),
+				Error::<T>::WorkerDoesNotExist
+			);
 
 			let task_info = TaskInfo {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
 				metadata: task_data.clone(),
+        zk_files_cid: zk_files_cid.clone(),
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
@@ -183,6 +192,7 @@ pub mod pallet {
 				task_owner: who,
 				task_id,
 				task: task_data,
+        zk_files_cid: zk_files_cid,
 			});
 			Ok(())
 		}
@@ -194,7 +204,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_id: TaskId,
 			completed_hash: H256,
-			result: BoundedVec<u8, ConstU32<128>>,
+			result: BoundedVec<u8, ConstU32<500>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
