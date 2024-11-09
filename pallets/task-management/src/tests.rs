@@ -20,6 +20,9 @@ fn it_works_for_task_scheduler() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -41,7 +44,8 @@ fn it_works_for_task_scheduler() {
 		// Dispatch a signed extrinsic.
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10)
 		));
 
 		// Check task allocation and owner
@@ -63,13 +67,36 @@ fn it_fails_when_no_workers_are_available() {
 	new_test_ext().execute_with(|| {
 		let alice = 1;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
-			TaskManagementModule::task_scheduler(RuntimeOrigin::signed(alice), task_data.clone()),
+			TaskManagementModule::task_scheduler(
+				RuntimeOrigin::signed(alice),
+				task_data.clone(),
+				Some(10)
+			),
 			Error::<Test>::NoWorkersAvailable
+		);
+	});
+}
+
+#[test]
+fn it_fails_when_no_computer_hours_available() {
+	new_test_ext().execute_with(|| {
+		let alice = 1;
+
+		// Create a task data BoundedVec
+		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
+
+		// Dispatch a signed extrinsic and expect an error because no workers are available
+		assert_noop!(
+			TaskManagementModule::task_scheduler(RuntimeOrigin::signed(alice), task_data.clone(), None),
+			Error::<Test>::RequireComputeHoursDeposit
 		);
 	});
 }
@@ -85,6 +112,10 @@ fn it_works_for_submit_completed_task() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -121,7 +152,8 @@ fn it_works_for_submit_completed_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
@@ -158,6 +190,10 @@ fn result_on_taskinfo_works_on_result_submit() {
 		System::set_block_number(8);
 		let alice = 1;
 		let bob = 2;
+
+		// Provide an initial compute hours balance for Bob
+		pallet_payment::ComputeHours::<Test>::insert(bob, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some ipfs hash to executable".to_vec()).unwrap();
 
@@ -200,7 +236,8 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		System::set_block_number(10);
@@ -248,6 +285,9 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -269,7 +309,8 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10)
 		));
 
 		// Get the task_id of the scheduled task
@@ -306,6 +347,9 @@ fn it_works_when_verifying_task() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -326,7 +370,8 @@ fn it_works_when_verifying_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
@@ -393,6 +438,9 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -413,7 +461,8 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
@@ -515,6 +564,9 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -535,7 +587,8 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task

@@ -29,10 +29,13 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use pallet_edge_connect::{AccountWorkers, WorkerClusters};
+	use pallet_payment::ComputeHours;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
+	pub trait Config:
+		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -134,10 +137,11 @@ pub mod pallet {
 		TaskVerificationNotFound,
 		/// No new workers are available for the task reassignment.
 		NoNewWorkersAvailable,
+		/// A compute hour deposit is required to schedule or proceed with the task.
+		RequireComputeHoursDeposit,
+		/// The user has insufficient compute hours balance for the requested deposit.
+		InsufficientComputeHours,
 	}
-
-	// #[pallet::hooks]
-	// impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -147,8 +151,16 @@ pub mod pallet {
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_data: BoundedVec<u8, ConstU32<128>>,
+			compute_hours_deposit: Option<u32>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
+
+			// Ensure that compute_hour_deposit is provided and greater than zero
+			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
+			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
+
+			// Call consume_compute_hours in the payment pallet to deduct the compute hours
+			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
 
 			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
 			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
@@ -169,6 +181,8 @@ pub mod pallet {
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
 				result: None,
+				compute_hours_deposit,
+				consume_compute_hours: None,
 			};
 
 			// Assign task to worker and set task owner.
@@ -197,6 +211,28 @@ pub mod pallet {
 			result: BoundedVec<u8, ConstU32<128>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			// Retrieve the task details
+			let task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+
+			// Retrieve compute_hours_deposit and consume_compute_hours from the task
+			let compute_hours_deposit = task_info.compute_hours_deposit.unwrap_or(0);
+			let consume_compute_hours = task_info.consume_compute_hours.unwrap_or(0);
+			// Retrieve task owner
+			let task_owner = task_info.task_owner.clone();
+			// Retrieve the task status
+			let task_status = TaskStatus::<T>::get(task_id);
+
+			// Calculate the refund
+			let refund = compute_hours_deposit.saturating_sub(consume_compute_hours);
+
+			// If there is a refund and the task status is `Assigned`, add the refund to the user's compute hours (task_owner)
+			if refund > 0 && task_status == Some(TaskStatusType::Assigned) {
+				// Update the storage with the new balance
+				ComputeHours::<T>::mutate(&task_owner, |balance| {
+					*balance = balance.saturating_add(refund);
+				});
+			}
 
 			let task_assignee = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 			ensure!(task_assignee.0 == who, Error::<T>::InvalidTaskOwner);

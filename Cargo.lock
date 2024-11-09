@@ -7366,6 +7366,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-edge-connect",
+ "pallet-payment",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
