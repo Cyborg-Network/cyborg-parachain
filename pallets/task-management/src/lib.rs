@@ -213,7 +213,7 @@ pub mod pallet {
 
 		/// Allows a worker to submit a completed task for verification by a verifier.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_completed_task(u32::MAX))]
+		#[pallet::weight(/*<T as pallet::Config>::WeightInfo::submit_completed_task(u32::MAX)*/500000000)]
 		pub fn submit_completed_task(
 			origin: OriginFor<T>,
 			task_id: TaskId,
