@@ -19,15 +19,16 @@ fn it_works_for_task_scheduler() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    	let worker_id = 0;
+		let worker_id = 0;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		// Register a worker for executor
 		let api_info = WorkerAPI {
@@ -48,9 +49,9 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_data.clone(),
-      		zk_files_cid.clone(),
-      		executor,
-      		worker_id,,
+					zk_files_cid.clone(),
+					executor,
+					worker_id,,
 			Some(10)
 		));
 
@@ -60,7 +61,7 @@ fn it_works_for_task_scheduler() {
 		let task_owner = TaskOwners::<Test>::get(task_id).unwrap();
 		assert_eq!(task_owner, alice);
 		assert_eq!(executor, assigned_worker.0);
-    assert_eq!(worker_id, assigned_worker.1);
+		assert_eq!(worker_id, assigned_worker.1);
 
 		// Check if task information is correct
 		let task_info = Tasks::<Test>::get(task_id).unwrap();
@@ -87,8 +88,9 @@ fn it_fails_when_worker_not_registered() {
 		let api_info = WorkerAPI {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(worker_owner),
@@ -104,7 +106,7 @@ fn it_fails_when_worker_not_registered() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_data.clone(),
-        zk_files_cid.clone(),
+				zk_files_cid.clone(),
 				worker_owner,
 				worker_id,
 			),
@@ -117,7 +119,7 @@ fn it_fails_when_worker_not_registered() {
 fn it_fails_when_no_workers_are_available() {
 	new_test_ext().execute_with(|| {
 		let alice = 1;
-    	let worker_owner = 2;
+		let worker_owner = 2;
 		let worker_id = 0;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -125,15 +127,16 @@ fn it_fails_when_no_workers_are_available() {
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
-		  TaskManagementModule::task_scheduler(
+			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_data.clone(),
-        		zk_files_cid.clone(),
+				zk_files_cid.clone(),
 				worker_owner,
 				worker_id,
 				Some(10)
@@ -176,7 +179,7 @@ fn it_works_for_submit_completed_task() {
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-    let worker_id = 0;
+		let worker_id = 0;
 
 		// Register a worker for Alice
 		let api_info = WorkerAPI {
@@ -188,8 +191,9 @@ fn it_works_for_submit_completed_task() {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
@@ -214,8 +218,8 @@ fn it_works_for_submit_completed_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      		task_data.clone(),
-      		zk_files_cid.clone(),
+					task_data.clone(),
+					zk_files_cid.clone(),
 			alice,
 			worker_id,,
 			Some(10),
@@ -272,10 +276,11 @@ fn result_on_taskinfo_works_on_result_submit() {
 			domain: BoundedVec::try_from(b"https://api-worker2.testing".to_vec()).unwrap(),
 		};
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    let worker_id = 0;
+		let worker_id = 0;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -305,8 +310,8 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-      		task_data.clone(),
-      		zk_files_cid.clone(),
+					task_data.clone(),
+					zk_files_cid.clone(),
 			bob,
 			worker_id,,
 			Some(10),
@@ -356,7 +361,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    	let worker_id = 0;
+		let worker_id = 0;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
@@ -368,8 +373,9 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
@@ -385,7 +391,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_data.clone(),
-      		zk_files_cid.clone(),
+					zk_files_cid.clone(),
 			alice,
 			worker_id,,
 			Some(10)
@@ -424,7 +430,7 @@ fn it_works_when_verifying_task() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    	let executor_worker_id = 0;
+		let executor_worker_id = 0;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
 
@@ -436,8 +442,9 @@ fn it_works_when_verifying_task() {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
@@ -453,7 +460,7 @@ fn it_works_when_verifying_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-      		zk_files_cid.clone(),
+					zk_files_cid.clone(),
 			executor,
 			executor_worker_id,,
 			Some(10),
@@ -522,8 +529,8 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    	let worker_id = 0;
-    	let executor_worker_id = 0;
+		let worker_id = 0;
+		let executor_worker_id = 0;
 
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
@@ -536,8 +543,9 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 			domain: BoundedVec::try_from(b"https://api-worker.testing".to_vec()).unwrap(),
 		};
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
@@ -553,7 +561,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-      		zk_files_cid.clone(),
+					zk_files_cid.clone(),
 			executor,
 			executor_worker_id,,
 			Some(10),
@@ -657,7 +665,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    	let executor_worker_id = 0;
+		let executor_worker_id = 0;
 
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
@@ -665,8 +673,9 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
-    // Create zk_files_cid
-    let zk_files_cid = BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// Create zk_files_cid
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		// Register a worker for executor
 		let api_info_executor = WorkerAPI {
@@ -686,7 +695,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-      		zk_files_cid.clone(),
+					zk_files_cid.clone(),
 			executor,
 			executor_worker_id,,
 			Some(10),

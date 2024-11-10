@@ -138,8 +138,8 @@ pub mod pallet {
 		TaskVerificationNotFound,
 		/// No new workers are available for the task reassignment.
 		NoNewWorkersAvailable,
-    	/// The worker, to which the task should be assigned does not exist.
-    	WorkerDoesNotExist,
+		/// The worker, to which the task should be assigned does not exist.
+		WorkerDoesNotExist,
 		/// A compute hour deposit is required to schedule or proceed with the task.
 		RequireComputeHoursDeposit,
 		/// The user has insufficient compute hours balance for the requested deposit.
@@ -154,9 +154,9 @@ pub mod pallet {
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_data: BoundedVec<u8, ConstU32<500>>,
-      		zk_files_cid: BoundedVec<u8, ConstU32<500>>,
-      		worker_owner: T::AccountId,
-      		worker_id: WorkerId,
+			zk_files_cid: BoundedVec<u8, ConstU32<500>>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
@@ -174,7 +174,7 @@ pub mod pallet {
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-		  let selected_worker = (worker_owner, worker_id);
+			let selected_worker = (worker_owner, worker_id);
 
 			ensure!(
 				WorkerClusters::<T>::contains_key(&selected_worker),
@@ -185,7 +185,7 @@ pub mod pallet {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
 				metadata: task_data.clone(),
-        zk_files_cid: zk_files_cid.clone(),
+				zk_files_cid: zk_files_cid.clone(),
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
@@ -206,7 +206,7 @@ pub mod pallet {
 				task_owner: who,
 				task_id,
 				task: task_data,
-        zk_files_cid: zk_files_cid,
+				zk_files_cid: zk_files_cid,
 			});
 			Ok(())
 		}
