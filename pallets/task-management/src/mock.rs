@@ -1,6 +1,8 @@
+pub use crate as pallet_task_management;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
+use pallet_payment;
 use sp_runtime::{traits::ConstU64, BuildStorage};
 
 // Configure a mock runtime to test the pallet.
@@ -30,7 +32,10 @@ mod test_runtime {
 	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type TaskManagementModule = crate;
+	pub type TaskManagementModule = pallet_task_management;
+
+	#[runtime::pallet_index(4)]
+	pub type PaymentModule = pallet_payment;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -41,13 +46,19 @@ impl frame_system::Config for Test {
 	type DbWeight = RocksDbWeight;
 }
 
-impl crate::Config for Test {
+impl pallet_task_management::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_payment::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = ();
 	type WeightInfo = ();
 }
 

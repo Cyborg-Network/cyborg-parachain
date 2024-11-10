@@ -27,10 +27,13 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	use pallet_edge_connect::{AccountWorkers, WorkerClusters};
+	use pallet_payment::ComputeHours;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
+	pub trait Config:
+		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -42,60 +45,68 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
+	/// Status of tasks within the system.
 	#[pallet::storage]
-	#[pallet::getter(fn task_status)]
 	pub type TaskStatus<T: Config> = StorageMap<_, Twox64Concat, TaskId, TaskStatusType, OptionQuery>;
 
+	/// Allocation of tasks to workers.
 	#[pallet::storage]
-	#[pallet::getter(fn task_allocations)]
 	pub type TaskAllocations<T: Config> =
 		StorageMap<_, Twox64Concat, TaskId, (T::AccountId, WorkerId), OptionQuery>;
 
+	/// Owners of the tasks.
 	#[pallet::storage]
-	#[pallet::getter(fn task_owners)]
 	pub type TaskOwners<T: Config> = StorageMap<_, Twox64Concat, TaskId, T::AccountId, OptionQuery>;
 
+	/// The next task ID to be assigned.
 	#[pallet::storage]
-	#[pallet::getter(fn next_task_id)]
 	pub type NextTaskId<T: Config> = StorageValue<_, TaskId, ValueQuery>;
 
-	/// Task Information
+	/// Task metadata and information.
 	#[pallet::storage]
-	#[pallet::getter(fn get_tasks)]
 	pub type Tasks<T: Config> =
 		StorageMap<_, Identity, TaskId, TaskInfo<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
 
 	/// Private task verifications
 	#[pallet::storage]
-	#[pallet::getter(fn task_verifications)]
 	type TaskVerifications<T: Config> =
 		StorageMap<_, Blake2_128Concat, TaskId, Verifications<T::AccountId>, OptionQuery>;
+
+	/// Getter for TaskVerifications.
+	impl<T: Config> Pallet<T> {
+		/// Public getter for TaskVerifications.
+		pub fn get_task_verifications(task_id: TaskId) -> Option<Verifications<T::AccountId>> {
+			TaskVerifications::<T>::get(task_id)
+		}
+	}
 
 	/// Pallets use events to inform users when important changes are made.
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// A task has been scheduled and assigned to a worker.
 		TaskScheduled {
 			assigned_worker: (T::AccountId, WorkerId),
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<128>>,
 		},
+		/// A completed task has been submitted for verification.
 		SubmittedCompletedTask {
 			task_id: TaskId,
 			assigned_verifier: (T::AccountId, WorkerId),
 		},
+		/// A resolver has been assigned to determine the correct result after verification failure.
 		VerifierResolverAssigned {
 			task_id: TaskId,
 			assigned_resolver: (T::AccountId, WorkerId),
 		},
-		VerifiedCompletedTask {
-			task_id: TaskId,
-		},
-		ResolvedCompletedTask {
-			task_id: TaskId,
-		},
+		/// A completed task has been successfully verified.
+		VerifiedCompletedTask { task_id: TaskId },
+		/// A completed task has been successfully resolved by the resolver.
+		ResolvedCompletedTask { task_id: TaskId },
+		/// A task has been reassigned to a new worker.
 		TaskReassigned {
 			task_id: TaskId,
 			assigned_executor: (T::AccountId, WorkerId),
@@ -106,30 +117,48 @@ pub mod pallet {
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The provided task ID does not exist.
 		UnassignedTaskId,
+		/// The caller is not the task owner.
 		InvalidTaskOwner,
+		/// A task must be assigned before it can proceed to the next step.
 		RequireAssignedTask,
+		/// A verifier must be assigned to the task.
 		RequireAssignedVerifier,
+		/// A completed task's hash must be provided by the assigned verifier.
 		RequireAssignedVerifierCompletedHash,
+		/// A resolver must be assigned to review the task.
 		RequireAssignedResolver,
+		/// No workers are available for the task.
 		NoWorkersAvailable,
+		/// The task verification process cannot be found.
 		TaskVerificationNotFound,
+		/// No new workers are available for the task reassignment.
 		NoNewWorkersAvailable,
+		/// A compute hour deposit is required to schedule or proceed with the task.
+		RequireComputeHoursDeposit,
+		/// The user has insufficient compute hours balance for the requested deposit.
+		InsufficientComputeHours,
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
-	/// Creates a task and assigns it to an available worker
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Creates a new task and assigns it to a randomly selected worker.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_data: BoundedVec<u8, ConstU32<128>>,
+			compute_hours_deposit: Option<u32>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let who = ensure_signed(origin.clone())?;
+
+			// Ensure that compute_hour_deposit is provided and greater than zero
+			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
+			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
+
+			// Call consume_compute_hours in the payment pallet to deduct the compute hours
+			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
 
 			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
 			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
@@ -150,6 +179,8 @@ pub mod pallet {
 				average_cpu_percentage_use: None,
 				task_type: TaskType::Docker,
 				result: None,
+				compute_hours_deposit,
+				consume_compute_hours: None,
 			};
 
 			// Assign task to worker and set task owner.
@@ -168,7 +199,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		//// Assignee submits completed task for verification and validation from other workers
+		/// Allows a worker to submit a completed task for verification by a verifier.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_completed_task(u32::MAX))]
 		pub fn submit_completed_task(
@@ -178,6 +209,28 @@ pub mod pallet {
 			result: BoundedVec<u8, ConstU32<128>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			// Retrieve the task details
+			let task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+
+			// Retrieve compute_hours_deposit and consume_compute_hours from the task
+			let compute_hours_deposit = task_info.compute_hours_deposit.unwrap_or(0);
+			let consume_compute_hours = task_info.consume_compute_hours.unwrap_or(0);
+			// Retrieve task owner
+			let task_owner = task_info.task_owner.clone();
+			// Retrieve the task status
+			let task_status = TaskStatus::<T>::get(task_id);
+
+			// Calculate the refund
+			let refund = compute_hours_deposit.saturating_sub(consume_compute_hours);
+
+			// If there is a refund and the task status is `Assigned`, add the refund to the user's compute hours (task_owner)
+			if refund > 0 && task_status == Some(TaskStatusType::Assigned) {
+				// Update the storage with the new balance
+				ComputeHours::<T>::mutate(&task_owner, |balance| {
+					*balance = balance.saturating_add(refund);
+				});
+			}
 
 			let task_assignee = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 			ensure!(task_assignee.0 == who, Error::<T>::InvalidTaskOwner);
@@ -229,9 +282,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Verifies completed task once an assignedverifier have succussfully validate correct completed task
-		/// Can only be called from root
-		/// Assign new verifier as resolver if verification fails. Resolver will determine correct result.
+		/// Verifies whether the submitted completed task is correct.
+		/// If verification fails, a new resolver is assigned to review the task.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::verify_completed_task(u32::MAX))]
 		pub fn verify_completed_task(
@@ -310,9 +362,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Checks whether resolver matches the executor or verifier.
-		/// If it matches one, the task is resolved and award is split between the matching pair. The failing worker is slashed.
-		/// If no matches, the task is reassigned to a new executor and cycle repeats
+		/// Resolver finalizes the verification of a task in case of disputes.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::resolve_completed_task(u32::MAX))]
 		pub fn resolve_completed_task(

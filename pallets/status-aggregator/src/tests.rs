@@ -286,25 +286,25 @@ fn on_finalize_works_as_expected() {
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
 				.unwrap()
 				.status_last_updated,
 			inital_block
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
 				.unwrap()
 				.status_last_updated,
 			inital_block
@@ -476,25 +476,25 @@ fn on_finalize_works_as_expected() {
 
 		// 5. Ensure pallet edge connect properly updates
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
 				.unwrap()
 				.status,
 			WorkerStatusType::Active
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
 				.unwrap()
 				.status,
 			WorkerStatusType::Busy
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
 				.unwrap()
 				.status_last_updated,
 			5
 		);
 		assert_eq!(
-			EdgeConnectModule::get_worker_clusters(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
 				.unwrap()
 				.status_last_updated,
 			5

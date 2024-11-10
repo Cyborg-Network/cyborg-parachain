@@ -57,10 +57,10 @@ mod benchmarks {
 		}
 
 		// Block for benchmarking the actual data submission.
+		let max_limit = 10;
+
 		#[block]
 		{
-			let max_limit = 10;
-
 			// Loop to generate and insert mock worker status data into the system for benchmarking.
 			for i in 0..max_limit {
 				let index = i;

@@ -1,41 +1,33 @@
 [package]
-name = "pallet-task-management"
-description = "Creation and management of tasks for workers to consume"
-version = "0.1.0"
 authors.workspace = true
-homepage.workspace = true
-repository.workspace = true
+description = "Creation and management of tasks for workers to consume"
 edition.workspace = true
+homepage.workspace = true
+name = "pallet-task-management"
 publish = false
+repository.workspace = true
+version = "0.1.0"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-pallet-timestamp = { version = "34.0.0", default-features = false }
-
-# frame deps
-frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
-frame-support = { version = "35.0.0", default-features = false }
-frame-system = { version = "35.0.0", default-features = false }
-
-# Local
-pallet-edge-connect = { workspace = true }
+codec = { workspace = true }
 cyborg-primitives = { workspace = true }
-
-sp-io = { version = "37.0.0", default-features = false }
-sp-core = { version = "34.0.0", default-features = false }
+frame-benchmarking = { workspace = true, optional = true}
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 log = { workspace = true }
+pallet-edge-connect = { workspace = true }
+pallet-payment = {workspace = true}
+pallet-timestamp = { workspace = true }
+scale-info = { workspace = true }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 
 [dev-dependencies]
-sp-runtime = { version = "38.0.0" }
-sp-std = { version = "14.0.0" }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
 
 [features]
 default = ["std"]
@@ -49,8 +41,9 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"scale-info/std",
 	"pallet-edge-connect/std",
+	"pallet-payment/std",
+	"scale-info/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

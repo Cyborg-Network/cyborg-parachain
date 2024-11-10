@@ -1,7 +1,8 @@
 use crate::{mock::*, Error};
+use crate::{NextTaskId, TaskAllocations, TaskOwners, TaskStatus, Tasks};
 use frame_support::{assert_noop, assert_ok};
 
-use crate::TaskStatusType;
+pub use cyborg_primitives::task::TaskStatusType;
 pub use cyborg_primitives::worker::*;
 use frame_support::BoundedVec;
 use sp_core::H256;
@@ -18,6 +19,9 @@ fn it_works_for_task_scheduler() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -40,18 +44,19 @@ fn it_works_for_task_scheduler() {
 		// Dispatch a signed extrinsic.
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10)
 		));
 
 		// Check task allocation and owner
-		let task_id = TaskManagementModule::next_task_id() - 1;
-		let assigned_worker = TaskManagementModule::task_allocations(task_id).unwrap();
-		let task_owner = TaskManagementModule::task_owners(task_id).unwrap();
+		let task_id = NextTaskId::<Test>::get() - 1;
+		let assigned_worker = TaskAllocations::<Test>::get(task_id).unwrap();
+		let task_owner = TaskOwners::<Test>::get(task_id).unwrap();
 		assert_eq!(task_owner, alice);
 		assert_eq!(executor, assigned_worker.0);
 
 		// Check if task information is correct
-		let task_info = TaskManagementModule::get_tasks(task_id).unwrap();
+		let task_info = Tasks::<Test>::get(task_id).unwrap();
 		assert_eq!(task_info.metadata, task_data);
 		assert_eq!(task_info.task_owner, alice);
 	});
@@ -62,13 +67,36 @@ fn it_fails_when_no_workers_are_available() {
 	new_test_ext().execute_with(|| {
 		let alice = 1;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
-			TaskManagementModule::task_scheduler(RuntimeOrigin::signed(alice), task_data.clone()),
+			TaskManagementModule::task_scheduler(
+				RuntimeOrigin::signed(alice),
+				task_data.clone(),
+				Some(10)
+			),
 			Error::<Test>::NoWorkersAvailable
+		);
+	});
+}
+
+#[test]
+fn it_fails_when_no_computer_hours_available() {
+	new_test_ext().execute_with(|| {
+		let alice = 1;
+
+		// Create a task data BoundedVec
+		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
+
+		// Dispatch a signed extrinsic and expect an error because no workers are available
+		assert_noop!(
+			TaskManagementModule::task_scheduler(RuntimeOrigin::signed(alice), task_data.clone(), None),
+			Error::<Test>::RequireComputeHoursDeposit
 		);
 	});
 }
@@ -84,6 +112,10 @@ fn it_works_for_submit_completed_task() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -120,11 +152,12 @@ fn it_works_for_submit_completed_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -141,11 +174,11 @@ fn it_works_for_submit_completed_task() {
 		));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, alice);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 	});
@@ -157,6 +190,10 @@ fn result_on_taskinfo_works_on_result_submit() {
 		System::set_block_number(8);
 		let alice = 1;
 		let bob = 2;
+
+		// Provide an initial compute hours balance for Bob
+		pallet_payment::ComputeHours::<Test>::insert(bob, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some ipfs hash to executable".to_vec()).unwrap();
 
@@ -199,12 +236,13 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		System::set_block_number(10);
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -222,20 +260,14 @@ fn result_on_taskinfo_works_on_result_submit() {
 
 		System::set_block_number(15);
 
-		assert_eq!(
-			TaskManagementModule::get_tasks(task_id)
-				.unwrap()
-				.result
-				.unwrap(),
-			result
-		);
+		assert_eq!(Tasks::<Test>::get(task_id).unwrap().result.unwrap(), result);
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, bob);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 	})
@@ -252,6 +284,9 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -274,11 +309,12 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_data.clone()
+			task_data.clone(),
+			Some(10)
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -311,6 +347,9 @@ fn it_works_when_verifying_task() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
@@ -331,11 +370,12 @@ fn it_works_when_verifying_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256::random();
@@ -366,12 +406,12 @@ fn it_works_when_verifying_task() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		assert_ok!(TaskManagementModule::verify_completed_task(
@@ -380,7 +420,7 @@ fn it_works_when_verifying_task() {
 			completed_hash
 		));
 
-		let new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 	});
 }
@@ -397,6 +437,9 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -418,11 +461,12 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256([123; 32]);
@@ -453,12 +497,12 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
@@ -485,11 +529,11 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Ensure task remains incompleted when invalid verification
-		let mut new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let mut new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
-		let updated_verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let updated_verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(
 			updated_verifications.resolver.clone().unwrap().account,
 			resolver
@@ -502,7 +546,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		));
 
 		// Check updated task status
-		new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 	});
 }
@@ -519,6 +563,9 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -540,11 +587,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-			task_data.clone()
+			task_data.clone(),
+			Some(10),
 		));
 
 		// Get the task_id of the scheduled task
-		let task_id = TaskManagementModule::next_task_id() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
 		// Create a completed hash
 		let completed_hash = H256([123; 32]);
@@ -575,12 +623,12 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Check task verifications
-		let verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, executor);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
 		// Check task status
-		let task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register a worker for the resolver
@@ -607,11 +655,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Ensure task remains incompleted when invalid verification
-		let mut new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		let mut new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::PendingValidation);
 
 		// Check that task verification is now assigned a resolver
-		let updated_verifications = TaskManagementModule::task_verifications(task_id).unwrap();
+		let updated_verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(updated_verifications.resolver.unwrap().account, resolver);
 
 		// Submit differing completed hash
@@ -651,16 +699,16 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		));
 
 		// Check updated task status
-		new_task_status = TaskManagementModule::task_status(task_id).unwrap();
+		new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Assigned);
 
 		// Check task allocations for new executor for task
-		let task_allocated_to = TaskManagementModule::task_allocations(task_id).unwrap();
+		let task_allocated_to = TaskAllocations::<Test>::get(task_id).unwrap();
 		assert_eq!(task_allocated_to.0, new_executor);
 
 		// Ensure task verifications are empty
 		let updated_verifications_after_reassignment =
-			TaskManagementModule::task_verifications(task_id);
+			TaskManagementModule::get_task_verifications(task_id);
 		assert_eq!(updated_verifications_after_reassignment, None);
 	});
 }

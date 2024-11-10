@@ -126,7 +126,7 @@ mod benchmarks {
 		// Match the result of querying the worker from the worker cluster storage.
 		// The key is (T::AccountId, WorkerId), where `caller` is the account and `worker_id` is the ID.
 		let worker_id = 0;
-		match Pallet::<T>::get_worker_clusters((caller.clone(), worker_id)) {
+		match WorkerClusters::<T>::get((caller.clone(), worker_id)) {
 			Some(worker) => {
 				let id = worker.id;
 				let owner = worker.owner;
@@ -184,7 +184,7 @@ mod benchmarks {
 		// Ensure that the worker has been removed from the storage map.
 		// Key used: (T::AccountId, WorkerId)
 		// Retrieve the worker cluster to check if the worker is still present.
-		let worker_cluster = Pallet::<T>::get_worker_clusters((caller.clone(), worker_id));
+		let worker_cluster = WorkerClusters::<T>::get((caller.clone(), worker_id));
 
 		// Assert that the worker is no longer in the cluster (i.e., must be `None` after deletion).
 		assert!(worker_cluster.is_none(), "Worker not deleted");

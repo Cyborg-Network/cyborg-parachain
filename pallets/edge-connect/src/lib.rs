@@ -24,39 +24,42 @@ pub mod pallet {
 	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
 
-	/// Configure the pallet by specifying the parameters and types on which it depends.
+	// The `Config` trait defines the configuration for this pallet. It specifies the types and parameters
+	// that the pallet depends on and provides flexibility to the runtime in how it implements these
+	// requirements.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		// /// A type representing the weights required by the dispatchables of this pallet.
+		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
+	// A helper function providing a default value for worker IDs.
 	#[pallet::type_value]
 	pub fn WorkerCountDefault() -> WorkerId {
 		0
 	}
 
+	// A helper function providing a default value for worker reputations.
 	#[pallet::type_value]
 	pub fn WorkerReputationDefault() -> WorkerReputation {
 		0
 	}
 
+	/// AccountWorkers Information, Storage map for associating an account ID with a worker ID. If no worker exists, the query returns None.
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
-	#[pallet::getter(fn account_workers)]
 	pub type AccountWorkers<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
 
-	/// Worker Cluster information
+	/// Worker Cluster information, Storage map to keep track of detailed worker cluster information for each (account ID, worker ID) pair.
 	#[pallet::storage]
-	#[pallet::getter(fn get_worker_clusters)]
 	pub type WorkerClusters<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
@@ -65,18 +68,36 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// The `Event` enum contains the various events that can be emitted by this pallet.
+	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Event emitted when a new worker is successfully registered.
+		///
+		/// - `creator`: The account ID of the worker's creator.
+		/// - `worker`: A tuple containing the account ID of the worker owner and the worker ID.
+		/// - `domain`: The domain associated with the
 		WorkerRegistered {
 			creator: T::AccountId,
 			worker: (T::AccountId, WorkerId),
 			domain: Domain,
 		},
+
+		/// Event emitted when a worker is removed from the system.
+		///
+		/// - `creator`: The account ID of the worker's creator.
+		/// - `worker_id`: The ID of the worker that was removed.
 		WorkerRemoved {
 			creator: T::AccountId,
 			worker_id: WorkerId,
 		},
+
+		/// Event emitted when a worker's status is updated (e.g., toggling visibility).
+		///
+		/// - `creator`: The account ID of the worker's creator.
+		/// - `worker_id`: The ID of the worker whose status was updated.
+		/// - `worker_status`: The new status of the worker, either active or inactive.
 		WorkerStatusUpdated {
 			creator: T::AccountId,
 			worker_id: WorkerId,
@@ -84,20 +105,25 @@ pub mod pallet {
 		},
 	}
 
-	/// Pallet Errors
+	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
+	/// These errors will be returned in the `DispatchResult` when a function call fails.
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Error indicating that either the IP address or the domain was missing when attempting to register a worker.
 		WorkerRegisterMissingIpOrDomain,
+		/// Error indicating that the worker already exists and cannot be registered again.
 		WorkerExists,
+		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
-	/// Registers a Worker with either a domain or ip and initialize it with an inactive status.
+	// This block defines the dispatchable functions (calls) for the pallet.
+	// Dispatchable functions are the publicly accessible functions that users or other pallets
+	// can call to interact with the pallet. Each function has a weight and requires the user
+	// to sign the transaction unless specified otherwise.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Registers a Worker with either a domain and initialize it with an inactive status.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_worker())]
 		pub fn register_worker(
@@ -172,7 +198,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Remove Worker from storage
+		/// Remove a worker from storage an deactivates it
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
 		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
@@ -193,6 +219,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Switches the visibility of a worker between active and inactive.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
 		pub fn toggle_worker_visibility(
@@ -226,6 +253,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		// Helper Function to retrieve all active workers from storage.
+		// Filters workers based on their status (active or inactive).
 		pub fn get_active_workers() -> Option<
 			Vec<(
 				(T::AccountId, WorkerId),
@@ -247,12 +276,14 @@ pub mod pallet {
 	impl<T: Config + timestamp::Config>
 		WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
 	{
+		// Implementation of the WorkerInfoHandler trait, which provides methods for accessing worker cluster information.
 		fn get_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
 		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			WorkerClusters::<T>::get(worker_key)
 		}
 
+		// Implementation of the WorkerInfoHandler trait, which provides methods for updating worker cluster information.
 		fn update_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
 			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
