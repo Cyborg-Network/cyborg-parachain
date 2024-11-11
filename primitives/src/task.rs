@@ -22,11 +22,12 @@ pub enum TaskType {
 pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_owner: AccountId,
 	pub create_block: BlockNumber,
-	pub metadata: BoundedVec<u8, ConstU32<128>>,
+	pub metadata: BoundedVec<u8, ConstU32<500>>,
+	pub zk_files_cid: BoundedVec<u8, ConstU32<500>>,
 	pub time_elapsed: Option<BlockNumber>,
 	pub average_cpu_percentage_use: Option<u8>,
 	pub task_type: TaskType,
-	pub result: Option<BoundedVec<u8, ConstU32<128>>>,
+	pub result: Option<BoundedVec<u8, ConstU32<500>>>,
 	pub compute_hours_deposit: Option<u32>,
 	pub consume_compute_hours: Option<u32>,
 }
