@@ -94,6 +94,9 @@ fn set_initial_benchmark_data<T: Config>() {
 
 			// Insert the worker into the WorkerClusters map
 			pallet_edge_connect::WorkerClusters::<T>::insert((creator.clone(), worker_id), worker);
+
+			// Initialize Compute Hours for the creator account in the payment pallet.
+			pallet_payment::ComputeHours::<T>::insert(creator.clone(), 50);
 		}
 	}
 }
@@ -110,17 +113,27 @@ mod benchmarks {
 
 		// Assign a caller account that will act as the worker's owner.
 		let caller: T::AccountId = whitelisted_caller();
-
-		let executor: T::AccountId = account::<T::AccountId>("benchmark_account", 0, 0);
-		let worker_id = 0;
-
 		// Create task data.
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
 
+		let worker_account = account::<T::AccountId>("benchmark_account", 0, 0);
+
+		let worker_id = 0;
+
+		// Initialize Compute Hours for the caller account in the payment pallet.
+		// This ensures the account has sufficient compute hours for task operations during benchmarking.
+		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
+
 		#[block]
 		{
-			Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data, executor.clone(), worker_id)
-				.expect("Failed to schedule task")
+			Pallet::<T>::task_scheduler(
+				RawOrigin::Signed(caller.clone()).into(),
+				task_data,
+				worker_account,
+				worker_id,
+				Some(10),
+			)
+			.expect("Failed to schedule task")
 		}
 
 		// Verification code
@@ -167,7 +180,16 @@ mod benchmarks {
 		// A caller schedules the task, which will be handled by the registered executor.
 		let caller: T::AccountId = whitelisted_caller();
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone(), executor.clone(), worker_id)?;
+		// Initialize Compute Hours for the caller account in the payment pallet.
+		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
+
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			task_data.clone(),
+			Some(10),
+			executor.clone(),
+			worker_id,
+		)?;
 
 		// Register a verifier worker with a different domain.
 		// The verifier is responsible for validating the results of the task completed by the executor.
@@ -187,7 +209,7 @@ mod benchmarks {
 		// The executor submits the completed task's result, along with a result hash.
 		let task_id = NextTaskId::<T>::get() - 1;
 		let completed_hash = H256([123; 32]);
-		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
+		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 128]).unwrap();
 
 		// The executor submits the completed task.
 		#[block]
@@ -223,6 +245,7 @@ mod benchmarks {
 		// Register the executor worker with a domain.
 		// This registers an executor worker who will complete the task.
 		let executor: T::AccountId = account("executor", 0, 0);
+		let worker_id = 0;
 		let latitude: Latitude = 1;
 		let longitude: Longitude = 100;
 		let ram: RamBytes = 5_000_000_000u64;
@@ -244,7 +267,16 @@ mod benchmarks {
 		// A caller schedules the task, which will be completed by the executor.
 		let caller: T::AccountId = whitelisted_caller();
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone(), executor.clone(), worker_id)?;
+		// Initialize Compute Hours for the caller account in the payment pallet.
+		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
+
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			task_data.clone(),
+			Some(10),
+			executor.clone(),
+			worker_id,
+		)?;
 
 		// Register a verifier worker with a different domain.
 		// The verifier is responsible for validating the results of the task completed by the executor.
@@ -297,6 +329,7 @@ mod benchmarks {
 		// Register the executor worker with a domain.
 		// This registers an executor worker who will complete the task.
 		let executor: T::AccountId = account("executor", 0, 0);
+		let worker_id = 0;
 		let latitude: Latitude = 1;
 		let longitude: Longitude = 100;
 		let ram: RamBytes = 5_000_000_000u64;
