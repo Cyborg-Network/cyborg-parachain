@@ -49,9 +49,9 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_data.clone(),
-					zk_files_cid.clone(),
-					executor,
-					worker_id,,
+			zk_files_cid.clone(),
+			executor,
+			worker_id,
 			Some(10)
 		));
 
@@ -92,6 +92,9 @@ fn it_fails_when_worker_not_registered() {
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
+		// Provide an initial compute hours balance for Alice
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(worker_owner),
 			api_info.domain,
@@ -109,6 +112,7 @@ fn it_fails_when_worker_not_registered() {
 				zk_files_cid.clone(),
 				worker_owner,
 				worker_id,
+				Some(1),
 			),
 			Error::<Test>::WorkerDoesNotExist
 		);
@@ -151,12 +155,25 @@ fn it_fails_when_no_computer_hours_available() {
 	new_test_ext().execute_with(|| {
 		let alice = 1;
 
+		let worker_owner = 2;
+		let worker_id = 0;
+
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
+		let zk_files_cid =
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
-			TaskManagementModule::task_scheduler(RuntimeOrigin::signed(alice), task_data.clone(), None),
+			TaskManagementModule::task_scheduler(
+				RuntimeOrigin::signed(alice),
+				task_data.clone(),
+				zk_files_cid.clone(),
+				worker_owner,
+				worker_id,
+				None
+			),
 			Error::<Test>::RequireComputeHoursDeposit
 		);
 	});
@@ -218,10 +235,10 @@ fn it_works_for_submit_completed_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-					task_data.clone(),
-					zk_files_cid.clone(),
+			task_data.clone(),
+			zk_files_cid.clone(),
 			alice,
-			worker_id,,
+			worker_id,
 			Some(10),
 		));
 
@@ -310,10 +327,10 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-					task_data.clone(),
-					zk_files_cid.clone(),
+			task_data.clone(),
+			zk_files_cid.clone(),
 			bob,
-			worker_id,,
+			worker_id,
 			Some(10),
 		));
 
@@ -391,9 +408,9 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_data.clone(),
-					zk_files_cid.clone(),
+			zk_files_cid.clone(),
 			alice,
-			worker_id,,
+			worker_id,
 			Some(10)
 		));
 
@@ -460,9 +477,9 @@ fn it_works_when_verifying_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-					zk_files_cid.clone(),
+			zk_files_cid.clone(),
 			executor,
-			executor_worker_id,,
+			executor_worker_id,
 			Some(10),
 		));
 
@@ -561,9 +578,9 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-					zk_files_cid.clone(),
+			zk_files_cid.clone(),
 			executor,
-			executor_worker_id,,
+			executor_worker_id,
 			Some(10),
 		));
 
@@ -695,9 +712,9 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
 			task_data.clone(),
-					zk_files_cid.clone(),
+			zk_files_cid.clone(),
 			executor,
-			executor_worker_id,,
+			executor_worker_id,
 			Some(10),
 		));
 
