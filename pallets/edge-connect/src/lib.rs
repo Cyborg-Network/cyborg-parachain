@@ -68,6 +68,16 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Execultable Worker information, Storage map to keep track of detailed worker cluster information for each (account ID, worker ID) pair.
+	#[pallet::storage]
+	pub type ExecutableWorkers<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		(T::AccountId, WorkerId),
+		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		OptionQuery,
+	>;
+
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -128,6 +138,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_worker())]
 		pub fn register_worker(
 			origin: OriginFor<T>,
+      worker_type: WorkerType,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -150,6 +161,10 @@ pub mod pallet {
 					for id in 0..=keys {
 						// Get the Worker associated with the creator and worker_id
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
+							// Check if the API matches and throw an error if it does
+							ensure!(api != worker.api, Error::<T>::WorkerExists);
+						}
+            if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
 							// Check if the API matches and throw an error if it does
 							ensure!(api != worker.api, Error::<T>::WorkerExists);
 						}
@@ -185,7 +200,15 @@ pub mod pallet {
 
 			// update storage
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
-			WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
+
+      match worker_type {
+        DockerWorker => {
+			    WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
+        }
+        ExecutableWorker => {
+			    ExecutableWorkers::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
+        }
+      }
 
 			// Emit an event.
 			Self::deposit_event(Event::WorkerRegistered {
@@ -201,17 +224,33 @@ pub mod pallet {
 		/// Remove a worker from storage an deactivates it
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
-		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId) -> DispatchResultWithPostInfo {
+		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId, worker_type: WorkerType) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			ensure!(
-				WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
-				Error::<T>::WorkerDoesNotExist
-			);
+      match worker_type {
+        DockerWorker => {
+            ensure!(
+				        WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
+				        Error::<T>::WorkerDoesNotExist
+			      );
 
-			// update storage
-			WorkerClusters::<T>::remove((creator.clone(), worker_id));
+            // update storage
+			      WorkerClusters::<T>::remove((creator.clone(), worker_id));
+        }
+        ExecutableWorker => {
+            ensure!(
+				        ExecutableWorkers::<T>::get((creator.clone(), worker_id)) != None,
+				        Error::<T>::WorkerDoesNotExist
+			      );
 
+            // update storage
+			      ExecutableWorkers::<T>::remove((creator.clone(), worker_id));
+        }
+      }
+
+			
+
+			
 			// Emit an event.
 			Self::deposit_event(Event::WorkerRemoved { creator, worker_id });
 

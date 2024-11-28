@@ -88,10 +88,11 @@ pub mod pallet {
 		/// A task has been scheduled and assigned to a worker.
 		TaskScheduled {
 			assigned_worker: (T::AccountId, WorkerId),
+      task_type: TaskType,
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: BoundedVec<u8, ConstU32<500>>,
+			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 		},
 		/// A completed task has been submitted for verification.
 		SubmittedCompletedTask {
@@ -142,6 +143,8 @@ pub mod pallet {
 		RequireComputeHoursDeposit,
 		/// The user has insufficient compute hours balance for the requested deposit.
 		InsufficientComputeHours,
+    /// The user submitted a ZK task, but has not provided the required files for proof generation
+    ZkFilesMissing,
 	}
 
 	#[pallet::call]
@@ -151,13 +154,22 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
+      task_type: TaskType,
 			task_data: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: BoundedVec<u8, ConstU32<500>>,
+			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
+
+      // Ensure that, if the task type is ZK, the ZK files actually are present
+      match task_type {
+        cyborg_primitives::task::TaskType::ZK => {
+           ensure!(zk_files_cid.is_some(), Error::<T>::ZkFilesMissing)
+        }
+        _ => {}
+      }
 
 			// Ensure that compute_hour_deposit is provided and greater than zero
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
@@ -180,13 +192,13 @@ pub mod pallet {
 			);
 
 			let task_info = TaskInfo {
+        task_type: task_type.clone(),
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
 				metadata: task_data.clone(),
 				zk_files_cid: zk_files_cid.clone(),
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
-				task_type: TaskType::Docker,
 				result: None,
 				compute_hours_deposit,
 				consume_compute_hours: None,
@@ -201,6 +213,7 @@ pub mod pallet {
 			// Emit an event.
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_worker: selected_worker,
+        task_type,
 				task_owner: who,
 				task_id,
 				task: task_data,
