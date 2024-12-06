@@ -156,17 +156,22 @@ pub mod pallet {
 			};
 			let worker_specs = WorkerSpecs { ram, storage, cpu };
 
+    //TODO: There needs to be a proper id mechanism to avoid loops and the increment id system
 			match worker_keys {
 				Some(keys) => {
 					for id in 0..=keys {
 						// Get the Worker associated with the creator and worker_id
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
-							// Check if the API matches and throw an error if it does
-							ensure!(api != worker.api, Error::<T>::WorkerExists);
+              if worker_type == cyborg_primitives::worker::WorkerType::Docker {
+	              // Check if the API matches and throw an error if it does
+							  ensure!(api != worker.api, Error::<T>::WorkerExists);
+              }
 						}
             if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
-							// Check if the API matches and throw an error if it does
-							ensure!(api != worker.api, Error::<T>::WorkerExists);
+              if worker_type == cyborg_primitives::worker::WorkerType::Executable {
+							  // Check if the API matches and throw an error if it does
+							  ensure!(api != worker.api, Error::<T>::WorkerExists);
+              }
 						}
 					}
 				}
@@ -202,10 +207,10 @@ pub mod pallet {
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
 
       match worker_type {
-        DockerWorker => {
+        cyborg_primitives::worker::WorkerType::Docker => {
 			    WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
         }
-        ExecutableWorker => {
+        cyborg_primitives::worker::WorkerType::Executable => {
 			    ExecutableWorkers::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
         }
       }
@@ -224,11 +229,11 @@ pub mod pallet {
 		/// Remove a worker from storage an deactivates it
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
-		pub fn remove_worker(origin: OriginFor<T>, worker_id: WorkerId, worker_type: WorkerType) -> DispatchResultWithPostInfo {
+		pub fn remove_worker(origin: OriginFor<T>, worker_type: WorkerType, worker_id: WorkerId) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
       match worker_type {
-        DockerWorker => {
+        WorkerType::Docker => {
             ensure!(
 				        WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
 				        Error::<T>::WorkerDoesNotExist
@@ -237,7 +242,7 @@ pub mod pallet {
             // update storage
 			      WorkerClusters::<T>::remove((creator.clone(), worker_id));
         }
-        ExecutableWorker => {
+        WorkerType::Executable => {
             ensure!(
 				        ExecutableWorkers::<T>::get((creator.clone(), worker_id)) != None,
 				        Error::<T>::WorkerDoesNotExist
@@ -247,9 +252,6 @@ pub mod pallet {
 			      ExecutableWorkers::<T>::remove((creator.clone(), worker_id));
         }
       }
-
-			
-
 			
 			// Emit an event.
 			Self::deposit_event(Event::WorkerRemoved { creator, worker_id });
@@ -263,31 +265,55 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
 		pub fn toggle_worker_visibility(
 			origin: OriginFor<T>,
+      worker_type: WorkerType,
 			worker_id: WorkerId,
 			visibility: bool,
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
+      let worker_status = if visibility {
+        WorkerStatusType::Active
+      } else {
+        WorkerStatusType::Inactive
+      };
 
-			let mut worker = WorkerClusters::<T>::get((creator.clone(), worker_id))
-				.ok_or(Error::<T>::WorkerDoesNotExist)?;
+      match worker_type {
+        WorkerType::Docker => {
+          WorkerClusters::<T>::mutate((creator.clone(), worker_id), |worker_option| {
+            if let Some(worker) = worker_option {
+              worker.status = worker_status;
+              worker.last_status_check = timestamp::Pallet::<T>::get();
 
-			worker.status = if visibility {
-				WorkerStatusType::Active
-			} else {
-				WorkerStatusType::Inactive
-			};
+              Self::deposit_event(Event::WorkerStatusUpdated {
+				        creator,
+				        worker_id,
+				        worker_status: worker.status.clone(),
+			        });
+              Ok(())
+            } else {
+              Err(Error::<T>::WorkerDoesNotExist)
+            }
+          })
+        }
+        WorkerType::Executable => {
+          ExecutableWorkers::<T>::mutate((creator.clone(), worker_id), |worker_option| {
+            if let Some(worker) = worker_option {
+              worker.status = worker_status;
+              worker.last_status_check = timestamp::Pallet::<T>::get();
 
-			worker.last_status_check = timestamp::Pallet::<T>::get();
-
-			WorkerClusters::<T>::insert((creator.clone(), worker_id), worker.clone());
-
-			Self::deposit_event(Event::WorkerStatusUpdated {
-				creator,
-				worker_id,
-				worker_status: worker.status,
-			});
-
-			Ok(().into())
+              Self::deposit_event(Event::WorkerStatusUpdated {
+				        creator,
+				        worker_id,
+				        worker_status: worker.status.clone(),
+			        });
+              Ok(())
+            } else {
+              Err(Error::<T>::WorkerDoesNotExist)
+            }
+          })
+        }
+      }?;
+      
+      Ok(().into())
 		}
 	}
 
@@ -318,16 +344,32 @@ pub mod pallet {
 		// Implementation of the WorkerInfoHandler trait, which provides methods for accessing worker cluster information.
 		fn get_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
+      worker_type: &WorkerType,
 		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			WorkerClusters::<T>::get(worker_key)
+      match worker_type{
+        WorkerType::Docker => {
+			    WorkerClusters::<T>::get(worker_key)
+        }
+        WorkerType::Executable => {
+			    ExecutableWorkers::<T>::get(worker_key)
+        }
+      }
 		}
 
 		// Implementation of the WorkerInfoHandler trait, which provides methods for updating worker cluster information.
 		fn update_worker_cluster(
 			worker_key: &(T::AccountId, WorkerId),
+      worker_type: &WorkerType,
 			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		) {
-			WorkerClusters::<T>::insert(worker_key, worker);
+      match worker_type{
+        WorkerType::Docker => {
+			    WorkerClusters::<T>::insert(worker_key, worker);
+        }
+        WorkerType::Executable => {
+			    ExecutableWorkers::<T>::insert(worker_key, worker);
+        }
+      }
 		}
 	}
 }

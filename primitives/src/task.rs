@@ -1,9 +1,14 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
-use scale_info::TypeInfo;
+use scale_info::{TypeInfo, prelude::vec::Vec};
 use sp_core::hash::H256;
 
 pub type TaskId = u64;
+
+/// A vector that contains the IDs of accounts that own a worker that have already been part of the
+/// execution / verification / resolution cycle and thus have beeen disqualified from further
+/// participation to avoid incorrect or manipulated results.
+pub type ForbiddenOwners<AccountId> = Vec<Option<AccountId>>;
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskStatusType {

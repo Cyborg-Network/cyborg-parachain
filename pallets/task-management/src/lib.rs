@@ -26,7 +26,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use pallet_edge_connect::{AccountWorkers, WorkerClusters};
+	use pallet_edge_connect::{AccountWorkers, WorkerClusters, ExecutableWorkers};
 	use pallet_payment::ComputeHours;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -163,6 +163,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 
+			// Ensure that compute_hour_deposit is provided and greater than zero
+			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
+			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
+
       // Ensure that, if the task type is ZK, the ZK files actually are present
       match task_type {
         cyborg_primitives::task::TaskType::ZK => {
@@ -171,25 +175,31 @@ pub mod pallet {
         _ => {}
       }
 
-			// Ensure that compute_hour_deposit is provided and greater than zero
-			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
-			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
+			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
+			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
 
 			// Call consume_compute_hours in the payment pallet to deduct the compute hours
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
-
-			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
-			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
 
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
 			let selected_worker = (worker_owner, worker_id);
 
-			ensure!(
-				WorkerClusters::<T>::contains_key(&selected_worker),
-				Error::<T>::WorkerDoesNotExist
-			);
+      if task_type == cyborg_primitives::task::TaskType::Docker {
+			  ensure!(
+				  WorkerClusters::<T>::contains_key(&selected_worker),
+		      Error::<T>::WorkerDoesNotExist
+			  );
+      }
+
+      if task_type == cyborg_primitives::task::TaskType::Executable 
+        || task_type == cyborg_primitives::task::TaskType::ZK {
+			    ensure!(
+				    ExecutableWorkers::<T>::contains_key(&selected_worker),
+		        Error::<T>::WorkerDoesNotExist
+			    );
+      }
 
 			let task_info = TaskInfo {
         task_type: task_type.clone(),
@@ -274,16 +284,11 @@ pub mod pallet {
 				resolver: None,
 			};
 
-			let workers: Vec<_> = WorkerClusters::<T>::iter()
-				.filter(|&(_, ref worker)| {
-					worker.status == WorkerStatusType::Inactive && worker.owner != who.clone()
-				}) // TODO: change Inactive to Active with oracle
-				.collect::<Vec<_>>();
+      let mut forbidden_owners: ForbiddenOwners<T::AccountId> = Vec::new();
+      forbidden_owners.push(Some(who.clone()));
 
-			ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
-
-			let random_index = (sp_io::hashing::blake2_256(&ver.encode())[0] as usize) % workers.len();
-			let assigned_verifier: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+			let assigned_verifier: (T::AccountId, WorkerId) = 
+        Self::return_random_worker_of_same_type(task_info.task_type, forbidden_owners, &ver)?;
 
 			ver.verifier = Some(VerificationHashes {
 				account: assigned_verifier.0.clone(),
@@ -322,6 +327,7 @@ pub mod pallet {
 				Error::<T>::RequireAssignedTask
 			);
 			let task_verification = TaskVerifications::<T>::get(task_id);
+			let task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
 			// check completed hashes are the same
 			match task_verification {
@@ -342,24 +348,12 @@ pub mod pallet {
 						// Assign new verifier as resolver if verification does not match
 						let mut new_verification = verification.clone();
 
-						// Find available workers that are not the executor or current verifier (TODO: may be redesigned into a hook)
-						let workers: Vec<_> = WorkerClusters::<T>::iter()
-							.filter(|&(_, ref worker)| {
-								worker.status == WorkerStatusType::Inactive // TODO: change Inactive to Active with oracle 
-							&& verification.verifier.as_ref().map_or(false, |v| v.account != worker.owner)
-							&& worker.owner != verification.executor.account.clone()
-							})
-							.collect::<Vec<_>>();
+            let mut forbidden_owners: ForbiddenOwners<T::AccountId> = Vec::new();
+            forbidden_owners.push(Some(verification.executor.account.clone()));
+            forbidden_owners.push(verification.verifier.clone().map_or(None, |v| Some(v.account)));
 
-						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
-
-						let mut task_verification_encoded = task_verification.encode();
-						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
-						task_verification_encoded.extend(block_number_encoded);
-
-						let random_index =
-							(sp_io::hashing::blake2_256(&task_verification_encoded)[0] as usize) % workers.len();
-						let assigned_resolver: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+            let assigned_resolver =
+              Self::return_random_worker_of_same_type(task_info.task_type, forbidden_owners, verification)?;
 
 						new_verification.verifier = Some(VerificationHashes {
 							account: verifier_account.clone(),
@@ -401,6 +395,7 @@ pub mod pallet {
 				Error::<T>::RequireAssignedTask
 			);
 			let task_verification = TaskVerifications::<T>::get(task_id);
+			let task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
 			// check completed hashes are the same
 			match task_verification {
@@ -436,24 +431,14 @@ pub mod pallet {
 					} else {
 						// reassign task to new executor
 						// reassign task to T::AccountId that is neither of the current executor or verifier or resolver for the next cycle
-						let workers: Vec<_> = WorkerClusters::<T>::iter()
-							.filter(|&(_, ref worker)| {
-								worker.status == WorkerStatusType::Inactive // change Inactive to Active with oracle 
-							&& worker.owner != resolver_account
-							&& verifier.as_ref().map_or(false, |v| v.account != worker.owner)
-							&& worker.owner != executor.account.clone()
-							})
-							.collect::<Vec<_>>();
+            
+            let mut forbidden_owners: ForbiddenOwners<T::AccountId> = Vec::new();
+            forbidden_owners.push(Some(resolver_account));
+            forbidden_owners.push(Some(executor.account.clone()));
+            forbidden_owners.push(verification.verifier.clone().map_or(None, |v| Some(v.account)));
 
-						ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
-
-						let mut task_verification_encoded = task_verification.encode();
-						let block_number_encoded = <frame_system::Pallet<T>>::block_number().encode();
-						task_verification_encoded.extend(block_number_encoded);
-
-						let random_index =
-							(sp_io::hashing::blake2_256(&task_verification_encoded)[0] as usize) % workers.len();
-						let assigned_new_executor: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+            let assigned_new_executor = 
+              Self::return_random_worker_of_same_type(task_info.task_type, forbidden_owners, verification)?;
 
 						TaskVerifications::<T>::remove(task_id);
 						TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
@@ -471,5 +456,39 @@ pub mod pallet {
 			}
 			Ok(())
 		}
-	}
+
+  }
+
+  impl<T: Config> Pallet<T>{
+    pub fn return_random_worker_of_same_type(
+      task_type: cyborg_primitives::task::TaskType, 
+      forbidden_owners: Vec<Option<T::AccountId>>,
+      randomness_salt: &Verifications<T::AccountId>,
+    ) -> Result<(T::AccountId, WorkerId), Error::<T>> {
+      let workers: Vec<_>; 
+
+      match task_type{
+        cyborg_primitives::task::TaskType::Docker => {
+          workers = WorkerClusters::<T>::iter()
+				    .filter(|&(_, ref worker)| {
+				      worker.status == WorkerStatusType::Inactive && !forbidden_owners.contains(&Some(worker.owner.clone()))
+				    }) // TODO: change Inactive to Active with oracle
+				    .collect::<Vec<_>>();
+        }
+        cyborg_primitives::task::TaskType::Executable | cyborg_primitives::task::TaskType::ZK => {
+          workers = ExecutableWorkers::<T>::iter()
+				    .filter(|&(_, ref worker)| {
+				      worker.status == WorkerStatusType::Inactive && !forbidden_owners.contains(&Some(worker.owner.clone()))
+				    }) // TODO: change Inactive to Active with oracle
+				    .collect::<Vec<_>>();
+        } 
+      }
+
+		  ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
+
+			let random_index = (sp_io::hashing::blake2_256(&randomness_salt.encode())[0] as usize) % workers.len();
+			let assigned_verifier: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+      Ok(assigned_verifier)
+    }
+  }
 }

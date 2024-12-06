@@ -44,7 +44,7 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, ProcessStatus},
+	oracle::{DummyCombineData, ProcessStatus, OracleWorkerFormat},
 	worker::WorkerId,
 };
 
@@ -258,7 +258,7 @@ impl orml_oracle::Config for Runtime {
 	type OnNewData = StatusAggregator;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = (AccountId, WorkerId);
+	type OracleKey = OracleWorkerFormat<AccountId>;
 	type OracleValue = ProcessStatus;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
