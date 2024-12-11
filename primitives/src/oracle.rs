@@ -1,4 +1,4 @@
-use crate::worker::WorkerId;
+use crate::worker::{WorkerId, WorkerType};
 use frame_support::{pallet_prelude::*, traits::Time};
 use orml_oracle::Config;
 use orml_traits;
@@ -36,6 +36,12 @@ pub struct ProcessStatus {
 	// TaskResultHash: Option<H256>,
 }
 
+#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+pub struct OracleWorkerFormat<AccoundId> {
+	pub id: (AccoundId, WorkerId),
+	pub worker_type: WorkerType,
+}
+
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
 pub enum MachineId {
 	Id(u64),
@@ -53,13 +59,14 @@ pub type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
 
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);
-impl<T: Config<I>, I> orml_traits::CombineData<(T::AccountId, WorkerId), TimestampedValue<T, I>>
+impl<T: Config<I>, I>
+	orml_traits::CombineData<OracleWorkerFormat<T::AccountId>, TimestampedValue<T, I>>
 	for DummyCombineData<T, I>
 where
 	<T as Config<I>>::Time: frame_support::traits::Time,
 {
 	fn combine_data(
-		_key: &(T::AccountId, WorkerId),
+		_key: &OracleWorkerFormat<T::AccountId>,
 		_values: Vec<TimestampedValue<T, I>>,
 		_prev_value: Option<TimestampedValue<T, I>>,
 	) -> Option<TimestampedValue<T, I>> {

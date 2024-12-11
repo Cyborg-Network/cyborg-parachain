@@ -18,6 +18,15 @@ pub type CpuCores = u16;
 
 pub type WorkerReputation = u8;
 
+/// An enum that is used to differentiate between the different kinds of workers that are
+/// registered on the cyborg parachain. There is no differentiation between the ZK Worker and the
+/// Executable Worker, as the executable worker will be able to execute ZK Tasks
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+pub enum WorkerType {
+	Docker,
+	Executable,
+}
+
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum WorkerStatusType {
 	Active,
@@ -60,9 +69,11 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
 	fn get_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
+		worker_type: &WorkerType,
 	) -> Option<Worker<AccountId, BlockNumber, TimeStamp>>;
 	fn update_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
+		worker_type: &WorkerType,
 		worker: Worker<AccountId, BlockNumber, TimeStamp>,
 	);
 }

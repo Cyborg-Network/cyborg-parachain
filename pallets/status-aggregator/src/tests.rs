@@ -14,7 +14,7 @@ use orml_oracle;
 use orml_traits::{CombineData, OnNewData};
 
 use cyborg_primitives::{
-	oracle::{ProcessStatus, TimestampedValue},
+	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
 	worker::*,
 };
 use std::error::Error;
@@ -28,7 +28,10 @@ fn prevents_nonexistent_worker_storage() {
 		let worker_ids: Vec<WorkerId> = [0].to_vec();
 
 		// worker for which status is to be updated
-		let key_1 = (worker_addrs[0], worker_ids[0]);
+		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// initial sanity check
 		assert_eq!(
@@ -71,6 +74,7 @@ fn on_new_data_works_as_expected() {
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
 		// basic worker spec
+		let worker_type = WorkerType::Docker;
 		let worker_latitude: Latitude = 590000;
 		let worker_longitude: Longitude = 120000;
 		let worker_ram: RamBytes = 100000000;
@@ -85,6 +89,7 @@ fn on_new_data_works_as_expected() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
+					worker_type.clone(),
 					domain.clone(),
 					worker_latitude,
 					worker_longitude,
@@ -96,7 +101,10 @@ fn on_new_data_works_as_expected() {
 		}
 
 		// worker for which status is to be updated
-		let key_1 = (worker_addrs[0], worker_ids[0]);
+		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// initial sanity check
 		assert_eq!(
@@ -187,8 +195,14 @@ fn on_new_data_works_as_expected() {
 		assert_eq!(WorkerStatusEntriesPerPeriod::<Test>::get(&key_1), entries,);
 
 		// 5. Allow oracle feeders to submit for a new workers
-		let key_2 = (worker_addrs[1], worker_ids[2]);
-		let key_3 = (worker_addrs[2], worker_ids[1]);
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[2]),
+			worker_type: WorkerType::Docker,
+		};
+		let key_3: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[2], worker_ids[1]),
+			worker_type: WorkerType::Docker,
+		};
 
 		let status_info_2 = ProcessStatus {
 			online: true,
@@ -229,7 +243,7 @@ fn on_new_data_works_as_expected() {
 }
 
 #[test]
-fn on_finalize_works_as_expected() {
+fn on_finalize_works_as_expected_for_docker_workers() {
 	new_test_ext().execute_with(|| {
 		// initial sanity check
 		assert_eq!(LastClearedBlock::<Test>::get(), 0,);
@@ -261,6 +275,7 @@ fn on_finalize_works_as_expected() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
+		let worker_type = WorkerType::Docker;
 
 		// register workers
 		for worker in worker_addrs.iter() {
@@ -270,6 +285,7 @@ fn on_finalize_works_as_expected() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
+					worker_type.clone(),
 					domain.clone(),
 					worker_latitude,
 					worker_longitude,
@@ -281,30 +297,36 @@ fn on_finalize_works_as_expected() {
 		}
 
 		// worker for which status is to be updated
-		let key_1 = (worker_addrs[0], worker_ids[0]);
-		let key_2 = (worker_addrs[1], worker_ids[0]);
+		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
 				.unwrap()
 				.status,
 			WorkerStatusType::Inactive
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
 				.status_last_updated,
 			inital_block
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
 				.unwrap()
 				.status_last_updated,
 			inital_block
@@ -458,7 +480,7 @@ fn on_finalize_works_as_expected() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedWorkerInfo {
-				worker: key_1,
+				worker: key_1.id,
 				online: true,
 				available: true,
 				last_block_processed: 5,
@@ -467,7 +489,7 @@ fn on_finalize_works_as_expected() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedWorkerInfo {
-				worker: key_2,
+				worker: key_2.id,
 				online: true,
 				available: false,
 				last_block_processed: 5,
@@ -476,25 +498,307 @@ fn on_finalize_works_as_expected() {
 
 		// 5. Ensure pallet edge connect properly updates
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
 				.status,
 			WorkerStatusType::Active
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
 				.unwrap()
 				.status,
 			WorkerStatusType::Busy
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_1)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
 				.status_last_updated,
 			5
 		);
 		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get(key_2)
+			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
+				.unwrap()
+				.status_last_updated,
+			5
+		);
+	});
+}
+
+#[test]
+fn on_finalize_works_as_expected_for_executable_workers() {
+	new_test_ext().execute_with(|| {
+		// initial sanity check
+		assert_eq!(LastClearedBlock::<Test>::get(), 0,);
+		assert_eq!(
+			SubmittedPerPeriod::<Test>::iter().collect::<Vec<_>>().len(),
+			0,
+		);
+		assert_eq!(
+			WorkerStatusEntriesPerPeriod::<Test>::iter()
+				.collect::<Vec<_>>()
+				.len(),
+			0,
+		);
+
+		// initalize test variables
+		let inital_block = 1;
+		System::set_block_number(inital_block);
+
+		StatusAggregator::on_finalize(inital_block);
+
+		let oracle_feeder_1: AccountId = 100;
+		let oracle_feeder_2: AccountId = 200;
+		let worker_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
+		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
+
+		// basic worker spec
+		let worker_latitude: Latitude = 590000;
+		let worker_longitude: Longitude = 120000;
+		let worker_ram: RamBytes = 100000000;
+		let worker_storage: StorageBytes = 100000000;
+		let worker_cpu: CpuCores = 12;
+		let worker_type = WorkerType::Executable;
+
+		// register workers
+		for worker in worker_addrs.iter() {
+			for id in 0..worker_ids.len() {
+				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
+				let domain_vec = domain_str.as_bytes().to_vec();
+				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+				assert_ok!(EdgeConnectModule::register_worker(
+					RuntimeOrigin::signed(*worker),
+					worker_type.clone(),
+					domain.clone(),
+					worker_latitude,
+					worker_longitude,
+					worker_ram,
+					worker_storage,
+					worker_cpu
+				));
+			}
+		}
+
+		// worker for which status is to be updated
+		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Executable,
+		};
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[0]),
+			worker_type: WorkerType::Executable,
+		};
+
+		// pallet edge connect inital storage sanity check
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
+				.unwrap()
+				.status,
+			WorkerStatusType::Inactive
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
+				.unwrap()
+				.status,
+			WorkerStatusType::Inactive
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
+				.unwrap()
+				.status_last_updated,
+			inital_block
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
+				.unwrap()
+				.status_last_updated,
+			inital_block
+		);
+
+		// 1. Verify value updated on new data submitted by oracle feeder
+		StatusAggregator::on_new_data(
+			&oracle_feeder_1,
+			&key_1,
+			&ProcessStatus {
+				online: true,
+				available: true,
+			},
+		);
+		StatusAggregator::on_new_data(
+			&oracle_feeder_2,
+			&key_1,
+			&ProcessStatus {
+				online: true,
+				available: true,
+			},
+		);
+		StatusAggregator::on_new_data(
+			&oracle_feeder_1,
+			&key_2,
+			&ProcessStatus {
+				online: true,
+				available: false,
+			},
+		);
+		StatusAggregator::on_new_data(
+			&oracle_feeder_2,
+			&key_2,
+			&ProcessStatus {
+				online: true,
+				available: true,
+			},
+		);
+
+		// ensure storage updates
+		assert!(SubmittedPerPeriod::<Test>::iter().collect::<Vec<_>>().len() > 0);
+		assert!(
+			WorkerStatusEntriesPerPeriod::<Test>::iter()
+				.collect::<Vec<_>>()
+				.len()
+				> 0
+		);
+		// check total entries submitted this period
+		assert_eq!(
+			SubmittedPerPeriod::<Test>::iter().collect::<Vec<_>>().len(),
+			4,
+		);
+		// check workers with entries submitted this period
+		assert_eq!(
+			WorkerStatusEntriesPerPeriod::<Test>::iter()
+				.collect::<Vec<_>>()
+				.len(),
+			2,
+		);
+
+		// 2. Ensure percentage values do not update until after MaxBlockRangePeriod
+		// sanity check, no values updated after entries entered before next MaxBlockRangePeriod
+		assert_eq!(
+			ResultingWorkerStatusPercentages::<Test>::get(&key_1),
+			ProcessStatusPercentages {
+				online: 0,
+				available: 0,
+				last_block_processed: 0,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatusPercentages::<Test>::get(&key_2),
+			ProcessStatusPercentages {
+				online: 0,
+				available: 0,
+				last_block_processed: 0,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatus::<Test>::get(&key_1),
+			ProcessStatus {
+				online: false,
+				available: false,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatus::<Test>::get(&key_2),
+			ProcessStatus {
+				online: false,
+				available: false,
+			},
+		);
+
+		// 3. Ensure storage resets after each period
+		// increase block time past MaxBlockRangePeriod
+		System::set_block_number(MaxBlockRangePeriod::get() as u64);
+		StatusAggregator::on_finalize(MaxBlockRangePeriod::get() as u64);
+
+		System::assert_last_event(RuntimeEvent::StatusAggregator(Event::LastBlockUpdated {
+			block_number: 5,
+		}));
+
+		// Validate update last cleared block
+		assert_eq!(
+			LastClearedBlock::<Test>::get(),
+			MaxBlockRangePeriod::get() as u64,
+		);
+		// ensure mappings cleared
+		assert_eq!(
+			SubmittedPerPeriod::<Test>::iter().collect::<Vec<_>>().len(),
+			0,
+		);
+		assert_eq!(
+			WorkerStatusEntriesPerPeriod::<Test>::iter()
+				.collect::<Vec<_>>()
+				.len(),
+			0,
+		);
+
+		// 4. Ensure correct calculation for percentage uptime and current worker status updates after MaxBlockRangePeriod
+		assert_eq!(
+			ResultingWorkerStatusPercentages::<Test>::get(&key_1),
+			ProcessStatusPercentages {
+				online: 100,
+				available: 100,
+				last_block_processed: 5,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatusPercentages::<Test>::get(&key_2),
+			ProcessStatusPercentages {
+				online: 100,
+				available: 50,
+				last_block_processed: 5,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatus::<Test>::get(&key_1),
+			ProcessStatus {
+				online: true,
+				available: true,
+			},
+		);
+		assert_eq!(
+			ResultingWorkerStatus::<Test>::get(&key_2),
+			ProcessStatus {
+				online: true,
+				available: false,
+			},
+		);
+
+		System::assert_has_event(RuntimeEvent::StatusAggregator(
+			Event::UpdateFromAggregatedWorkerInfo {
+				worker: key_1.id,
+				online: true,
+				available: true,
+				last_block_processed: 5,
+			},
+		));
+
+		System::assert_has_event(RuntimeEvent::StatusAggregator(
+			Event::UpdateFromAggregatedWorkerInfo {
+				worker: key_2.id,
+				online: true,
+				available: false,
+				last_block_processed: 5,
+			},
+		));
+
+		// 5. Ensure pallet edge connect properly updates
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
+				.unwrap()
+				.status,
+			WorkerStatusType::Active
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
+				.unwrap()
+				.status,
+			WorkerStatusType::Busy
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
+				.unwrap()
+				.status_last_updated,
+			5
+		);
+		assert_eq!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
 				.unwrap()
 				.status_last_updated,
 			5

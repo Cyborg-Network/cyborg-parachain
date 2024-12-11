@@ -16,8 +16,8 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cyborg_primitives::{
-	oracle::{ProcessStatus, TimestampedValue},
-	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType},
+	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
+	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType, WorkerType},
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
@@ -109,7 +109,7 @@ pub mod pallet {
 	pub type WorkerStatusEntriesPerPeriod<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, WorkerId),
+		OracleWorkerFormat<T::AccountId>,
 		BoundedVec<StatusInstance<BlockNumberFor<T>>, T::MaxAggregateParamLength>,
 		ValueQuery,
 	>;
@@ -117,11 +117,11 @@ pub mod pallet {
 	/// Tracks whether a specific oracle provider has submitted worker status data during the current period.
 	/// This is used to prevent multiple submissions from the same oracle provider within a period.
 	///
-	/// - The key is a tuple of the oracle provider's account and the worker `(T::AccountId, (T::AccountId, WorkerId))`.
+	/// - The key is a tuple of the oracle provider's account and required worker info `(T::AccountId, OracleWorkerFormat)`.
 	/// - The value is a boolean indicating whether the oracle has already submitted data.
 	#[pallet::storage]
 	pub type SubmittedPerPeriod<T: Config> =
-		StorageMap<_, Twox64Concat, (T::AccountId, (T::AccountId, WorkerId)), bool, ValueQuery>;
+		StorageMap<_, Twox64Concat, (T::AccountId, OracleWorkerFormat<T::AccountId>), bool, ValueQuery>;
 
 	/// Stores the resulting percentage status (online and available) for each worker after aggregation.
 	/// This is calculated by taking the status data submitted during the period and determining the
@@ -133,7 +133,7 @@ pub mod pallet {
 	pub type ResultingWorkerStatusPercentages<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, WorkerId),
+		OracleWorkerFormat<T::AccountId>,
 		ProcessStatusPercentages<BlockNumberFor<T>>,
 		ValueQuery,
 	>;
@@ -145,7 +145,7 @@ pub mod pallet {
 	/// - The value is `ProcessStatus`, which contains the final online and available status for the worker.
 	#[pallet::storage]
 	pub type ResultingWorkerStatus<T: Config> =
-		StorageMap<_, Twox64Concat, (T::AccountId, WorkerId), ProcessStatus, ValueQuery>;
+		StorageMap<_, Twox64Concat, OracleWorkerFormat<T::AccountId>, ProcessStatus, ValueQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -234,17 +234,26 @@ pub mod pallet {
 						available: available_status,
 					},
 				);
-				Self::update_worker_clusters(key_worker, online_status, available_status, current_block);
+				Self::update_worker_clusters(
+					key_worker.id,
+					key_worker.worker_type,
+					online_status,
+					available_status,
+					current_block,
+				);
 			}
 		}
 		/// sends updated worker info to pallets that implement T::WorkerClusterHandler and emits an event
 		fn update_worker_clusters(
 			key_worker: (T::AccountId, WorkerId),
+			worker_type: WorkerType,
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
 		) {
-			if let Some(mut worker_cluster) = T::WorkerInfoHandler::get_worker_cluster(&key_worker) {
+			if let Some(mut worker_cluster) =
+				T::WorkerInfoHandler::get_worker_cluster(&key_worker, &worker_type)
+			{
 				let status = if online {
 					if available {
 						WorkerStatusType::Active
@@ -257,7 +266,7 @@ pub mod pallet {
 				worker_cluster.status = status;
 				worker_cluster.status_last_updated = last_block_processed;
 
-				T::WorkerInfoHandler::update_worker_cluster(&key_worker, worker_cluster);
+				T::WorkerInfoHandler::update_worker_cluster(&key_worker, &worker_type, worker_cluster);
 
 				Self::deposit_event(Event::UpdateFromAggregatedWorkerInfo {
 					worker: key_worker,
@@ -272,9 +281,15 @@ pub mod pallet {
 	}
 
 	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
-	impl<T: Config> OnNewData<T::AccountId, (T::AccountId, u64), ProcessStatus> for Pallet<T> {
-		fn on_new_data(who: &T::AccountId, key: &(T::AccountId, u64), value: &ProcessStatus) {
-			if T::WorkerInfoHandler::get_worker_cluster(key).is_none() {
+	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus>
+		for Pallet<T>
+	{
+		fn on_new_data(
+			who: &T::AccountId,
+			key: &OracleWorkerFormat<T::AccountId>,
+			value: &ProcessStatus,
+		) {
+			if T::WorkerInfoHandler::get_worker_cluster(&key.id, &key.worker_type).is_none() {
 				log::error!(
 					target: LOG_TARGET,
 					"No worker registed by this key: {:?}",
