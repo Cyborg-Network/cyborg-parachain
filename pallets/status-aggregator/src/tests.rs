@@ -14,7 +14,7 @@ use orml_oracle;
 use orml_traits::{CombineData, OnNewData};
 
 use cyborg_primitives::{
-	oracle::{ProcessStatus, TimestampedValue, OracleWorkerFormat},
+	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
 	worker::*,
 };
 use std::error::Error;
@@ -29,9 +29,9 @@ fn prevents_nonexistent_worker_storage() {
 
 		// worker for which status is to be updated
 		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-        id: (worker_addrs[0], worker_ids[0]),
-        worker_type: WorkerType::Docker,
-    };
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// initial sanity check
 		assert_eq!(
@@ -74,7 +74,7 @@ fn on_new_data_works_as_expected() {
 		let worker_ids: Vec<WorkerId> = [0, 1, 2].to_vec();
 
 		// basic worker spec
-    let worker_type = WorkerType::Docker;
+		let worker_type = WorkerType::Docker;
 		let worker_latitude: Latitude = 590000;
 		let worker_longitude: Longitude = 120000;
 		let worker_ram: RamBytes = 100000000;
@@ -89,7 +89,7 @@ fn on_new_data_works_as_expected() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
-          worker_type.clone(),
+					worker_type.clone(),
 					domain.clone(),
 					worker_latitude,
 					worker_longitude,
@@ -102,9 +102,9 @@ fn on_new_data_works_as_expected() {
 
 		// worker for which status is to be updated
 		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-      id: (worker_addrs[0], worker_ids[0]),
-      worker_type: WorkerType::Docker,
-    };
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// initial sanity check
 		assert_eq!(
@@ -195,14 +195,14 @@ fn on_new_data_works_as_expected() {
 		assert_eq!(WorkerStatusEntriesPerPeriod::<Test>::get(&key_1), entries,);
 
 		// 5. Allow oracle feeders to submit for a new workers
-		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat{
-      id: (worker_addrs[1], worker_ids[2]),
-      worker_type: WorkerType::Docker,
-    };
-		let key_3: OracleWorkerFormat<AccountId> = OracleWorkerFormat{
-      id: (worker_addrs[2], worker_ids[1]),
-      worker_type: WorkerType::Docker,
-    };
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[2]),
+			worker_type: WorkerType::Docker,
+		};
+		let key_3: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[2], worker_ids[1]),
+			worker_type: WorkerType::Docker,
+		};
 
 		let status_info_2 = ProcessStatus {
 			online: true,
@@ -275,7 +275,7 @@ fn on_finalize_works_as_expected_for_docker_workers() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    let worker_type = WorkerType::Docker;
+		let worker_type = WorkerType::Docker;
 
 		// register workers
 		for worker in worker_addrs.iter() {
@@ -285,7 +285,7 @@ fn on_finalize_works_as_expected_for_docker_workers() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
-          worker_type.clone(),
+					worker_type.clone(),
 					domain.clone(),
 					worker_latitude,
 					worker_longitude,
@@ -298,13 +298,13 @@ fn on_finalize_works_as_expected_for_docker_workers() {
 
 		// worker for which status is to be updated
 		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-      id: (worker_addrs[0], worker_ids[0]),
-      worker_type: WorkerType::Docker,
-    };
-    let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-      id: (worker_addrs[1], worker_ids[0]),
-      worker_type: WorkerType::Docker,
-    };
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[0]),
+			worker_type: WorkerType::Docker,
+		};
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
@@ -557,7 +557,7 @@ fn on_finalize_works_as_expected_for_executable_workers() {
 		let worker_ram: RamBytes = 100000000;
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
-    let worker_type = WorkerType::Executable;
+		let worker_type = WorkerType::Executable;
 
 		// register workers
 		for worker in worker_addrs.iter() {
@@ -567,7 +567,7 @@ fn on_finalize_works_as_expected_for_executable_workers() {
 				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
 				assert_ok!(EdgeConnectModule::register_worker(
 					RuntimeOrigin::signed(*worker),
-          worker_type.clone(),
+					worker_type.clone(),
 					domain.clone(),
 					worker_latitude,
 					worker_longitude,
@@ -580,13 +580,13 @@ fn on_finalize_works_as_expected_for_executable_workers() {
 
 		// worker for which status is to be updated
 		let key_1: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-      id: (worker_addrs[0], worker_ids[0]),
-      worker_type: WorkerType::Executable,
-    };
-    let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
-      id: (worker_addrs[1], worker_ids[0]),
-      worker_type: WorkerType::Executable,
-    };
+			id: (worker_addrs[0], worker_ids[0]),
+			worker_type: WorkerType::Executable,
+		};
+		let key_2: OracleWorkerFormat<AccountId> = OracleWorkerFormat {
+			id: (worker_addrs[1], worker_ids[0]),
+			worker_type: WorkerType::Executable,
+		};
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(

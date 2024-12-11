@@ -36,19 +36,10 @@ pub struct ProcessStatus {
 	// TaskResultHash: Option<H256>,
 }
 
-#[derive(
-	Encode,
-	Decode,
-	MaxEncodedLen,
-	Clone,
-	Debug,
-	PartialEq,
-	Eq,
-	TypeInfo,
-)]
+#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
 pub struct OracleWorkerFormat<AccoundId> {
-    pub id: (AccoundId, WorkerId),
-    pub worker_type: WorkerType,
+	pub id: (AccoundId, WorkerId),
+	pub worker_type: WorkerType,
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]
@@ -68,7 +59,8 @@ pub type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
 
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);
-impl<T: Config<I>, I> orml_traits::CombineData<OracleWorkerFormat<T::AccountId>, TimestampedValue<T, I>>
+impl<T: Config<I>, I>
+	orml_traits::CombineData<OracleWorkerFormat<T::AccountId>, TimestampedValue<T, I>>
 	for DummyCombineData<T, I>
 where
 	<T as Config<I>>::Time: frame_support::traits::Time,

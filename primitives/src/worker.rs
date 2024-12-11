@@ -23,8 +23,8 @@ pub type WorkerReputation = u8;
 /// Executable Worker, as the executable worker will be able to execute ZK Tasks
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum WorkerType {
-  Docker,
-  Executable,
+	Docker,
+	Executable,
 }
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
@@ -69,11 +69,11 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
 	fn get_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
-    worker_type: &WorkerType,
+		worker_type: &WorkerType,
 	) -> Option<Worker<AccountId, BlockNumber, TimeStamp>>;
 	fn update_worker_cluster(
 		worker_key: &(AccountId, WorkerId),
-    worker_type: &WorkerType,
+		worker_type: &WorkerType,
 		worker: Worker<AccountId, BlockNumber, TimeStamp>,
 	);
 }

@@ -4,15 +4,14 @@ use frame_support::{assert_noop, assert_ok, sp_runtime::traits::ConstU32, Bounde
 use cyborg_primitives::worker::*;
 use sp_std::convert::TryFrom;
 
-
 #[test]
 fn it_works_for_inserting_worker_into_correct_storage() {
-  new_test_ext().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let domain_str = "some_api_domain.com";
 		let domain_vec = domain_str.as_bytes().to_vec();
 		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -42,7 +41,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			last_status_check: current_timestamp,
 		};
 
-    let worker_1 = Worker {
+		let worker_1 = Worker {
 			id: 1,
 			owner: alice,
 			start_block: 10,
@@ -58,7 +57,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 		// Dispatch a signed extrinsic.
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_0,
+			worker_type_0,
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -67,10 +66,10 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			cpu
 		));
 
-    // Dispatch a signed extrinsic.
+		// Dispatch a signed extrinsic.
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_1,
+			worker_type_1,
 			api_info.domain,
 			latitude,
 			longitude,
@@ -84,12 +83,11 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0)),
 			Some(worker_0)
 		);
-    // Read pallet storage and assert an expected result.
+		// Read pallet storage and assert an expected result.
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, 1)),
 			Some(worker_1)
 		);
-
 	});
 }
 
@@ -99,7 +97,7 @@ fn it_works_for_registering_domain() {
 		let domain_str = "some_api_domain.com";
 		let domain_vec = domain_str.as_bytes().to_vec();
 		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-    let worker_type = WorkerType::Docker;
+		let worker_type = WorkerType::Docker;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -132,7 +130,7 @@ fn it_works_for_registering_domain() {
 		// Dispatch a signed extrinsic.
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type,
+			worker_type,
 			api_info.domain,
 			latitude,
 			longitude,
@@ -156,8 +154,8 @@ fn it_fails_for_registering_duplicate_worker() {
 		let domain_str = "127.0.0.1:3001";
 		let domain_vec = domain_str.as_bytes().to_vec();
 		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -169,7 +167,7 @@ fn it_fails_for_registering_duplicate_worker() {
 		// Register the first worker
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -181,7 +179,7 @@ fn it_fails_for_registering_duplicate_worker() {
 		assert_noop!(
 			EdgeConnectModule::register_worker(
 				RuntimeOrigin::signed(alice),
-        worker_type_0,
+				worker_type_0,
 				api_info.domain.clone(),
 				latitude,
 				longitude,
@@ -192,10 +190,10 @@ fn it_fails_for_registering_duplicate_worker() {
 			Error::<Test>::WorkerExists
 		);
 
-    // Register the first worker
+		// Register the first worker
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -207,7 +205,7 @@ fn it_fails_for_registering_duplicate_worker() {
 		assert_noop!(
 			EdgeConnectModule::register_worker(
 				RuntimeOrigin::signed(alice),
-        worker_type_1,
+				worker_type_1,
 				api_info.domain,
 				latitude,
 				longitude,
@@ -217,7 +215,6 @@ fn it_fails_for_registering_duplicate_worker() {
 			),
 			Error::<Test>::WorkerExists
 		);
-
 	});
 }
 
@@ -229,8 +226,8 @@ fn it_works_for_removing_worker() {
 		let domain_str = "127.0.0.1:3001";
 		let domain_vec = domain_str.as_bytes().to_vec();
 		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -242,7 +239,7 @@ fn it_works_for_removing_worker() {
 		// Register a worker first
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_0,
+			worker_type_0,
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -250,10 +247,10 @@ fn it_works_for_removing_worker() {
 			storage,
 			cpu
 		));
-    // Register a worker first
+		// Register a worker first
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_1,
+			worker_type_1,
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -261,18 +258,17 @@ fn it_works_for_removing_worker() {
 			storage,
 			cpu
 		));
-
 
 		// Remove the worker
 		assert_ok!(EdgeConnectModule::remove_worker(
 			RuntimeOrigin::signed(alice),
-      WorkerType::Docker,
+			WorkerType::Docker,
 			0
 		));
-    // Remove the worker
+		// Remove the worker
 		assert_ok!(EdgeConnectModule::remove_worker(
 			RuntimeOrigin::signed(alice),
-      WorkerType::Executable,
+			WorkerType::Executable,
 			1
 		));
 
@@ -281,7 +277,7 @@ fn it_works_for_removing_worker() {
 			pallet_edge_connect::WorkerClusters::<Test>::get((alice, 0)),
 			None
 		);
-    // Assert that the worker no longer exists
+		// Assert that the worker no longer exists
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, 1)),
 			None
@@ -300,7 +296,7 @@ fn it_fails_for_removing_non_existent_worker() {
 			Error::<Test>::WorkerDoesNotExist
 		);
 
-    // Attempt to remove a worker that doesn't exist
+		// Attempt to remove a worker that doesn't exist
 		assert_noop!(
 			EdgeConnectModule::remove_worker(RuntimeOrigin::signed(alice), WorkerType::Executable, 0),
 			Error::<Test>::WorkerDoesNotExist
@@ -316,7 +312,7 @@ fn emiting_proper_event_for_registering_worker() {
 		let domain_str = "foobarkoo.com";
 		let domain: BoundedVec<u8, ConstU32<128>> =
 			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
-    let worker_type = WorkerType::Docker;
+		let worker_type = WorkerType::Docker;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -326,7 +322,7 @@ fn emiting_proper_event_for_registering_worker() {
 		System::set_block_number(10);
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type,
+			worker_type,
 			domain.clone(),
 			latitude,
 			longitude,
@@ -347,12 +343,12 @@ fn it_works_for_changing_visibility() {
 	new_test_ext().execute_with(|| {
 		let alice = 0;
 		let alice_first_worker_id = 0;
-    let alice_second_worker_id = 1;
+		let alice_second_worker_id = 1;
 		let domain_str = "foobarkoo.com";
 		let domain: BoundedVec<u8, ConstU32<128>> =
 			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
@@ -362,7 +358,7 @@ fn it_works_for_changing_visibility() {
 		System::set_block_number(10);
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -371,9 +367,9 @@ fn it_works_for_changing_visibility() {
 			cpu
 		));
 
-    assert_ok!(EdgeConnectModule::register_worker(
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -384,14 +380,14 @@ fn it_works_for_changing_visibility() {
 
 		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			alice_first_worker_id,
 			true,
 		);
 
 		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			alice_second_worker_id,
 			true,
 		);
@@ -403,24 +399,23 @@ fn it_works_for_changing_visibility() {
 			WorkerStatusType::Active
 		);
 
-    assert_eq!(
+		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, alice_second_worker_id))
 				.unwrap()
 				.status,
 			WorkerStatusType::Active
 		);
 
-
 		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
-      worker_type_0,
+			worker_type_0,
 			alice_first_worker_id,
 			false,
 		);
 
 		let _ = EdgeConnectModule::toggle_worker_visibility(
 			RuntimeOrigin::signed(alice),
-      worker_type_1,
+			worker_type_1,
 			alice_second_worker_id,
 			false,
 		);
@@ -432,7 +427,7 @@ fn it_works_for_changing_visibility() {
 			WorkerStatusType::Inactive
 		);
 
-    assert_eq!(
+		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, alice_second_worker_id))
 				.unwrap()
 				.status,
@@ -451,7 +446,7 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 		assert_noop!(
 			EdgeConnectModule::toggle_worker_visibility(
 				RuntimeOrigin::signed(alice),
-        WorkerType::Docker,
+				WorkerType::Docker,
 				alice_first_worker_id,
 				true
 			),
@@ -461,13 +456,12 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 		assert_noop!(
 			EdgeConnectModule::toggle_worker_visibility(
 				RuntimeOrigin::signed(alice),
-        WorkerType::Executable,
+				WorkerType::Executable,
 				alice_first_worker_id,
 				true
 			),
 			Error::<Test>::WorkerDoesNotExist
 		);
-
 	})
 }
 

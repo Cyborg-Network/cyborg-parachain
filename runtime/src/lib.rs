@@ -44,7 +44,7 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, ProcessStatus, OracleWorkerFormat},
+	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus},
 	worker::WorkerId,
 };
 
@@ -500,9 +500,9 @@ mod runtime {
 	pub type StatusAggregator = pallet_status_aggregator;
 
 	#[runtime::pallet_index(45)]
-  pub type Payment = pallet_payment;
-  
-  #[runtime::pallet_index(46)]
+	pub type Payment = pallet_payment;
+
+	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
 }
 

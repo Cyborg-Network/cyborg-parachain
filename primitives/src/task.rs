@@ -1,6 +1,6 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
-use scale_info::{TypeInfo, prelude::vec::Vec};
+use scale_info::{prelude::vec::Vec, TypeInfo};
 use sp_core::hash::H256;
 
 pub type TaskId = u64;
@@ -21,15 +21,15 @@ pub enum TaskStatusType {
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskType {
 	Docker,
-  Executable,
-  ZK,
+	Executable,
+	ZK,
 }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_owner: AccountId,
 	pub create_block: BlockNumber,
-  // This is vaguely named as this could be a public docker image or a link to an executable
+	// This is vaguely named as this could be a public docker image or a link to an executable
 	pub metadata: BoundedVec<u8, ConstU32<500>>,
 	pub zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 	pub time_elapsed: Option<BlockNumber>,

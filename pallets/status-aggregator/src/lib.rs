@@ -16,7 +16,7 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cyborg_primitives::{
-	oracle::{ProcessStatus, TimestampedValue, OracleWorkerFormat},
+	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
 	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType, WorkerType},
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
@@ -234,18 +234,26 @@ pub mod pallet {
 						available: available_status,
 					},
 				);
-				Self::update_worker_clusters(key_worker.id, key_worker.worker_type, online_status, available_status, current_block);
+				Self::update_worker_clusters(
+					key_worker.id,
+					key_worker.worker_type,
+					online_status,
+					available_status,
+					current_block,
+				);
 			}
 		}
 		/// sends updated worker info to pallets that implement T::WorkerClusterHandler and emits an event
 		fn update_worker_clusters(
 			key_worker: (T::AccountId, WorkerId),
-      worker_type: WorkerType,
+			worker_type: WorkerType,
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
 		) {
-			if let Some(mut worker_cluster) = T::WorkerInfoHandler::get_worker_cluster(&key_worker, &worker_type) {
+			if let Some(mut worker_cluster) =
+				T::WorkerInfoHandler::get_worker_cluster(&key_worker, &worker_type)
+			{
 				let status = if online {
 					if available {
 						WorkerStatusType::Active
@@ -273,8 +281,14 @@ pub mod pallet {
 	}
 
 	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
-	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus> for Pallet<T> {
-		fn on_new_data(who: &T::AccountId, key: &OracleWorkerFormat<T::AccountId>, value: &ProcessStatus) {
+	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus>
+		for Pallet<T>
+	{
+		fn on_new_data(
+			who: &T::AccountId,
+			key: &OracleWorkerFormat<T::AccountId>,
+			value: &ProcessStatus,
+		) {
 			if T::WorkerInfoHandler::get_worker_cluster(&key.id, &key.worker_type).is_none() {
 				log::error!(
 					target: LOG_TARGET,

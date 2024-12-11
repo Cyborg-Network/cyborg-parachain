@@ -4,24 +4,27 @@ use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskStatusType, TaskType};
 pub use cyborg_primitives::worker::*;
+use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
-use frame_support::dispatch::{PostDispatchInfo, DispatchErrorWithPostInfo};
 use sp_core::H256;
 use sp_std::convert::TryFrom;
 
-fn register_worker(account: u64, worker_type: WorkerType, domain_str: &str) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
-    EdgeConnectModule::register_worker(
-        RuntimeOrigin::signed(account),
-        worker_type,
-        BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
-        590000,
-        120000,
-        10000000,
-        10000000,
-        12
-    )
+fn register_worker(
+	account: u64,
+	worker_type: WorkerType,
+	domain_str: &str,
+) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
+	EdgeConnectModule::register_worker(
+		RuntimeOrigin::signed(account),
+		worker_type,
+		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
+		590000,
+		120000,
+		10000000,
+		10000000,
+		12,
+	)
 }
-
 
 #[test]
 fn it_works_for_task_scheduler() {
@@ -29,11 +32,11 @@ fn it_works_for_task_scheduler() {
 		System::set_block_number(1);
 		let alice = 1;
 		let executor = 2;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::Executable;
-    let task_type_2 = TaskType::ZK;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::Executable;
+		let task_type_2 = TaskType::ZK;
 		let worker_id_0 = 0;
-    let worker_id_1 = 1;
+		let worker_id_1 = 1;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
 
@@ -44,14 +47,18 @@ fn it_works_for_task_scheduler() {
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    // Register one worker for each type
+		// Register one worker for each type
 		assert_ok!(register_worker(executor, WorkerType::Docker, "executor"));
-    assert_ok!(register_worker(executor, WorkerType::Executable, "executor"));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"executor"
+		));
 
 		// Schedule a Docker Task.
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type_0, 
+			task_type_0,
 			task_data.clone(),
 			None,
 			executor,
@@ -72,12 +79,12 @@ fn it_works_for_task_scheduler() {
 		assert_eq!(task_info.metadata, task_data);
 		assert_eq!(task_info.task_owner, alice);
 
-    // Schedule a Executable Task.
+		// Schedule a Executable Task.
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type_1, 
+			task_type_1,
 			task_data.clone(),
-      None,
+			None,
 			executor,
 			worker_id_1,
 			Some(10)
@@ -96,10 +103,10 @@ fn it_works_for_task_scheduler() {
 		assert_eq!(task_info.metadata, task_data);
 		assert_eq!(task_info.task_owner, alice);
 
-    // Schedule a ZK Task.
+		// Schedule a ZK Task.
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type_2, 
+			task_type_2,
 			task_data.clone(),
 			Some(zk_files_cid.clone()),
 			executor,
@@ -127,7 +134,7 @@ fn it_fails_when_worker_not_registered() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 		let alice = 1;
-    let task_type = TaskType::ZK;
+		let task_type = TaskType::ZK;
 		let worker_owner = 2;
 		let worker_id = 99;
 		// Create a task data BoundedVec
@@ -149,7 +156,7 @@ fn it_fails_when_worker_not_registered() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
-        task_type,
+				task_type,
 				task_data.clone(),
 				Some(zk_files_cid.clone()),
 				worker_owner,
@@ -167,7 +174,7 @@ fn it_fails_when_no_workers_are_available() {
 		let alice = 1;
 		let worker_owner = 2;
 		let worker_id = 0;
-    let task_type = TaskType::Docker;
+		let task_type = TaskType::Docker;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
@@ -178,7 +185,7 @@ fn it_fails_when_no_workers_are_available() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
-        task_type,
+				task_type,
 				task_data.clone(),
 				None,
 				worker_owner,
@@ -197,7 +204,7 @@ fn it_fails_when_no_computer_hours_available() {
 
 		let worker_owner = 2;
 		let worker_id = 0;
-    let task_type = TaskType::Docker;
+		let task_type = TaskType::Docker;
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -206,7 +213,7 @@ fn it_fails_when_no_computer_hours_available() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
-        task_type,
+				task_type,
 				task_data.clone(),
 				None,
 				worker_owner,
@@ -224,8 +231,8 @@ fn it_works_for_submit_completed_task() {
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::ZK;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::ZK;
 
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -233,20 +240,20 @@ fn it_works_for_submit_completed_task() {
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 		let worker_id_0 = 0;
-    let worker_id_1 = 1;
+		let worker_id_1 = 1;
 
 		// Create zk_files_cid
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    // Cycle with two Docker Workers
+		// Cycle with two Docker Workers
 		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
 		assert_ok!(register_worker(bob, WorkerType::Docker, "bob"));
 
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type_0,
+			task_type_0,
 			task_data.clone(),
 			None,
 			alice,
@@ -280,14 +287,14 @@ fn it_works_for_submit_completed_task() {
 		assert_eq!(verifications.executor.account, alice);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
-    // Cycle with Executable Worker and ZK Files
-    assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
-    assert_ok!(register_worker(bob, WorkerType::Executable, "bob"));
+		// Cycle with Executable Worker and ZK Files
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		assert_ok!(register_worker(bob, WorkerType::Executable, "bob"));
 
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type_1,
+			task_type_1,
 			task_data.clone(),
 			Some(zk_files_cid.clone()),
 			alice,
@@ -320,7 +327,6 @@ fn it_works_for_submit_completed_task() {
 		let verifications = TaskManagementModule::get_task_verifications(task_id).unwrap();
 		assert_eq!(verifications.executor.account, alice);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
-
 	});
 }
 
@@ -330,10 +336,10 @@ fn result_on_taskinfo_works_on_result_submit() {
 		System::set_block_number(8);
 		let alice = 1;
 		let bob = 2;
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::ZK;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::ZK;
 
 		// Provide an initial compute hours balance for Bob
 		pallet_payment::ComputeHours::<Test>::insert(bob, 20);
@@ -356,18 +362,18 @@ fn result_on_taskinfo_works_on_result_submit() {
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
 		let worker_id = 0;
-    let executable_worker_id = 1;
+		let executable_worker_id = 1;
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
 
-    // Perform cycle with Docker Task
+		// Perform cycle with Docker Task
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -378,7 +384,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
-      worker_type_0,
+			worker_type_0,
 			api_info_bob.domain.clone(),
 			latitude,
 			longitude,
@@ -390,7 +396,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-      task_type_0,
+			task_type_0,
 			task_data.clone(),
 			None,
 			bob,
@@ -429,11 +435,11 @@ fn result_on_taskinfo_works_on_result_submit() {
 		assert_eq!(verifications.executor.account, bob);
 		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
 
-    // Perform cycle with ZK Task
-    
-    assert_ok!(EdgeConnectModule::register_worker(
+		// Perform cycle with ZK Task
+
+		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			api_info.domain,
 			latitude,
 			longitude,
@@ -444,7 +450,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(bob),
-      worker_type_1,
+			worker_type_1,
 			api_info_bob.domain,
 			latitude,
 			longitude,
@@ -456,7 +462,7 @@ fn result_on_taskinfo_works_on_result_submit() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(bob),
-      task_type_1,
+			task_type_1,
 			task_data.clone(),
 			Some(zk_files_cid.clone()),
 			bob,
@@ -509,8 +515,8 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 		let worker_id = 0;
-    let worker_type = WorkerType::Docker;
-    let task_type = TaskType::Docker;
+		let worker_type = WorkerType::Docker;
+		let task_type = TaskType::Docker;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
@@ -524,7 +530,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(alice),
-      worker_type,
+			worker_type,
 			api_info.domain,
 			worker_latitude,
 			worker_longitude,
@@ -536,7 +542,7 @@ fn it_fails_when_submit_completed_task_with_invalid_owner() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-      task_type,
+			task_type,
 			task_data.clone(),
 			None,
 			alice,
@@ -578,11 +584,11 @@ fn it_works_when_verifying_task() {
 		let worker_storage: StorageBytes = 100000000;
 		let worker_cpu: CpuCores = 12;
 		let executor_worker_id = 0;
-    let executor_worker_id_1 = 1;
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::ZK;
+		let executor_worker_id_1 = 1;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::ZK;
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
 
@@ -598,11 +604,11 @@ fn it_works_when_verifying_task() {
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    // Perform cycle with Docker Task
+		// Perform cycle with Docker Task
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			api_info_executor.domain.clone(),
 			worker_latitude,
 			worker_longitude,
@@ -614,7 +620,7 @@ fn it_works_when_verifying_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_0,
+			task_type_0,
 			task_data.clone(),
 			None,
 			executor,
@@ -634,7 +640,7 @@ fn it_works_when_verifying_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-      worker_type_0,
+			worker_type_0,
 			api_info_verifier.domain,
 			worker_latitude,
 			worker_longitude,
@@ -672,11 +678,11 @@ fn it_works_when_verifying_task() {
 		let new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 
-    // Perform cycle with ZK Task
+		// Perform cycle with ZK Task
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			api_info_executor.domain,
 			worker_latitude,
 			worker_longitude,
@@ -688,7 +694,7 @@ fn it_works_when_verifying_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_1.clone(),
+			task_type_1.clone(),
 			task_data.clone(),
 			Some(zk_files_cid.clone()),
 			executor,
@@ -708,7 +714,7 @@ fn it_works_when_verifying_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-      worker_type_1,
+			worker_type_1,
 			api_info_verifier.domain,
 			worker_latitude,
 			worker_longitude,
@@ -762,11 +768,11 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let worker_cpu: CpuCores = 12;
 		let worker_id = 0;
 		let executor_worker_id = 0;
-    let executor_worker_id_executable = 1;
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::ZK;
+		let executor_worker_id_executable = 1;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::ZK;
 
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
@@ -783,11 +789,11 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    // Perform cycle with Docker Task
+		// Perform cycle with Docker Task
 
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			api_info_executor.domain.clone(),
 			worker_latitude,
 			worker_longitude,
@@ -799,7 +805,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_0,
+			task_type_0,
 			task_data.clone(),
 			None,
 			executor,
@@ -819,7 +825,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-      worker_type_0.clone(),
+			worker_type_0.clone(),
 			api_info_verifier.domain,
 			worker_latitude,
 			worker_longitude,
@@ -854,7 +860,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-      worker_type_0,
+			worker_type_0,
 			api_info_resolver.domain,
 			worker_latitude,
 			worker_longitude,
@@ -893,11 +899,11 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		new_task_status = TaskStatus::<Test>::get(task_id).unwrap();
 		assert_eq!(new_task_status, TaskStatusType::Completed);
 
-    // Preform cycle with ZK Task
-    
+		// Preform cycle with ZK Task
+
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(executor),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			api_info_executor.domain,
 			worker_latitude,
 			worker_longitude,
@@ -909,7 +915,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_1,
+			task_type_1,
 			task_data.clone(),
 			Some(zk_files_cid),
 			executor,
@@ -929,7 +935,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(verifier),
-      worker_type_1.clone(),
+			worker_type_1.clone(),
 			api_info_verifier.domain,
 			worker_latitude,
 			worker_longitude,
@@ -964,7 +970,7 @@ fn it_assigns_resolver_when_dispute_in_verification_and_resolves_task() {
 		};
 		assert_ok!(EdgeConnectModule::register_worker(
 			RuntimeOrigin::signed(resolver),
-      worker_type_1,
+			worker_type_1,
 			api_info_resolver.domain,
 			worker_latitude,
 			worker_longitude,
@@ -1019,10 +1025,10 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let worker_cpu: CpuCores = 12;
 		let executor_worker_id = 0;
 		let executor_worker_id_executable = 1;
-    let worker_type_0 = WorkerType::Docker;
-    let worker_type_1 = WorkerType::Executable;
-    let task_type_0 = TaskType::Docker;
-    let task_type_1 = TaskType::ZK;
+		let worker_type_0 = WorkerType::Docker;
+		let worker_type_1 = WorkerType::Executable;
+		let task_type_0 = TaskType::Docker;
+		let task_type_1 = TaskType::ZK;
 
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(task_creator, 20);
@@ -1034,15 +1040,15 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
 
-    // Perform cycle with Docker Task
+		// Perform cycle with Docker Task
 
-    // Register executor
+		// Register executor
 		assert_ok!(register_worker(executor, WorkerType::Docker, "executor"));
 
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_0,
+			task_type_0,
 			task_data.clone(),
 			None,
 			executor,
@@ -1080,7 +1086,7 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register resolver
-    assert_ok!(register_worker(resolver, WorkerType::Docker, "resolver"));
+		assert_ok!(register_worker(resolver, WorkerType::Docker, "resolver"));
 
 		// Submit differing completed hash
 		let completed_hash_2 = H256([222; 32]);
@@ -1115,7 +1121,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let new_executor = 4;
 
 		// Register new executor
-    assert_ok!(register_worker(new_executor, WorkerType::Docker, "new_executor"));
+		assert_ok!(register_worker(
+			new_executor,
+			WorkerType::Docker,
+			"new_executor"
+		));
 
 		// Reassigns a new executor when resolver cannot find a matching completed hash
 		assert_ok!(TaskManagementModule::resolve_completed_task(
@@ -1137,15 +1147,19 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 			TaskManagementModule::get_task_verifications(task_id);
 		assert_eq!(updated_verifications_after_reassignment, None);
 
-    // Perform cycle with ZK Task
-    
+		// Perform cycle with ZK Task
+
 		// Register executor
-		assert_ok!(register_worker(executor, WorkerType::Executable, "executor"));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"executor"
+		));
 
 		// Dispatch a signed extrinsic to schedule a task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(task_creator),
-      task_type_1,
+			task_type_1,
 			task_data.clone(),
 			Some(zk_files_cid),
 			executor,
@@ -1160,7 +1174,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let completed_hash = H256([123; 32]);
 
 		// Register verifier
-		assert_ok!(register_worker(verifier, WorkerType::Executable, "verifier"));
+		assert_ok!(register_worker(
+			verifier,
+			WorkerType::Executable,
+			"verifier"
+		));
 
 		let result =
 			BoundedVec::try_from(b"Qmaf1xjXDY7fhY9QQw5XfwdkYZQ2cPhaZRT2TfXeadYCbD".to_vec()).unwrap();
@@ -1183,7 +1201,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		assert_eq!(task_status, TaskStatusType::PendingValidation);
 
 		// Register resolver
-		assert_ok!(register_worker(resolver, WorkerType::Executable, "resolver"));
+		assert_ok!(register_worker(
+			resolver,
+			WorkerType::Executable,
+			"resolver"
+		));
 
 		// Submit differing completed hash
 		let completed_hash_2 = H256([222; 32]);
@@ -1218,7 +1240,11 @@ fn it_reassigns_task_when_resolver_fails_to_resolve() {
 		let new_executor = 4;
 
 		// Register a worker for the new executor
-		assert_ok!(register_worker(new_executor, WorkerType::Executable, "new_executor"));
+		assert_ok!(register_worker(
+			new_executor,
+			WorkerType::Executable,
+			"new_executor"
+		));
 
 		// Reassigns a new executor when resolver cannot find a matching completed hash
 		assert_ok!(TaskManagementModule::resolve_completed_task(
