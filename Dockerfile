@@ -20,8 +20,6 @@ RUN useradd -m -u 1001 -U -s /bin/sh -d /polkadot polkadot && \
 # check if executable works in this container
 	/usr/local/bin/cyborg-node --version
 
-USER polkadot
-
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
