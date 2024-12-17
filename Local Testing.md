@@ -12,6 +12,7 @@ Running these requires the following:
 - Npm installed
 - Rust toolchain for substrate development
 - Zombienet
+- Docker
 
 This document will walk through how to set each of them up for local testing and how to test their functionality.
 
@@ -26,11 +27,15 @@ We recommend to set the components up in the same order that is outlined in the 
 git clone https://github.com/Cyborg-Network/cyborg-parachain.git
 cd cyborg-parachain
 ```
-2. Build the parachain node
+2. Initialize the oracle submodule
+```
+git submodule update --init
+```
+3. Build the parachain node
 ```
 cargo build --release
 ```
-3. Run the parachain node with zombienet
+4. Run the parachain node with zombienet
 ```
 zombienet --provider native spawn ./zombienet.toml
 ```
