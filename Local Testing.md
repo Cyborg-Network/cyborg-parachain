@@ -20,7 +20,6 @@ We recommend to set the components up in the same order that is outlined in the 
 ### Cyborg Parachain
 ###### Requirements
 - Zombienet
-
 - Rust toolchain for substrate development
 ###### Setup
 1. Clone the repository and navigate into it
