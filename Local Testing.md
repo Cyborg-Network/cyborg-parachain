@@ -3,7 +3,7 @@ Cyborg Connect is the entry point to the Cyborg Network, a decentralized edge co
 ## Local Setup 
 There are four components required to test the Cyborg Network locally:
 - Cyborg Parachain
-- Cyborg Worker Node
+- Cyborg Worker Node (x3)
 - Cyborg Connect
 - Cyborg Oracle Feeder
 
@@ -62,19 +62,32 @@ cd Cyborg-worker-node/docker
 2. Open the Dockerfile and replace the empty environment variables with the following data
 ```
 ENV PARACHAIN_URL=ws://127.0.0.1:9988
-ENV ACCOUNT_SEED="bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice"
 ENV CYBORG_WORKER_NODE_IPFS_API_URL=https://fuchsia-academic-stoat-866.mypinata.cloud
 ENV CYBORG_WORKER_NODE_IPFS_API_KEY=21021fa56da65b48c301
 ENV CYBORG_WORKER_NODE_IPFS_API_SECRET=6df0a896d2c37606f53ae39f02333484be86d429a898e7c38fb8e4f67da16cb2
 ```
 3. Build the Docker image
-Since this step will already register the worker, the zombienet parachain testnet will need to be running at this point. We are using the `--network="host"` flag here to avoid having to open additional ports to the docker container, since the worker will be sending requests to the parachain. If the worker needs to be registered again for some reason after this image has been built (for example because the zombienet parachain testnet was restarted), it can be done via the `Provide Compute` section of Cyborg Connect
 ```
-docker build -t cyborg-worker-node:local --network="host" .
+docker build -t cyborg-worker-node:local .
 ```
 4. Run the docker image
+We will perform this step three separate times, to have three different workers in the network. At least two are required for successful task execution, as the second worker verifies the result of the first worker. If the results of the first and second worker differ, a third worker will resolve the conflict. We can neither use the same account, as verifying execution results with workers that belong to the same account as the original executor would pose a security risk, nor can we use the same IP address, so we will need to pass some additional environment variables. Please 
+First worker: ACCOUNT_SEED = `//Bob`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.101`
+Second worker: ACCOUNT_SEED = `//Charlie`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.102`
+Third worker: ACCOUNT_SEED = `//Dave`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.103`
 ```
-docker run --network="host" <image-id>
+docker run -it --network="host" --rm -e CYBORG_WORKER_NODE_TEST_IP="<DIFFERENT_EVERY_TIME>" -e ACCOUNT_SEED="<DIFFERENT_EVERY_TIME>" cyborg-worker-node:local /bin/bash
+```
+5. Register the worker
+The `docker run ...` command above will move us to the shell within the docker container, where we need to execute the commands to register the worker:
+```
+/usr/local/bin/cyborg-worker-node registration --parachain-url "$PARACHAIN_URL" --account-seed "$ACCOUNT_SEED" --ipfs-url "$CYBORG_WORKER_NODE_IPFS_API_URL" --ipfs-api-key "$CYBORG_WORKER_NODE_IPFS_API_KEY" --ipfs-api-secret "$CYBORG_WORKER_NODE_IPFS_API_SECRET"
+```
+After running this command we need to wait for the Cyborg Parachain to finalize the transaction.
+6. Start mining
+Once the transaction has been finalized, we can enter the next command, which will prompt the node to start mining, meaning it will start listening to tasks being assigned to it.
+```
+/usr/local/bin/cyborg-worker-node startmining --parachain-url "$PARACHAIN_URL" --account-seed "$ACCOUNT_SEED"
 ```
 
 After these steps have been completed, the Cyborg Worker Node is now registered on the parachain and listening for tasks that have been assigned to it. At this point it is able to execute tasks that have one definite result. A CID pointing to a simple `hello-world` binary  that can be used for testing has been provided in the Usage section.
@@ -106,8 +119,10 @@ npm run start
 4. Prepare the zombienet parachain testnet for testing
 - To test cyborg network locally, make sure that zombienet is already running a local version of the Cyborg Parachain otherwise Cyborg Connect will throw an error when in
  the development environment
-- To register our account as an oracle feeder (necessary to run Cyborg Oracle feeder) we will navigate to the dev mode of Cyborg Connect (via the button at the bottom right, saying "Test Chain"). At this point it is important that our polkadot.js wallet is connected to Cyborg Connect with the "Alice" testing account. Next, in the "Pallet Interactor" section we will select the `oracleMembership` pallet with the `addMember` extrinsic and submit a SUDO call to our testnet, adding our testing account as an oracle feeder.
-- To be able to purchase compute hours, we need to submit two other extrinsics, so we will select the `payment` pallet with the `setServiceProviderAccount` extrinsic. Again, we want to submit a SUDO call, setting our testing account as the service provider (the account that receives the funds when compute hours are purchased). The next call that we want to make is in the same pallet, but this time the `setPricePerHour` extrinsic, where we want to sumbit another SUDO call with arbitraty number that sets the price of a single compute hour
+- To register our account as an oracle feeder (necessary to run Cyborg Oracle feeder) we will navigate to the dev mode of Cyborg Connect (via the button at the bottom right, saying "Test Chain"). At this point it is important that our polkadot.js wallet is connected to Cyborg Connect with the "Alice" testing account. Next, in the "Pallet Interactor" section we will select the `oracleMembership` pallet with the `addMember` extrinsic and submit a SUDO call to our testnet, adding the `Eve` testing account (address can be copied from the accounts list above the pallet interactor) as an oracle feeder.
+- To be able to purchase compute hours, we need to submit two other extrinsics, so we will select the `payment` pallet with the `setServiceProviderAccount` extrinsic. Again, we want to submit a SUDO call, setting the `Eve` testing account as the service provider (the account that receives the funds when compute hours are purchased). The next call that we want to make is in the same pallet, but this time the `setPricePerHour` extrinsic, where we want to sumbit another SUDO call with arbitraty number that sets the price of a single compute hour. When we submit a payment to purchase compute hours, we can come back here and check that Eve has in fact received the funds from the transaction.
+
+We now have 4 different accounts in the loop, Alice, which is the account adopting the comupte consumer perspective, Bob, Charlie and Dave, which are the accounts owning the workers, and Eve which is the account receiving funds if compute hours are purchased and also the account submitting the worker status updates to the parachain as an oracle feeder.
 
 After these steps, cyborg connect is ready for testing and the parachain has been configured properly.
 
@@ -124,23 +139,24 @@ cd cyborg-oracle-feeder
 2. Open the Dockerfile and replace the empty environment variables with the following data
 ```
 ENV PARACHAIN_URL=ws://127.0.0.1:9988
-ENV ACCOUNT_SEED="bottom drive obey lake curtain smoke basket hold race lonely fit walk//Alice"
+ENV ACCOUNT_SEED="//Eve"
 ```
 3. Build the Docker image
 ```
 docker build -t cyborg-oracle-feeder:local .
 ```
 4. Run the docker image
-	Again, we are using the `--network="host"` flag to avoid network complications and stay on localhost.
+Again, we are using the `--network="host"` flag to avoid network complications and stay on localhost.
 ```
-docker run --network="host" <image-id>
+docker run --network="host" oracle-feeder:local
 ```
 
 After these steps have been completed, the Cyborg Oracle Feeder will start to query the worker that we registered previously for its availability status, transform the responses that it gets into a digestible format and submit the result to the parachain. When registering a worker, it will start out as inactive onchain until its status gets updated by the oracle, which happens every 50 blocks, so even if the oracle feeder submitted the initial value, it will take some time until the worker gets updated. For testing purposes it is still possible to assign tasks to an inactive worker.
+
 ## Usage
 This section describes how to interact with Cyborg Connect to test Cyborg Network.
+To test Cyborg Cetwork locally, make sure that zombienet is already running a local version of the Cyborg Parachain.
 
-To test Cyborg Cetwork locally, make sure that zombienet is already running a local version of the Cyborg Parachain, then when running Cyborg Connect, select `Local Chain` in the selector at the bottom of the screen. This will set the RPC endpoint that Cyborg Connect tries to connect to to the local chain that you are running.
 #### Provide Compute
 The Provide Compute section provides UI for users that contribute compute power to the Cyborg Network, and want to manage or monitor their node(s).
 ###### Worker Registration
@@ -171,13 +187,13 @@ The page following the worker selection map allows the user to do two things:
 ###### Payment Method
 For now, the only available payment method is the native token used in Cyborg Network, but in the future it will be possible to pay with other cryptocurrencies, or even FIAT. This page also shows the total cost of execution and requires the user to accept the terms of service to continue with task execution. For task execution, there is a testing binary that we uploaded to IPFS that can be used. The CID is: `bafkreicw5qjlocihbchmsctw7zbpabicre2ixq6rfimgw372kch5czh3rq`. To execute the binary on your Worker Node, just paste the CID into the modal prompting for the binary.
 ###### Dashboard
-Once a task has been dispatched for execution, the dashboard is shown, which shows a list of Cyborg Workers that the user is currently occupying. When selecting one of the workers, information about the execution process is shown. However when the worker tries to sumbit the task, the parachain will reject the task submission, since we only have one worker registered and there are no other workers available to verify the result. The user will be able to access confidential information about the task that was dispatched, like logs or execution result locations. This information is being kept confidential, by having the user sign a timestamp with the users wallet. The worker confirms the users identity and establish a symetrically encrypted websocket connection between Cyborg Connect and the Worker. Once the indentity of the user has beeen confirmed, the user is able to see the following information:
+Once a task has been dispatched for execution, the dashboard is shown, which shows a list of Cyborg Workers that the user is currently occupying, which in this case can only be one. When selecting one of the workers, information about the execution process is shown. The user will be able to access confidential information about the task that was dispatched, like logs or execution result locations. This information is being kept confidential, by having the user sign a timestamp with the users wallet. The worker confirms the users identity and establishes a symetrically encrypted websocket connection between Cyborg Connect and the Worker. Once the indentity of the user has beeen confirmed, the user is able to see the following information:
 - status of the task
-- verification status of the task
 - logs generated during task execution
 - location of the result
 - status of the worker
 - usage metrics (cpu, ram, storage)
 - worker specifications (location, OS, amount of memory, amount of storage, etc.)
 ## Known issues
-- If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected due to an invalid nonce
+- If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected due to an invalid nonce, we have not decided on a definitive solution to handle these cases yet
+- Sometimes the IPFS gateway will not be responsive in time, in which case the process has to be restarted
