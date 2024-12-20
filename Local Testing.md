@@ -173,7 +173,7 @@ The Provide Compute section provides UI for users that contribute compute power 
 ###### Worker Registration
 The Cyborg Worker Nodes register themselves, as we have seen in the Worker Node section.
 ###### Worker Removal
-To remove your node from the list of nodes, you can click the delete icon in the `Provide Compute` section. If you want to try that, you should do it at the end of the testing run, so that you don't have to repeat the registration step.
+To remove your node from the list of nodes, you can click the delete icon in the `Provide Compute` section. If you want to try that, you should do it at the end of the testing run, with an additional worker, as only workers that belong to the account connected to Cyborg Connect will show up here.
 
 #### Access Compute
 The Access Compute section provides UI for users that want to consume compute on the Cyborg Network.
