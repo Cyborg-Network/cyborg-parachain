@@ -207,6 +207,8 @@ Once a task has been dispatched for execution, the dashboard is shown, which sho
 - status of the worker
 - usage metrics (cpu, ram, storage)
 - worker specifications (location, OS, amount of memory, amount of storage, etc.)
+
+`Note that this can only be done as soon as the block with containing the task assignment has been finalized and the Worker Node has picked up the assignment, as it will then set the user who assigned the task as the task owner, granting the user access. If that has not yet happened, the user will not be able to open the lock. Finalizaton can take a while, but for now, you can check if the log can be opened by checking if the Worker Node has begun execution.`
 ## Known issues
 - If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected due to an invalid nonce, we have not decided on a definitive solution to handle these cases yet
 - Sometimes the IPFS gateway will not be responsive in time, in which case the process has to be restarted
