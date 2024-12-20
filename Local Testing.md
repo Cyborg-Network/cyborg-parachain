@@ -72,7 +72,8 @@ ENV CYBORG_WORKER_NODE_IPFS_API_SECRET=6df0a896d2c37606f53ae39f02333484be86d429a
 docker build -t cyborg-worker-node:local .
 ```
 4. Run the docker image
-We will perform this step three separate times, to have three different workers in the network. At least two are required for successful task execution, as the second worker verifies the result of the first worker. If the results of the first and second worker differ, a third worker will resolve the conflict. We can neither use the same account, as verifying execution results with workers that belong to the same account as the original executor would pose a security risk, nor can we use the same IP address, so we will need to pass some additional environment variables. Please 
+We will perform this step three separate times, to have three different workers in the network. At least two are required for successful task execution, as the second worker verifies the result of the first worker. If the results of the first and second worker differ, a third worker will resolve the conflict. We can neither use the same account, as verifying execution results with workers that belong to the same account as the original executor would pose a security risk, nor can we use the same IP address, so we will need to pass some additional environment variables.
+
 First worker: ACCOUNT_SEED = `//Bob`, CYBORG_WORKER_NODE_TEST_IP=`127.0.0.1`
 Second worker: ACCOUNT_SEED = `//Charlie`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.101`
 ```
