@@ -3,8 +3,8 @@ Cyborg Connect is the entry point to the Cyborg Network, a decentralized edge co
 ## Local Setup 
 There are four components required to test the Cyborg Network locally:
 - Cyborg Parachain
-- Cyborg Worker Node (x3)
-- Cyborg Connect
+- Cyborg Worker Node (x2)
+- Cyborg Connect (dApp Frontend)
 - Cyborg Oracle Feeder
 
 Running these requires the following:
@@ -13,6 +13,7 @@ Running these requires the following:
 - Rust toolchain for substrate development (setup explained here: https://docs.substrate.io/install/linux/)
 - Zombienet (setup explained later, when needed)
 - Docker (installation via apt: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository)
+- Ports available: All ports required for zombienet (relay and parachain nodes are 9944, 9955, 9988), additionally 8080 and 8081 for communication between the Cyborg Worker Node and Cyborg Connect
 
 This document will walk through how to set each of them up for local testing and how to test their functionality.
 
@@ -72,9 +73,8 @@ docker build -t cyborg-worker-node:local .
 ```
 4. Run the docker image
 We will perform this step three separate times, to have three different workers in the network. At least two are required for successful task execution, as the second worker verifies the result of the first worker. If the results of the first and second worker differ, a third worker will resolve the conflict. We can neither use the same account, as verifying execution results with workers that belong to the same account as the original executor would pose a security risk, nor can we use the same IP address, so we will need to pass some additional environment variables. Please 
-First worker: ACCOUNT_SEED = `//Bob`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.101`
-Second worker: ACCOUNT_SEED = `//Charlie`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.102`
-Third worker: ACCOUNT_SEED = `//Dave`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.103`
+First worker: ACCOUNT_SEED = `//Bob`, CYBORG_WORKER_NODE_TEST_IP=`127.0.0.1`
+Second worker: ACCOUNT_SEED = `//Charlie`, CYBORG_WORKER_NODE_TEST_IP=`192.168.1.101`
 ```
 docker run -it --network="host" --rm -e CYBORG_WORKER_NODE_TEST_IP="<DIFFERENT_EVERY_TIME>" -e ACCOUNT_SEED="<DIFFERENT_EVERY_TIME>" cyborg-worker-node:local /bin/bash
 ```
@@ -84,14 +84,21 @@ The `docker run ...` command above will move us to the shell within the docker c
 /usr/local/bin/cyborg-worker-node registration --parachain-url "$PARACHAIN_URL" --account-seed "$ACCOUNT_SEED" --ipfs-url "$CYBORG_WORKER_NODE_IPFS_API_URL" --ipfs-api-key "$CYBORG_WORKER_NODE_IPFS_API_KEY" --ipfs-api-secret "$CYBORG_WORKER_NODE_IPFS_API_SECRET"
 ```
 After running this command we need to wait for the Cyborg Parachain to finalize the transaction.
-6. Start mining
+
+6. Start Agent
+By this point you should make sure that port 8080 and 8081 are indeed unoccupied, as we will now run the command that starts the binary responsible for communication between the Worker and Cyborg connect. This step should ONLY be performed on the worker that was registered under the IP address `127.0.0.1`.
+```
+/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.config
+```
+
+7. Start mining
 Once the transaction has been finalized, we can enter the next command, which will prompt the node to start mining, meaning it will start listening to tasks being assigned to it.
 ```
 /usr/local/bin/cyborg-worker-node startmining --parachain-url "$PARACHAIN_URL" --account-seed "$ACCOUNT_SEED"
 ```
+The output of this command will show you the owner of the worker. Take note of the account number of the worker that is registered with the IP address `127.0.0.1`, in our case, the one with the `//Bob` seedphrase. We will need that later, when testing Cyborg Connect.
 
 After these steps have been completed, the Cyborg Worker Node is now registered on the parachain and listening for tasks that have been assigned to it. At this point it is able to execute tasks that have one definite result. A CID pointing to a simple `hello-world` binary  that can be used for testing has been provided in the Usage section.
-
 
 ### Cyborg Connect
 ###### Requirements
@@ -180,6 +187,8 @@ The page following service selection shows a world map and asks for the users lo
 - Location
 - Owner
 - Distance to the user
+
+Since the worker node retrieves the location of its public IP address when registering, we will only see one dot on the map (as all our nodes have the same public IP address). Here we will need to choose the `Manual` selection option and paste the owner account of the worker that we registered under `127.0.0.1` earlier, along with the ID `0`, as every accounts first worker has the ID `0`. We have to make sure that we select this worker, because `subxt`, the library we are using to submit transactions from the Cyborg Worker Node to the parachain will only allow us to make requests to a `ws` (non `wss`) endpoint if on localhost. That means on local testing only one of the workers we registered can communicate directly with Cyborg Connect, because they communicate on the same ports. 
 ###### Selection of Additional Workers and Purchase of Compute Hours
 The page following the worker selection map allows the user to do two things:
 - Select additional workers: In case the task that the user wants to execute should run on mutliple workers. The worker that the user selected on the map is pre-selected, but additional nearby workers will be recommended
