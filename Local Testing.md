@@ -139,6 +139,8 @@ After these steps, cyborg connect is ready for testing and the parachain has bee
 
 
 ### Cyborg Oracle Feeder
+###### Note
+For a more detailed explanation, please consult the readme for the oracle: https://github.com/Cyborg-Network/cyborg-parachain/tree/testing-doc-update/pallets/status-aggregator#status-aggregator-pallet
 ###### Requirements
 - Docker needs to be installed
 ###### Setup
