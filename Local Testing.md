@@ -1,7 +1,4 @@
-## Overview
-Cyborg Connect is the entry point to the Cyborg Network, a decentralized edge computing platform. By joining the network, users can either provide computational power to contribute to the network's infrastructure or consume computational resources for task execution. The network is built to support a wide range of use cases, from running Docker-based tasks to executing binary programs.
-
-# Status-Aggregator pallet
+# Status-Aggregator pallet for Oracle
 
 This pallet serves as a support pallet to the oracle. It processes feed data utilizing the `T::OnNewData` trait from the oracle pallet onto this pallet. The pallet keeps aggregated data and entries up to a block interval defined by `MaxBlockRangePeriod` in the pallet config.
 
