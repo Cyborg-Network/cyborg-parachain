@@ -24,33 +24,8 @@ Official Repository for the Cyborg Network
 
 ## Getting Started
 
-Depending on your operating system and Rust version, there might be additional packages required to compile.
-Check the [Install](https://docs.substrate.io/install/) instructions for your platform for the most common dependencies.
-Alternatively, you can use one of the [alternative installation](#alternatives-installations) options.
-
-### Build (For the PoC)
-
-Use the following command to build the node without launching it:
-
-Compile the code
-```sh
-cargo build --release --features ocw
-```
-
-Execute the off chain worker module
-```sh
-./target/release/cyborg-node --dev --enable-offchain-indexing=true
-```
-
-### Connect with Polkadot-JS Apps Front-End
-
-After you start the node locally, you can interact with it using the hosted version of the [Polkadot/Substrate Portal](https://polkadot.js.org/apps/#/explorer?rpc=ws://localhost:9944) front-end by connecting to the local node endpoint.
-A hosted version is also available on [IPFS (redirect) here](https://dotapps.io/) or [IPNS (direct) here](ipns://dotapps.io/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/explorer).
-You can also find the source code and instructions for hosting your own instance on the [polkadot-js/apps](https://github.com/polkadot-js/apps) repository.
-
-### Multi-Node Local Testnet
-
-If you want to see the multi-node consensus algorithm in action, see [Simulate a network](https://docs.substrate.io/tutorials/get-started/simulate-network/).
+To test the Cyborg Parachain, please refer to the instructions in this document:
+https://github.com/Cyborg-Network/cyborg-parachain/blob/master/Local%20Testing.md#local-setup
 
 ## Blockchain Structure
 
@@ -117,56 +92,3 @@ Instead of installing dependencies and building this source directly, consider t
 
 Install [nix](https://nixos.org/), and optionally [direnv](https://github.com/direnv/direnv) and [lorri](https://github.com/nix-community/lorri) for a fully plug-and-play experience for setting up the development environment.
 To get all the correct dependencies, activate direnv `direnv allow` and lorri `lorri shell`.
-
-### Dockernote of the Rust compiler output.
-
-### Build
-
-🔨 Use the following command to build the node without launching it:
-
-```sh
-cargo build --release
-```
-
-🐳 Alternatively, build the docker image:
-
-```sh
-docker build . -t cyborg-parachain
-```
-
-### Local Development Chain
-
-🧟 This project uses [Zombienet](https://github.com/paritytech/zombienet) to orchestrate the relaychain and parachain nodes.
-You can grab a [released binary](https://github.com/paritytech/zombienet/releases/latest) or use an [npm version](https://www.npmjs.com/package/@zombienet/cli).
-
-This template produces a parachain node.
-You still need a relaychain node - you can download the `polkadot`
-(and the accompanying `polkadot-prepare-worker` and `polkadot-execute-worker`)
-binaries from [Polkadot SDK releases](https://github.com/paritytech/polkadot-sdk/releases/latest).
-
-Make sure to bring the parachain node - as well as `polkadot`, `polkadot-prepare-worker`, `polkadot-execute-worker`,
-and `zombienet` - into `PATH` like so:
-
-```sh
-export PATH="./target/release/:$PATH"
-```
-
-This way, we can conveniently use them un the following steps.
-
-👥 The following command starts a local development chain, with a single relay chain node and a single parachain collator:
-
-```sh
-zombienet --provider native spawn ./zombienet.toml
-
-# Alternatively, the npm version:
-npx --yes @zombienet/cli --provider native spawn ./zombienet.toml
-```
-
-## Task Examples:
-
-(Just enter the name of the docker images in the UI to Execute)
-
-1. hello-world - Prints the docker hello world message 
-2. cyborgnetwork/simple-python:new - A sample python program with arithmetic functions
-3. cyborgnetwork/flog_loader:latest - a loader app to test logs
-
