@@ -1,5 +1,9 @@
 # Cyborg Network - Milestone 1 Delivery
 
+## ⚠️ Outdated Document ⚠️
+
+This document may no longer be relevant and is kept here for reference. Please refer to [Local Testing](https://github.com/Cyborg-Network/cyborg-parachain/blob/master/Local%20Testing.md#local-setup) for the latest information. 
+
 ## Overview
 
 The baseline infrastructure layer of the Cyborg Network parachain is delivered as part of this grant. This includes a sample product line called CyberDock, which allows users to deploy publicized Docker images into our network of edge servers. The executed container results will be verified by parallel execution and Hash equations.
