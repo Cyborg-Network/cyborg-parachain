@@ -60,7 +60,7 @@ The documentation of the Payments Pallet can be found here: https://github.com/C
 
 # Inventory (Edge-Connect) Pallet
 
-The documentation of the Edge-Connect Pallet can be found here: https://github.com/Cyborg-Network/cyborg-parachain/blob/master/pallets/payment/README.md
+The documentation of the Edge-Connect Pallet can be found here: https://github.com/Cyborg-Network/cyborg-parachain/blob/master/pallets/edge-connect/README.md
 
 ## Local Setup 
 There are four components required to test the Cyborg Network locally:
