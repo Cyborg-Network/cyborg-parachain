@@ -1,27 +1,21 @@
 # Edge-Connect pallet
 
-A pallet for managing the connection and management of off-chain workers (K3s cluster).
-
-## Overview
-
-The edge-connect pallet is responsible for managing the connected workers withing the system. it provides functionality to register, remove workers lined to to user accounts. A storage map maintains worker details, including status, domain, availability, specification and creation block.
-
-The Edge-Connect pallet provides functionality, including:
-
-* Add a new worker to the system.
-* Remove a worker from the system.
-* Switches worker visibility on or off
-
-To use it in your runtime, you need to implement
-[`edge-connect::Config`](https://example.com/dummy-link).
-
-The supported dispatchable functions are documented in the
-[`edge-connect::Call`](https://example.com/dummy-link)
+A pallet for managing the connection and management of [Cyborg Worker Nodes](https://github.com/Cyborg-Network/Cyborg-worker-node).
 
 ### Terminology
 
 * **K3s:** The lightweight version of Kubernetes for managing containers.
-* **Worker Node:** An Application inside a container that runs to handle assigned tasks.
+* **Cyborg Worker Node:** An Application that manages and executes tasks that were assigned to it via [Cyborg Connect](https://github.com/Cyborg-Network/cyborg-connect) and the [Cyborg Parachain](https://github.com/Cyborg-Network/cyborg-parachain).
+
+## Overview
+
+The edge-connect pallet is responsible for managing the connected Cyborg Worker Nodes withing the system. it provides functionality to register, remove workers lined to to user accounts. A storage map maintains worker details, including status, domain, availability, specification and creation block.
+
+The Edge-Connect pallet provides functionality, including:
+
+* Add a new Cyborg Worker Node to the system.
+* Remove a Cyborg Worker Node from the system.
+* Switches Cyborg Worker Node visibility on or off
 
 ## Interface
 
@@ -34,5 +28,11 @@ The supported dispatchable functions are documented in the
 ### Permissioned dispatchables
 
 _None available._
+
+### Storage Items
+
+* `AccountWorkers`: Maps user accounts to their registered worker IDs.
+* `WorkerClusters`: Maps worker IDs to a struct representing K3s based workers.
+* `ExecutableWorkers`: Maps worker IDs to a struct representing Cyborg Worker Nodes.
 
 License: Apache-2.0
