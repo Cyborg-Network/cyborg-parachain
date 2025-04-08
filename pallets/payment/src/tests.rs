@@ -1,5 +1,6 @@
 use crate::mock::*;
 use crate::BalanceOf;
+use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_noop, assert_ok};
 
 // Test for purchasing compute hours successfully
@@ -393,3 +394,152 @@ fn non_admin_cannot_set_service_provider_account() {
 		assert_eq!(pallet_payment::ServiceProviderAccount::<Test>::get(), None);
 	});
 }
+
+#[test]
+fn it_records_usage_successfully() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		assert_ok!(PaymentModule::record_usage(
+			RuntimeOrigin::signed(USER2),
+			70, 50, 80
+		));
+
+		assert_eq!(pallet_payment::MinerUsage::<Test>::get(USER2), Some((70, 50, 80)));
+
+		let expected_event = RuntimeEvent::PaymentModule(crate::Event::MinerUsageRecorded(USER2, 70, 50, 80));
+		assert!(System::events().iter().any(|e| e.event == expected_event));
+	});
+}
+
+#[test]
+fn it_fails_when_usage_input_is_invalid() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Usage above 100% should fail
+		assert_noop!(
+			PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 120, 50, 80),
+			crate::Error::<Test>::InvalidUsageInput
+	);
+	});
+}
+#[test]
+fn it_rewards_miner_correctly() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Set usage for USER4
+		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 50, 100, 50));
+
+		let cpu_rate: BalanceOf<Test> = 100u64.into();
+		let ram_rate: BalanceOf<Test> = 200u64.into();
+		let storage_rate: BalanceOf<Test> = 300u64.into();
+
+		let hours_worked = 2u32;
+
+		// Root calculates reward for USER4
+		assert_ok!(PaymentModule::reward_miner(
+			RuntimeOrigin::root(),
+			hours_worked,
+			USER4,
+			cpu_rate,
+			ram_rate,
+			storage_rate
+		));
+
+		// Expected calculation:
+		// hourly_payout = (100 * 50 + 200 * 100 + 300 * 50) / 100
+		//               = (5000 + 20000 + 15000) / 100 = 400
+		// total = 400 * 2 = 800
+		let expected_reward: BalanceOf<Test> = 800u64.into();
+
+		assert_eq!(
+			pallet_payment::MinerPendingRewards::<Test>::get(USER4),
+			expected_reward
+		);
+
+		let expected_event = RuntimeEvent::PaymentModule(crate::Event::MinerRewarded(USER4, expected_reward));
+		assert!(System::events().iter().any(|e| e.event == expected_event));
+	});
+}
+
+#[test]
+fn it_fails_to_reward_if_usage_not_recorded() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let cpu_rate: BalanceOf<Test> = 100u64.into();
+		let ram_rate: BalanceOf<Test> = 200u64.into();
+		let storage_rate: BalanceOf<Test> = 300u64.into();
+
+		assert_noop!(
+			PaymentModule::reward_miner(
+				RuntimeOrigin::root(),
+				2,
+				USER4,
+				cpu_rate,
+				ram_rate,
+				storage_rate
+			),
+			crate::Error::<Test>::InvalidUsageInput
+		);
+	});
+}
+
+#[test]
+fn it_distributes_rewards_to_miners() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Set the service provider account
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN),
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_service_provider_account {
+					new_account: USER3
+				}
+			)),
+		));
+
+		let reward: BalanceOf<Test> = 500u64.into();
+
+		// Give some balance to USER3 (service provider)
+		pallet_balances::Pallet::<Test>::set_balance(&USER3, 10_000u64.into());
+
+		// Set pending rewards for two miners
+		pallet_payment::MinerPendingRewards::<Test>::insert(USER4, reward);
+		pallet_payment::MinerPendingRewards::<Test>::insert(USER2, reward);
+
+		let initial_balance_user4=Balances::free_balance(&USER4);
+		let initial_balance_user2=Balances::free_balance(&USER2);
+
+		// Distribute rewards
+		assert_ok!(PaymentModule::distribute_rewards(RuntimeOrigin::root()));
+
+		// Check balances
+		assert_eq!(Balances::free_balance(USER4), initial_balance_user4 + reward);
+		assert_eq!(Balances::free_balance(USER2), initial_balance_user2 + reward);
+		assert_eq!(Balances::free_balance(USER3), (10_000u64 - 2 * 500).into());
+
+		// Verify events for both users
+		let event1 = RuntimeEvent::PaymentModule(crate::Event::MinerRewarded(USER4, reward));
+		let event2 = RuntimeEvent::PaymentModule(crate::Event::MinerRewarded(USER2, reward));
+		assert!(System::events().iter().any(|e| e.event == event1));
+		assert!(System::events().iter().any(|e| e.event == event2));
+	});
+}
+
+#[test]
+fn it_fails_to_distribute_if_provider_not_set() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		assert_noop!(
+			PaymentModule::distribute_rewards(RuntimeOrigin::root()),
+			crate::Error::<Test>::ServiceProviderAccountNotFound
+		);
+	});
+}
+
+

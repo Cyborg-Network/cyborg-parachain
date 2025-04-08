@@ -13,6 +13,8 @@ pub type AccountId = u128;
 pub const ADMIN: AccountId = 1;
 pub const USER2: AccountId = 2;
 pub const USER3: AccountId = 3;
+pub const USER4: AccountId = 4;
+
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]

@@ -11,7 +11,8 @@ mod tests;
 
 pub mod weights;
 pub use weights::*;
-
+use sp_runtime::traits::Zero;
+use log::info;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -59,6 +60,17 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ServiceProviderAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
+	// #[pallet::storage]
+	// pub type RewardRates<T: Config> = StorageMap<_, Blake2_128Concat, u32, (BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), OptionQuery>; // country_code => (cpu, ram, storage)
+
+	/// Tracks the latest recorded usage percentages per miner (cpu%, ram%, storage%).
+	#[pallet::storage]
+	pub type MinerUsage<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (u8, u8, u8), OptionQuery>; // cpu, ram, storage usage percentages
+	
+	/// Accumulated pending rewards for each miner.
+	#[pallet::storage]
+	pub type MinerPendingRewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -70,6 +82,13 @@ pub mod pallet {
 		PricePerHourSet(BalanceOf<T>),
 		/// Event triggered when the admin sets a new service provider account.
 		ServiceProviderAccountSet(T::AccountId),
+
+		// RewardRatesUpdated(u32, BalanceOf<T>, BalanceOf<T>, BalanceOf<T>),
+		
+		/// Event triggered when a miner's usage has been recorded.
+		MinerUsageRecorded(T::AccountId, u8, u8, u8),
+		/// Event triggered when a miner has been rewarded.
+		MinerRewarded(T::AccountId, BalanceOf<T>),
 	}
 
 	/// Pallet Errors
@@ -83,6 +102,11 @@ pub mod pallet {
 		InvalidHoursInput,
 		/// The service provider account is not found.
 		ServiceProviderAccountNotFound,
+
+		// RewardRateNotSet,
+		
+		/// Invalid usage percentages were provided (must be between 0 and 100).
+		InvalidUsageInput,
 	}
 
 	#[pallet::call]
@@ -191,6 +215,58 @@ pub mod pallet {
 			// Emit the event indicating the consumption of compute hours.
 			Self::deposit_event(Event::HoursConsumed(who, hours));
 
+			Ok(())
+		}
+
+
+		/// Record resource usage percentages (cpu, ram, storage) for a miner.
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
+		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(cpu <= 100 && ram <= 100 && storage <= 100, Error::<T>::InvalidUsageInput);
+			MinerUsage::<T>::insert(&who, (cpu, ram, storage));
+			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
+			Ok(())
+		}
+
+
+		/// Calculate the Reward of a miner using the reward rates of cpu , ram, storage .
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner() )]
+		pub fn reward_miner(origin: OriginFor<T>,hours_worked: u32, miner: T::AccountId,  cpu_rate: BalanceOf<T>, ram_rate: BalanceOf<T>, storage_rate: BalanceOf<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			let (cpu_usage, ram_usage, storage_usage) = MinerUsage::<T>::get(&miner).ok_or(Error::<T>::InvalidUsageInput)?;
+
+			let hourly_payout = cpu_rate * cpu_usage.into() / 100u32.into()
+				+ ram_rate * ram_usage.into() / 100u32.into()
+				+ storage_rate * storage_usage.into() / 100u32.into();
+
+			let reward = hourly_payout
+				.checked_mul(&hours_worked.into())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			MinerPendingRewards::<T>::mutate(&miner, |pending| *pending += reward);
+			Self::deposit_event(Event::MinerRewarded(miner, reward));
+			Ok(())
+		}
+
+
+		/// Distribute all pending rewards to miners from the service provider's balance.
+		#[pallet::call_index(6)]
+		#[pallet::weight(10_000)]
+		pub fn distribute_rewards(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
+			for (miner, reward) in MinerPendingRewards::<T>::drain() {
+				if reward.is_zero() {
+					continue;
+				}
+				T::Currency::transfer(&provider, &miner, reward, ExistenceRequirement::KeepAlive)?;
+				info!("{:?} rewarded with {:?} Native Coin",miner,reward);
+				Self::deposit_event(Event::MinerRewarded(miner, reward));
+
+			}
 			Ok(())
 		}
 	}
