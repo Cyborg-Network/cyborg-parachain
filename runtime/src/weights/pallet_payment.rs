@@ -104,8 +104,8 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
 			.saturating_add(T::DbWeight::get().reads_writes(1, 1))
 	}
 	fn distribute_rewards() -> Weight {
-		Weight::from_parts(6_000_000_000, 0)
-			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) // adjust based on loop size
+		Weight::from_parts(16_000_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) 
 	}
 }
 
@@ -169,7 +169,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads_writes(1, 1))
 	}
 	fn distribute_rewards() -> Weight {
-		Weight::from_parts(6_000_000_000, 0)
+		Weight::from_parts(16_000_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads_writes(10, 10))
 	}
 }
