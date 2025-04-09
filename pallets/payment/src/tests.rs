@@ -543,3 +543,77 @@ fn it_fails_to_distribute_if_provider_not_set() {
 }
 
 
+//Record usage overwrite behavior
+#[test]
+fn it_overwrites_existing_usage() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 40, 60, 80));
+		assert_eq!(pallet_payment::MinerUsage::<Test>::get(USER2), Some((40, 60, 80)));
+
+		// Overwrite with new usage
+		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 10, 20, 30));
+		assert_eq!(pallet_payment::MinerUsage::<Test>::get(USER2), Some((10, 20, 30)));
+	});
+}
+
+//Reward zero hours
+
+#[test]
+fn it_rewards_zero_if_hours_worked_is_zero() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 60, 70, 80));
+
+		let cpu_rate: BalanceOf<Test> = 100u64.into();
+		let ram_rate: BalanceOf<Test> = 200u64.into();
+		let storage_rate: BalanceOf<Test> = 300u64.into();
+
+		let hours_worked = 0u32;
+
+		assert_ok!(PaymentModule::reward_miner(
+			RuntimeOrigin::root(),
+			hours_worked,
+			USER4,
+			cpu_rate,
+			ram_rate,
+			storage_rate
+		));
+
+		assert_eq!(
+			pallet_payment::MinerPendingRewards::<Test>::get(USER4),
+			0u64.into()
+		);
+	});
+}
+
+// No transfer if reward is zero during distribution
+#[test]
+fn it_skips_distribution_for_zero_rewards() {
+	new_test_ext().execute_with(|| {
+		// Set provider and give it balance
+		assert_ok!(Sudo::sudo(
+			RuntimeOrigin::signed(ADMIN),
+			Box::new(RuntimeCall::PaymentModule(
+				crate::Call::set_service_provider_account {
+					new_account: USER3
+				}
+			)),
+		));
+		pallet_balances::Pallet::<Test>::set_balance(&USER3, 10_000u64.into());
+
+
+		// USER2 has 0 reward
+		let zero: BalanceOf<Test> = 0u64.into();
+		pallet_payment::MinerPendingRewards::<Test>::insert(USER2, zero);
+
+
+		let balance_before = Balances::free_balance(USER2);
+
+		assert_ok!(PaymentModule::distribute_rewards(RuntimeOrigin::root()));
+
+		let balance_after = Balances::free_balance(USER2);
+		assert_eq!(balance_after, balance_before);
+	});
+}
+
+
+

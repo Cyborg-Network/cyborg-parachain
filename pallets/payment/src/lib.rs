@@ -254,7 +254,7 @@ pub mod pallet {
 
 		/// Distribute all pending rewards to miners from the service provider's balance.
 		#[pallet::call_index(6)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::distribute_rewards())]
 		pub fn distribute_rewards(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;

@@ -40,7 +40,7 @@ pub trait WeightInfo {
 	// New extrinsics
 	fn record_usage() -> Weight;
 	fn reward_miner() -> Weight;
-	// fn distribute_rewards() -> Weight;
+	fn distribute_rewards() -> Weight;
 }
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
@@ -103,6 +103,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(4_000_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().reads_writes(1, 1))
+	}
+	fn distribute_rewards() -> Weight {
+		Weight::from_parts(16_000_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) // adjust based on loop size
 	}
 	
 	
@@ -168,6 +172,10 @@ impl WeightInfo for () {
 		Weight::from_parts(4_000_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().reads_writes(1, 1))
+	}
+	fn distribute_rewards() -> Weight {
+		Weight::from_parts(16_000_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads_writes(10, 10))
 	}
 	
 }

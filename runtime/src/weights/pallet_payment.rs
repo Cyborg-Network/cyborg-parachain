@@ -36,6 +36,11 @@ pub trait WeightInfo {
 	fn set_service_provider_account() -> Weight;
 	fn purchase_compute_hours() -> Weight;
 	fn consume_compute_hours() -> Weight;
+
+	// New extrinsics
+	fn record_usage() -> Weight;
+	fn reward_miner() -> Weight;
+	fn distribute_rewards() -> Weight;
 }
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
@@ -89,6 +94,19 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn record_usage() -> Weight {
+		Weight::from_parts(2_000_000_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	fn reward_miner() -> Weight {
+		Weight::from_parts(4_000_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().reads_writes(1, 1))
+	}
+	fn distribute_rewards() -> Weight {
+		Weight::from_parts(6_000_000_000, 0)
+			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) // adjust based on loop size
+	}
 }
 
 // For backwards compatibility and tests.
@@ -140,5 +158,18 @@ impl WeightInfo for () {
 		Weight::from_parts(2_728_000_000, 3517)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn record_usage() -> Weight {
+		Weight::from_parts(2_000_000_000, 0)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	fn reward_miner() -> Weight {
+		Weight::from_parts(4_000_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().reads_writes(1, 1))
+	}
+	fn distribute_rewards() -> Weight {
+		Weight::from_parts(6_000_000_000, 0)
+			.saturating_add(RocksDbWeight::get().reads_writes(10, 10))
 	}
 }
