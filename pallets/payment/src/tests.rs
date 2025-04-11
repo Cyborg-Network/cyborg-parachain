@@ -2,6 +2,7 @@ use crate::mock::*;
 use crate::BalanceOf;
 use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_noop, assert_ok};
+use pallet_edge_connect::*;
 
 // Test for purchasing compute hours successfully
 #[test]
@@ -399,6 +400,7 @@ fn non_admin_cannot_set_service_provider_account() {
 fn it_records_usage_successfully() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
+		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
 
 		assert_ok!(PaymentModule::record_usage(
 			RuntimeOrigin::signed(USER2),
@@ -418,6 +420,8 @@ fn it_fails_when_usage_input_is_invalid() {
 		System::set_block_number(1);
 
 		// Usage above 100% should fail
+		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
+
 		assert_noop!(
 			PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 120, 50, 80),
 			crate::Error::<Test>::InvalidUsageInput
@@ -430,6 +434,7 @@ fn it_rewards_miner_correctly() {
 		System::set_block_number(1);
 
 		// Set usage for USER4
+		pallet_edge_connect::AccountWorkers::<Test>::insert(USER4, 0);
 		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 50, 100, 50));
 
 		let cpu_rate: BalanceOf<Test> = 100u64.into();
@@ -547,6 +552,8 @@ fn it_fails_to_distribute_if_provider_not_set() {
 #[test]
 fn it_overwrites_existing_usage() {
 	new_test_ext().execute_with(|| {
+		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
+
 		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 40, 60, 80));
 		assert_eq!(pallet_payment::MinerUsage::<Test>::get(USER2), Some((40, 60, 80)));
 
@@ -561,6 +568,8 @@ fn it_overwrites_existing_usage() {
 #[test]
 fn it_rewards_zero_if_hours_worked_is_zero() {
 	new_test_ext().execute_with(|| {
+		pallet_edge_connect::AccountWorkers::<Test>::insert(USER4, 0);
+
 		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 60, 70, 80));
 
 		let cpu_rate: BalanceOf<Test> = 100u64.into();
@@ -612,6 +621,22 @@ fn it_skips_distribution_for_zero_rewards() {
 
 		let balance_after = Balances::free_balance(USER2);
 		assert_eq!(balance_after, balance_before);
+	});
+}
+
+#[test]
+fn it_fails_to_record_usage_if_not_a_worker() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// USER2 is NOT a registered worker
+		assert_noop!(
+			PaymentModule::record_usage(
+				RuntimeOrigin::signed(USER2),
+				70, 50, 80
+			),
+			pallet_payment::Error::<Test>::NotRegisteredMiner
+		);
 	});
 }
 

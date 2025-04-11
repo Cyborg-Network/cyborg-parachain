@@ -6,6 +6,7 @@ use sp_runtime::{
 	traits::{ConstU32, ConstU64},
 	BuildStorage,
 };
+use pallet_edge_connect::*;
 
 pub type Balance = u128;
 pub type AccountId = u128;
@@ -41,6 +42,10 @@ mod test_runtime {
 	pub type PaymentModule = pallet_payment;
 	#[runtime::pallet_index(3)]
 	pub type Balances = pallet_balances;
+	#[runtime::pallet_index(4)]
+	pub type EdgeConnectModule = pallet_edge_connect;
+	#[runtime::pallet_index(5)]
+	pub type Timestamp = pallet_timestamp;
 }
 
 // Parameters and implementation for frame_system::Config for the Test runtime
@@ -59,6 +64,11 @@ impl frame_system::Config for Test {
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type WeightInfo = ();
+}
+
+impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
@@ -90,6 +100,13 @@ impl pallet_sudo::Config for Test {
 	type WeightInfo = ();
 }
 
+
+impl pallet_timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<0>;
+	type WeightInfo = ();
+}
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut storage = GenesisConfig::<Test>::default().build_storage().unwrap();
 

@@ -7094,6 +7094,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-edge-connect",
  "pallet-sudo",
  "pallet-timestamp",
  "parity-scale-codec",

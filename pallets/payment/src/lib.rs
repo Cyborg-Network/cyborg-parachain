@@ -9,6 +9,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+use pallet_edge_connect::AccountWorkers;
+
 pub mod weights;
 pub use weights::*;
 use sp_runtime::traits::Zero;
@@ -36,7 +38,7 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -60,9 +62,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ServiceProviderAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
-	// #[pallet::storage]
-	// pub type RewardRates<T: Config> = StorageMap<_, Blake2_128Concat, u32, (BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), OptionQuery>; // country_code => (cpu, ram, storage)
-
 	/// Tracks the latest recorded usage percentages per miner (cpu%, ram%, storage%).
 	#[pallet::storage]
 	pub type MinerUsage<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (u8, u8, u8), OptionQuery>; // cpu, ram, storage usage percentages
@@ -82,8 +81,6 @@ pub mod pallet {
 		PricePerHourSet(BalanceOf<T>),
 		/// Event triggered when the admin sets a new service provider account.
 		ServiceProviderAccountSet(T::AccountId),
-
-		// RewardRatesUpdated(u32, BalanceOf<T>, BalanceOf<T>, BalanceOf<T>),
 		
 		/// Event triggered when a miner's usage has been recorded.
 		MinerUsageRecorded(T::AccountId, u8, u8, u8),
@@ -102,11 +99,12 @@ pub mod pallet {
 		InvalidHoursInput,
 		/// The service provider account is not found.
 		ServiceProviderAccountNotFound,
-
-		// RewardRateNotSet,
 		
 		/// Invalid usage percentages were provided (must be between 0 and 100).
 		InvalidUsageInput,
+		/// When a someone who is not a miner call miner permissioned extrinsics
+		NotRegisteredMiner,
+
 	}
 
 	#[pallet::call]
@@ -224,6 +222,11 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
 		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			ensure!(
+				pallet_edge_connect::Pallet::<T>::account_workers(&who).is_some(),
+				Error::<T>::NotRegisteredMiner
+			);
+			// ensure!(Self::is_registered_miner(&who), Error::<T>::NotRegisteredMiner);
 			ensure!(cpu <= 100 && ram <= 100 && storage <= 100, Error::<T>::InvalidUsageInput);
 			MinerUsage::<T>::insert(&who, (cpu, ram, storage));
 			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
@@ -246,7 +249,7 @@ pub mod pallet {
 				.checked_mul(&hours_worked.into())
 				.ok_or(ArithmeticError::Overflow)?;
 
-			MinerPendingRewards::<T>::mutate(&miner, |pending| *pending += reward);
+			MinerPendingRewards::<T>::mutate(&miner, |mut pending| *pending += reward);
 			Self::deposit_event(Event::MinerRewarded(miner, reward));
 			Ok(())
 		}
@@ -270,4 +273,5 @@ pub mod pallet {
 			Ok(())
 		}
 	}
+
 }
