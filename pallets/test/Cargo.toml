@@ -22,6 +22,8 @@ sp-core = { workspace = true }
 sp-io = { workspace = true }
 sp-keystore = { optional = true, version = "0.42.0" }
 sp-runtime = { workspace = true }
+pallet-task-management = { workspace = true }
+cyborg-primitives = { workspace = true }
 
 [features]
 default = ["std"]

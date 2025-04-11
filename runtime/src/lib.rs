@@ -323,18 +323,13 @@ impl pallet_payment::Config for Runtime {
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const UnsignedPriority: u64 = 1 << 20;
-}
-
 impl pallet_test::Config for Runtime {
   type AuthorityId = pallet_test::crypto::TestAuthId;
   type RuntimeEvent = RuntimeEvent;
-  type GracePeriod = ConstU64<5>;
-  type UnsignedInterval = ConstU64<128>;
-  type UnsignedPriority = UnsignedPriority;
-  type MaxPrices = ConstU32<5>;
-  type Call = RuntimeCall;
+  type GracePeriod = ConstU32<5>;
+  type MaxNumOfAuthenticatedVerifiers = ConstU32<5>;
+  type MaxNumOfProofVerifiers = ConstU32<5>;
+  type MinNumOfProofVerifiers = ConstU32<1>;
 }
 
 parameter_types! {

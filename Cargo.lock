@@ -2650,6 +2650,7 @@ dependencies = [
  "pallet-status-aggregator",
  "pallet-sudo",
  "pallet-task-management",
+ "pallet-test",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -7736,10 +7737,12 @@ dependencies = [
 name = "pallet-test"
 version = "0.1.0"
 dependencies = [
+ "cyborg-primitives",
  "frame-support",
  "frame-system",
  "lite-json",
  "log",
+ "pallet-task-management",
  "parity-scale-codec",
  "scale-info",
  "sp-core 34.0.0",
