@@ -53,6 +53,7 @@ pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
 pub use pallet_zk_verifier;
+pub use pallet_test;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -323,6 +324,20 @@ impl pallet_payment::Config for Runtime {
 }
 
 parameter_types! {
+    pub const UnsignedPriority: u64 = 1 << 20;
+}
+
+impl pallet_test::Config for Runtime {
+  type AuthorityId = pallet_test::crypto::TestAuthId;
+  type RuntimeEvent = RuntimeEvent;
+  type GracePeriod = ConstU64<5>;
+  type UnsignedInterval = ConstU64<128>;
+  type UnsignedPriority = UnsignedPriority;
+  type MaxPrices = ConstU32<5>;
+  type Call = RuntimeCall;
+}
+
+parameter_types! {
 		pub const MaxBlockRangePeriod: BlockNumber = 50u32; // Set the max block range to 100 blocks
 }
 
@@ -504,6 +519,9 @@ mod runtime {
 
 	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
+
+  #[runtime::pallet_index(47)]
+  pub type Test = pallet_test;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

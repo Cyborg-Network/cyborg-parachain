@@ -370,6 +370,13 @@ pub async fn start_parachain_node(
 		}
 	}
 
+  task_manager.spawn_handle().spawn(
+    "neuro-zk-daemon",
+    None,
+    crate::neuro_zk_daemon::start_daemon(/*client.clone()*/),
+  );
+
+
 	let announce_block = {
 		let sync_service = sync_service.clone();
 		Arc::new(move |hash, data| sync_service.announce_block(hash, data))

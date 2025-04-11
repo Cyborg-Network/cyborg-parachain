@@ -14,6 +14,7 @@ build = "build.rs"
 # name = "cyborg-node"
 
 [dependencies]
+tiny_http = { version = "0.12.0" }
 clap = { version = "4.5.3", features = ["derive"] }
 log = { workspace = true, default-features = true }
 codec = { package = "parity-scale-codec", version = "3.6.12" }
