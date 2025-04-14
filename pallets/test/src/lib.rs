@@ -20,6 +20,7 @@ pub use cyborg_primitives::{
     proof::*, 
     task::{TaskId, TaskType}
 };
+use pallet_task_management::Tasks;
 
 //#[cfg(test)]
 //mod tests;
@@ -135,15 +136,8 @@ pub mod pallet {
 			let parent_hash = <system::Pallet<T>>::block_hash(block_number - 1u32.into());
 			log::debug!("Current block: {:?} (parent hash: {:?})", block_number, parent_hash);
 
-			// It's a good practice to keep `fn offchain_worker()` function minimal, and move most
-			// of the code to separate `impl` block.
-			// Here we call a helper function to calculate current average price.
-			// This function reads storage entries of the current state.
-			let average: Option<u32> = Self::average_price();
-			log::debug!("Current price: {:?}", average);
-
 			// Call helper function to query the node to verify the proof
-		  verifiy_proof_and_send_signed();
+		  	fetch_verification_result_and_send_signed();
 		}
 	}
 
@@ -166,7 +160,7 @@ pub mod pallet {
 		/// purpose is to showcase offchain worker capabilities.
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		pub fn submit_result(origin: OriginFor<T>, result: bool) -> DispatchResultWithPostInfo {
+		pub fn submit_result(origin: OriginFor<T>, result: VerificationResult) -> DispatchResultWithPostInfo {
 			// Retrieve sender of the transaction.
 			let who = ensure_signed(origin)?;
 			// Add the price to the on-chain list.
@@ -176,7 +170,7 @@ pub mod pallet {
 
     #[pallet::call_index(1)]
 		#[pallet::weight({0})]
-    pub fn request_proof_verification(origin: OriginFor<T>, task_id: TaskId, proof: proof) -> DispatchResultWithPostInfo {
+    pub fn request_proof_verification(origin: OriginFor<T>, task_id: TaskId, proof: Proof) -> DispatchResultWithPostInfo {
       let who = ensure_signed(origin)?;
 
       let task = pallet_task_management::Pallet::<T>::Tasks::get(task_id)
@@ -204,7 +198,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Event generated when new price is accepted to contribute to the average.
-		NewResult { result: bool, who: T::AccountId },
+		NewResult { result: VerificationResult, who: T::AccountId },
     /// event generated when the proof has successfully been verified
     ProofVerified { task_id: TaskId },
     /// Event generated when the proof has been rejected
@@ -213,15 +207,15 @@ pub mod pallet {
 
 	/// This is used to aggregate verification results and make a decision.
 	#[pallet::storage]
-	pub type VerificationAggregator<T: Config> = StorageMap<_, Twox64Concat, TaskId, BoundedVec<(T::AccountId, bool), T::MaxNumOfProofVerifiers>, OptionQuery>;
+	pub type VerificationAggregator<T: Config> = StorageMap<_, Twox64Concat, TaskId, BoundedVec<(T::AccountId, VerificationResult), T::MaxNumOfProofVerifiers>, OptionQuery>;
 
   /// This is used by the miner to submit proofs of execution, and by ocw to update verification status
   #[pallet::storage]
-  pub type Proofs<T: Config> = StorageMap<_, Identity, TaskId, (Proof, VerificationStatus), OptionQuery>;
+  pub type Proofs<T: Config> = StorageMap<_, Identity, TaskId, (Proof, ProofVerificationStatus), OptionQuery>;
 
   /// This is a list of all accounts that are allowed for ocw proof verification
   #[pallet::storage]
-  pub type AuthenticatedVerifiers<T: Config> = StorageValue<_, BoundedVec<u32, T::MaxNumOfAuthenticatedVerifiers>, ValueQuery>;
+  pub type AuthenticatedVerifiers<T: Config> = StorageValue<_, BoundedVec<T::AccountId, T::MaxNumOfAuthenticatedVerifiers>, ValueQuery>;
 }
 
 impl<T: Config> Pallet<T> {
@@ -258,7 +252,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn fetch_verification_result() -> Result<bool, http::Error> {
+	fn fetch_verification_result() -> Result<VerificationResult, http::Error> {
 		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
 
 		let request =
@@ -297,7 +291,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Add new result to the list
-	fn add_result(who: T::AccountId, result: boolean) -> Result<(), Error<T>>  {
+	fn add_result(who: T::AccountId, result: VerificationResult) -> Result<(), Error<T>>  {
 		log::info!("Adding '{}' to results", result);
 		<VerificationAggregator<T>>::mutate(|results| {
 			if results.try_push(result).is_err() {
