@@ -55,6 +55,7 @@ pub mod pallet {
 	/// AccountWorkers Information, Storage map for associating an account ID with a worker ID. If no worker exists, the query returns None.
 	/// Keeps track of workerIds per account if any
 	#[pallet::storage]
+	#[pallet::getter(fn account_workers)]
 	pub type AccountWorkers<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
 
