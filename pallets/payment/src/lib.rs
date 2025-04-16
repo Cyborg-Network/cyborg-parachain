@@ -21,6 +21,7 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
 
+
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
@@ -49,6 +50,27 @@ pub mod pallet {
 		/// A type representing the weights required by the dispatchable functions of this pallet.
 		type WeightInfo: WeightInfo;
 	}
+
+	#[derive(Clone,Encode,Decode,MaxEncodedLen,TypeInfo,RuntimeDebug,PartialEq,Default)]
+	pub enum PlanTier{
+		#[default]
+		Standard,
+		HighMemory,
+		ComputeOptimized
+	}
+
+	#[pallet::storage]
+    #[pallet::getter(fn subscription_fee)]
+    pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+
+	#[pallet::storage]
+	#[pallet::getter(fn consumer_subscription)]
+	pub(super) type ConsumerSubscription<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,(u32,bool),OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn consumer_tier)]
+	pub(super) type ConsumerTier<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,PlanTier,ValueQuery>;
 
 	// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
@@ -86,11 +108,15 @@ pub mod pallet {
 		MinerUsageRecorded(T::AccountId, u8, u8, u8),
 		/// Event triggered when a miner has been rewarded.
 		MinerRewarded(T::AccountId, BalanceOf<T>),
-	}
+		SubscriptionFeeSet(BalanceOf<T>),
+		ConsumerSubscribed(T::AccountId, BalanceOf<T>, u32),
+		}
+
 
 	/// Pallet Errors
 	#[pallet::error]
 	pub enum Error<T> {
+
 		/// The user's balance is insufficient for the transaction.
 		InsufficientBalance,
 		/// The user does not have enough compute hours to consume.
@@ -104,6 +130,11 @@ pub mod pallet {
 		InvalidUsageInput,
 		/// When a someone who is not a miner call miner permissioned extrinsics
 		NotRegisteredMiner,
+
+		InvalidFee,
+
+		AlreadySubscribed,
+        SubscriptionExpired,
 
 	}
 
@@ -272,6 +303,39 @@ pub mod pallet {
 			}
 			Ok(())
 		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight(10_000)]
+		pub fn subscribe(origin: OriginFor<T>)->DispatchResult{
+			let who = ensure_signed(origin)?;
+            ensure!(ConsumerSubscription::<T>::get(&who).is_none(), Error::<T>::AlreadySubscribed);
+            let fee = SubscriptionFee::<T>::get();
+            ensure!(T::Currency::free_balance(&who) >= fee, Error::<T>::InsufficientBalance);
+            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+            T::Currency::transfer(&who, &provider, fee, ExistenceRequirement::KeepAlive)?;
+            let remaining_days = 30;
+            ConsumerSubscription::<T>::insert(&who, (remaining_days, true));
+            Self::deposit_event(Event::ConsumerSubscribed(who, fee, remaining_days));
+			Ok(())
+		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(10_000)]
+		pub fn renew_subscription(origin:OriginFor<T>)->DispatchResult{
+			Ok(())
+		}
+
+		#[pallet::call_index(9)]
+		#[pallet::weight(10_000)]
+		pub fn set_subscription_fee(origin: OriginFor<T>, new_fee: BalanceOf<T>) -> DispatchResult {
+            ensure_root(origin)?;
+            ensure!(new_fee > Zero::zero(), Error::<T>::InvalidFee);
+            SubscriptionFee::<T>::put(new_fee);
+            Self::deposit_event(Event::SubscriptionFeeSet(new_fee));
+            Ok(())
+        }
+
+
 	}
 
 }
