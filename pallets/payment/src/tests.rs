@@ -640,5 +640,89 @@ fn it_fails_to_record_usage_if_not_a_worker() {
 	});
 }
 
+#[test]
+fn subscribe_works() {
+    new_test_ext().execute_with(|| {
+        let user = 1;
+        let provider = 99;
+        let fee_per_hour = 10;
+        let hours = 5;
+
+        pallet_payment::SubscriptionFee::<Test>::put(fee_per_hour);
+        pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+        assert_ok!(PaymentModule::subscribe(RuntimeOrigin::signed(user), hours));
+        assert_eq!(pallet_payment::ConsumerSubscription::<Test>::get(user), Some(hours));
+    });
+}
+
+#[test]
+fn subscribe_fails_if_already_subscribed() {
+    new_test_ext().execute_with(|| {
+        let user = 1;
+        let provider = 99;
+
+        pallet_payment::SubscriptionFee::<Test>::put(10);
+        pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+        pallet_payment::ConsumerSubscription::<Test>::insert(user, 10);
+
+        assert_noop!(
+            PaymentModule::subscribe(RuntimeOrigin::signed(user), 5),
+            pallet_payment::Error::<Test>::AlreadySubscribed
+        );
+    });
+}
+
+#[test]
+fn add_hours_works() {
+    new_test_ext().execute_with(|| {
+        let user = 1;
+        let provider = 99;
+
+        pallet_payment::SubscriptionFee::<Test>::put(10);
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+		pallet_payment::ConsumerSubscription::<Test>::insert(user, 5);
+
+        assert_ok!(PaymentModule::add_hours(RuntimeOrigin::signed(user), 5));
+        assert_eq!( pallet_payment::ConsumerSubscription::<Test>::get(user), Some(10));
+    });
+}
+
+#[test]
+fn add_hours_fails_if_not_subscribed() {
+    new_test_ext().execute_with(|| {
+        let user = 1;
+        let provider = 99;
+
+		pallet_payment::SubscriptionFee::<Test>::put(10);
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+        assert_noop!(
+            PaymentModule::add_hours(RuntimeOrigin::signed(user), 5),
+			pallet_payment::Error::<Test>::SubscriptionExpired
+        );
+    });
+}
+
+#[test]
+fn set_subscription_fee_works() {
+    new_test_ext().execute_with(|| {
+        let new_fee = 42;
+        assert_ok!(PaymentModule::set_subscription_fee_per_hour(RuntimeOrigin::root(), new_fee));
+        assert_eq!( pallet_payment::SubscriptionFee::<Test>::get(), new_fee);
+    });
+}
+
+#[test]
+fn set_subscription_fee_fails_with_zero() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            PaymentModule::set_subscription_fee_per_hour(RuntimeOrigin::root(), 0),
+			pallet_payment::Error::<Test>::InvalidFee
+        );
+    });
+}
+
+
 
 

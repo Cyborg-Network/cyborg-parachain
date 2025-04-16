@@ -51,13 +51,13 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	#[derive(Clone,Encode,Decode,MaxEncodedLen,TypeInfo,RuntimeDebug,PartialEq,Default)]
-	pub enum PlanTier{
-		#[default]
-		Standard,
-		HighMemory,
-		ComputeOptimized
-	}
+	// #[derive(Clone,Encode,Decode,MaxEncodedLen,TypeInfo,RuntimeDebug,PartialEq,Default)]
+	// pub enum PlanTier{
+	// 	#[default]
+	// 	Standard,
+	// 	HighMemory,
+	// 	ComputeOptimized
+	// }
 
 	#[pallet::storage]
     #[pallet::getter(fn subscription_fee)]
@@ -66,11 +66,17 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn consumer_subscription)]
-	pub(super) type ConsumerSubscription<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,(u32,bool),OptionQuery>;
+	pub(super) type ConsumerSubscription<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		u32, // number of prepaid hours
+		OptionQuery,
+	>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn consumer_tier)]
-	pub(super) type ConsumerTier<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,PlanTier,ValueQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn consumer_tier)]
+	// pub(super) type ConsumerTier<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,PlanTier,ValueQuery>;
 
 	// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
@@ -110,6 +116,7 @@ pub mod pallet {
 		MinerRewarded(T::AccountId, BalanceOf<T>),
 		SubscriptionFeeSet(BalanceOf<T>),
 		ConsumerSubscribed(T::AccountId, BalanceOf<T>, u32),
+		SubscriptionRenewed(T::AccountId,u32),
 		}
 
 
@@ -306,36 +313,58 @@ pub mod pallet {
 
 		#[pallet::call_index(7)]
 		#[pallet::weight(10_000)]
-		pub fn subscribe(origin: OriginFor<T>)->DispatchResult{
+		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-            ensure!(ConsumerSubscription::<T>::get(&who).is_none(), Error::<T>::AlreadySubscribed);
-            let fee = SubscriptionFee::<T>::get();
-            ensure!(T::Currency::free_balance(&who) >= fee, Error::<T>::InsufficientBalance);
-            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
-            T::Currency::transfer(&who, &provider, fee, ExistenceRequirement::KeepAlive)?;
-            let remaining_days = 30;
-            ConsumerSubscription::<T>::insert(&who, (remaining_days, true));
-            Self::deposit_event(Event::ConsumerSubscribed(who, fee, remaining_days));
+			ensure!(ConsumerSubscription::<T>::get(&who).is_none(), Error::<T>::AlreadySubscribed);
+			let fee_per_hour = SubscriptionFee::<T>::get();
+			let total_fee = fee_per_hour.checked_mul(&hours.into()).ok_or(Error::<T>::InvalidFee)?;
+			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
+			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
+			ConsumerSubscription::<T>::insert(&who, hours);
+			Self::deposit_event(Event::ConsumerSubscribed(who, total_fee, hours));
 			Ok(())
 		}
-
+		
 		#[pallet::call_index(8)]
 		#[pallet::weight(10_000)]
-		pub fn renew_subscription(origin:OriginFor<T>)->DispatchResult{
+		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			ensure!(ConsumerSubscription::<T>::contains_key(&who), Error::<T>::SubscriptionExpired);
+			let fee_per_hour = SubscriptionFee::<T>::get();
+			let total_fee = fee_per_hour.checked_mul(&extra_hours.into()).ok_or(Error::<T>::InvalidFee)?;
+			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
+			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
+			ConsumerSubscription::<T>::mutate(&who, |hours| {
+				if let Some(ref mut h) = hours {
+					*h += extra_hours;
+				}
+			});
+			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
 			Ok(())
 		}
-
+		
 		#[pallet::call_index(9)]
 		#[pallet::weight(10_000)]
-		pub fn set_subscription_fee(origin: OriginFor<T>, new_fee: BalanceOf<T>) -> DispatchResult {
-            ensure_root(origin)?;
-            ensure!(new_fee > Zero::zero(), Error::<T>::InvalidFee);
-            SubscriptionFee::<T>::put(new_fee);
-            Self::deposit_event(Event::SubscriptionFeeSet(new_fee));
-            Ok(())
-        }
+		pub fn set_subscription_fee_per_hour(origin: OriginFor<T>, new_fee_per_hour: BalanceOf<T>) -> DispatchResult {
+			ensure_root(origin)?;
+			ensure!(new_fee_per_hour > Zero::zero(), Error::<T>::InvalidFee);
+			SubscriptionFee::<T>::put(new_fee_per_hour);
+			Self::deposit_event(Event::SubscriptionFeeSet(new_fee_per_hour));
+			Ok(())
+		}
+		
 
 
+	}
+	impl<T: Config> Pallet<T> {
+		pub fn is_subscribed(who: &T::AccountId) -> bool {
+			match ConsumerSubscription::<T>::get(who) {
+				Some(remaining_hours) => remaining_hours > 0,
+				None => false,
+			}
+		}
 	}
 
 }
