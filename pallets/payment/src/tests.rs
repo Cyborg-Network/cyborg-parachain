@@ -709,7 +709,7 @@ fn set_subscription_fee_works() {
     new_test_ext().execute_with(|| {
         let new_fee = 42;
         assert_ok!(PaymentModule::set_subscription_fee_per_hour(RuntimeOrigin::root(), new_fee));
-        assert_eq!( pallet_payment::SubscriptionFee::<Test>::get(), new_fee);
+        assert_eq!(pallet_payment::SubscriptionFee::<Test>::get(), new_fee);
     });
 }
 

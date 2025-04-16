@@ -14,6 +14,7 @@ use pallet_edge_connect::AccountWorkers;
 pub mod weights;
 pub use weights::*;
 use sp_runtime::traits::Zero;
+use sp_runtime::traits::CheckedAdd;
 use log::info;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -51,13 +52,14 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	// #[derive(Clone,Encode,Decode,MaxEncodedLen,TypeInfo,RuntimeDebug,PartialEq,Default)]
-	// pub enum PlanTier{
-	// 	#[default]
-	// 	Standard,
-	// 	HighMemory,
-	// 	ComputeOptimized
-	// }
+	
+
+	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	pub struct RewardRates<Balance> {
+		pub cpu: Balance,
+		pub ram: Balance,
+		pub storage: Balance,
+	}
 
 	#[pallet::storage]
     #[pallet::getter(fn subscription_fee)]
@@ -74,9 +76,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn consumer_tier)]
-	// pub(super) type ConsumerTier<T:Config>=StorageMap<_,Blake2_128Concat,T::AccountId,PlanTier,ValueQuery>;
 
 	// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
@@ -98,6 +97,27 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type MinerPendingRewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn active_reward_rates)]
+	pub type ActiveRewardRates<T: Config> = StorageMap<
+		_, 
+		Blake2_128Concat, 
+		T::AccountId, 
+		RewardRates<BalanceOf<T>>, 
+		OptionQuery
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn idle_reward_rates)]
+	pub type IdleRewardRates<T: Config> = StorageMap<
+		_, 
+		Blake2_128Concat, 
+		T::AccountId, 
+		RewardRates<BalanceOf<T>>, 
+		OptionQuery
+	>;
+
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -117,6 +137,11 @@ pub mod pallet {
 		SubscriptionFeeSet(BalanceOf<T>),
 		ConsumerSubscribed(T::AccountId, BalanceOf<T>, u32),
 		SubscriptionRenewed(T::AccountId,u32),
+		RewardRatesUpdated {
+			miner: T::AccountId,
+			active: RewardRates<BalanceOf<T>>,
+			idle: RewardRates<BalanceOf<T>>,
+		},
 		}
 
 
@@ -142,6 +167,7 @@ pub mod pallet {
 
 		AlreadySubscribed,
         SubscriptionExpired,
+		RewardRateNotSet,
 
 	}
 
@@ -254,6 +280,29 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::call_index(12)]
+		#[pallet::weight(10_000)]
+		pub fn set_reward_rates_for_miner(
+			origin: OriginFor<T>,
+			miner: T::AccountId,
+			active: RewardRates<BalanceOf<T>>,
+			idle: RewardRates<BalanceOf<T>>
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ActiveRewardRates::<T>::insert(&miner, active.clone());
+			IdleRewardRates::<T>::insert(&miner, idle.clone());
+
+			Self::deposit_event(Event::RewardRatesUpdated {
+				miner,
+				active,
+				idle,
+			});
+
+			Ok(())
+		}
+
+
 
 		/// Record resource usage percentages (cpu, ram, storage) for a miner.
 		#[pallet::call_index(4)]
@@ -270,6 +319,7 @@ pub mod pallet {
 			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
 			Ok(())
 		}
+		
 
 
 		/// Calculate the Reward of a miner using the reward rates of cpu , ram, storage .
@@ -291,6 +341,49 @@ pub mod pallet {
 			Self::deposit_event(Event::MinerRewarded(miner, reward));
 			Ok(())
 		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner())]
+		pub fn reward_miner_new(
+			origin: OriginFor<T>,
+			active_hours: u32,
+			idle_hours: u32,
+			miner: T::AccountId,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let (cpu_usage, ram_usage, storage_usage) =
+				MinerUsage::<T>::get(&miner).ok_or(Error::<T>::InvalidUsageInput)?;
+
+			let active_rates = ActiveRewardRates::<T>::get(&miner).ok_or(Error::<T>::RewardRateNotSet)?;
+			let idle_rates = IdleRewardRates::<T>::get(&miner).ok_or(Error::<T>::RewardRateNotSet)?;
+
+			// Calculate active reward
+			let active_payout = active_rates.cpu * cpu_usage.into() / 100u32.into()
+				+ active_rates.ram * ram_usage.into() / 100u32.into()
+				+ active_rates.storage * storage_usage.into() / 100u32.into();
+
+			let active_reward = active_payout
+				.checked_mul(&active_hours.into())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			// Idle payout ignores usage percentages — paid at flat rate
+			let idle_payout = idle_rates.cpu + idle_rates.ram + idle_rates.storage;
+
+			let idle_reward = idle_payout
+				.checked_mul(&idle_hours.into())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			let total_reward = active_reward
+				.checked_add(&idle_reward)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			MinerPendingRewards::<T>::mutate(&miner, |pending| *pending += total_reward);
+
+			Self::deposit_event(Event::MinerRewarded(miner, total_reward));
+			Ok(())
+		}
+
 
 
 		/// Distribute all pending rewards to miners from the service provider's balance.
