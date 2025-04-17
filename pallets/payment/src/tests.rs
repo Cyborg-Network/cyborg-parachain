@@ -726,3 +726,102 @@ fn set_subscription_fee_fails_with_zero() {
 
 
 
+
+
+#[test]
+fn set_reward_rates_for_miner_works() {
+    new_test_ext().execute_with(|| {
+        let miner = USER2;
+        let active = pallet_payment::RewardRates {
+            cpu: 10,
+            ram: 20,
+            storage: 30,
+        };
+        let idle = pallet_payment::RewardRates {
+            cpu: 1,
+            ram: 1,
+            storage: 1,
+        };
+
+        assert_ok!(PaymentModule::set_reward_rates_for_miner(
+            RuntimeOrigin::root(),
+            miner.clone(),
+            active.clone(),
+            idle.clone()
+        ));
+
+        assert_eq!(pallet_payment::ActiveRewardRates::<Test>::get(&miner), Some(active));
+        assert_eq!(pallet_payment::IdleRewardRates::<Test>::get(&miner), Some(idle));
+    });
+}
+
+#[test]
+fn reward_miner_new_works_with_active_and_idle_hours() {
+    new_test_ext().execute_with(|| {
+        let miner = USER3;
+
+        // Setup reward rates
+        let active = pallet_payment::RewardRates {
+            cpu: 10,
+            ram: 20,
+            storage: 30,
+        };
+        let idle = pallet_payment::RewardRates {
+            cpu: 1,
+            ram: 1,
+            storage: 1,
+        };
+        assert_ok!(PaymentModule::set_reward_rates_for_miner(
+            RuntimeOrigin::root(),
+            miner.clone(),
+            active.clone(),
+            idle.clone()
+        ));
+
+        // Simulate miner usage
+        pallet_payment::MinerUsage::<Test>::insert(&miner, (50, 50, 50)); // 50% CPU, RAM, Storage usage
+
+        // Call reward_miner_new
+        let active_hours = 2;
+        let idle_hours = 3;
+        assert_ok!(PaymentModule::reward_miner_new(
+            RuntimeOrigin::root(),
+            active_hours,
+            idle_hours,
+            miner.clone()
+        ));
+
+        // Expected calculations
+        let active_payout =
+            active.cpu * 50 / 100 + active.ram * 50 / 100 + active.storage * 50 / 100;
+        let active_reward = active_payout * active_hours as u128;
+
+        let idle_payout = idle.cpu + idle.ram + idle.storage;
+        let idle_reward = idle_payout * idle_hours as u128;
+
+        let total_reward = active_reward + idle_reward;
+
+        assert_eq!(pallet_payment::MinerPendingRewards::<Test>::get(&miner), total_reward);
+    });
+}
+
+#[test]
+fn reward_miner_new_fails_when_rates_not_set() {
+    new_test_ext().execute_with(|| {
+        let miner = USER4;
+
+        // Insert some usage to skip usage check
+        pallet_payment::MinerUsage::<Test>::insert(&miner, (40, 40, 40));
+
+        // No rates inserted
+        assert_noop!(
+            PaymentModule::reward_miner_new(
+                RuntimeOrigin::root(),
+                1,
+                1,
+                miner.clone()
+            ),
+            pallet_payment::Error::<Test>::RewardRateNotSet
+        );
+    });
+}
