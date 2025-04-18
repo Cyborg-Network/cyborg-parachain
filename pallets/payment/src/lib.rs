@@ -66,24 +66,10 @@ pub mod pallet {
     pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 
-	#[pallet::storage]
-	#[pallet::getter(fn consumer_subscription)]
-	pub(super) type ConsumerSubscription<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		u32, // number of prepaid hours
-		OptionQuery,
-	>;
-
-
 	// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
 	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
-	// Storage value that holds the price per compute hour, defined by the admin.
-	#[pallet::storage]
-	pub type PricePerHour<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	// Storage that holds the service provider's account ID.
 	#[pallet::storage]
@@ -173,24 +159,10 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Allows the admin (root) to set the price per compute hour.
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_price_per_hour() )]
-		pub fn set_price_per_hour(origin: OriginFor<T>, new_price: BalanceOf<T>) -> DispatchResult {
-			// Ensure the caller is root (admin).
-			ensure_root(origin)?;
-
-			// Update the price per hour in storage.
-			PricePerHour::<T>::put(new_price);
-
-			// Emit the event that the price has been set.
-			Self::deposit_event(Event::PricePerHourSet(new_price));
-
-			Ok(())
-		}
+		
 
 		/// Allows the admin (root) to set the service provider's account.
-		#[pallet::call_index(1)]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_service_provider_account() )]
 		pub fn set_service_provider_account(
 			origin: OriginFor<T>,
@@ -208,55 +180,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Allows a user to purchase compute hours.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::purchase_compute_hours() )]
-		pub fn purchase_compute_hours(origin: OriginFor<T>, hours: u32) -> DispatchResult {
-			// Ensure the caller is a signed user.
-			let who = ensure_signed(origin)?;
-
-			// Ensure that the user isn't trying to purchase zero hours.
-			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
-
-			// Retrieve the current price per hour from storage.
-			let price_per_hour = PricePerHour::<T>::get();
-
-			// Calculate the total cost for the requested compute hours.
-			let total_cost = price_per_hour
-				.checked_mul(&hours.into())
-				.ok_or(ArithmeticError::Overflow)?;
-
-			// Ensure the user has enough balance to cover the total cost.
-			ensure!(
-				T::Currency::free_balance(&who) >= total_cost,
-				Error::<T>::InsufficientBalance
-			);
-
-			// Retrieve the service provider account
-			let service_provider =
-				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
-
-			// Deduct the amount from the user's balance and credit the service provider
-			let _imbalance = T::Currency::transfer(
-				&who,                            // From the user
-				&service_provider,               // To the service provider
-				total_cost,                      // The amount to transfer
-				ExistenceRequirement::KeepAlive, // Ensure the accounts remain alive (existential amount enforced)
-			)?;
-
-			// Increase the user's compute hours in storage.
-			ComputeHours::<T>::mutate(&who, |current_hours| {
-				*current_hours += hours;
-			});
-
-			// Emit the event indicating the purchase of compute hours.
-			Self::deposit_event(Event::HoursPurchased(who, hours, total_cost));
-
-			Ok(())
-		}
-
+		
 		/// Allows a user to consume compute hours.
-		#[pallet::call_index(3)]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::consume_compute_hours() )]
 		pub fn consume_compute_hours(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			// Ensure the caller is a signed user.
@@ -280,7 +206,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(12)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(10_000)]
 		pub fn set_reward_rates_for_miner(
 			origin: OriginFor<T>,
@@ -305,7 +231,7 @@ pub mod pallet {
 
 
 		/// Record resource usage percentages (cpu, ram, storage) for a miner.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
 		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -323,7 +249,7 @@ pub mod pallet {
 
 
 		/// Calculate the Reward of a miner using the reward rates of cpu , ram, storage .
-		#[pallet::call_index(5)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner() )]
 		pub fn reward_miner(origin: OriginFor<T>,hours_worked: u32, miner: T::AccountId,  cpu_rate: BalanceOf<T>, ram_rate: BalanceOf<T>, storage_rate: BalanceOf<T>) -> DispatchResult {
 			ensure_root(origin)?;
@@ -342,7 +268,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(10)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner())]
 		pub fn reward_miner_new(
 			origin: OriginFor<T>,
@@ -432,11 +358,6 @@ pub mod pallet {
 			ComputeHours::<T>::mutate(&who, |hours| {
 				*hours += extra_hours;
 			});
-			// ConsumerSubscription::<T>::mutate(&who, |hours| {
-			// 	if let Some(ref mut h) = hours {
-			// 		*h += extra_hours;
-			// 	}
-			// });
 			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
 			Ok(())
 		}
