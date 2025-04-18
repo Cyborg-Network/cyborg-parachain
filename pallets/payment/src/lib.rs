@@ -408,13 +408,13 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(ConsumerSubscription::<T>::get(&who).is_none(), Error::<T>::AlreadySubscribed);
+			ensure!(ComputeHours::<T>::get(&who) == 0 , Error::<T>::AlreadySubscribed);
 			let fee_per_hour = SubscriptionFee::<T>::get();
 			let total_fee = fee_per_hour.checked_mul(&hours.into()).ok_or(Error::<T>::InvalidFee)?;
 			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
 			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
-			ConsumerSubscription::<T>::insert(&who, hours);
+			ComputeHours::<T>::insert(&who, hours);
 			Self::deposit_event(Event::ConsumerSubscribed(who, total_fee, hours));
 			Ok(())
 		}
@@ -423,17 +423,20 @@ pub mod pallet {
 		#[pallet::weight(10_000)]
 		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(ConsumerSubscription::<T>::contains_key(&who), Error::<T>::SubscriptionExpired);
+			ensure!(ComputeHours::<T>::contains_key(&who), Error::<T>::SubscriptionExpired);
 			let fee_per_hour = SubscriptionFee::<T>::get();
 			let total_fee = fee_per_hour.checked_mul(&extra_hours.into()).ok_or(Error::<T>::InvalidFee)?;
 			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
 			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
-			ConsumerSubscription::<T>::mutate(&who, |hours| {
-				if let Some(ref mut h) = hours {
-					*h += extra_hours;
-				}
+			ComputeHours::<T>::mutate(&who, |hours| {
+				*hours += extra_hours;
 			});
+			// ConsumerSubscription::<T>::mutate(&who, |hours| {
+			// 	if let Some(ref mut h) = hours {
+			// 		*h += extra_hours;
+			// 	}
+			// });
 			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
 			Ok(())
 		}
@@ -451,13 +454,6 @@ pub mod pallet {
 
 
 	}
-	impl<T: Config> Pallet<T> {
-		pub fn is_subscribed(who: &T::AccountId) -> bool {
-			match ConsumerSubscription::<T>::get(who) {
-				Some(remaining_hours) => remaining_hours > 0,
-				None => false,
-			}
-		}
-	}
+
 
 }

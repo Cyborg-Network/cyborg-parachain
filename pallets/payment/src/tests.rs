@@ -652,7 +652,7 @@ fn subscribe_works() {
         pallet_payment::ServiceProviderAccount::<Test>::put(provider);
 
         assert_ok!(PaymentModule::subscribe(RuntimeOrigin::signed(user), hours));
-        assert_eq!(pallet_payment::ConsumerSubscription::<Test>::get(user), Some(hours));
+        assert_eq!(pallet_payment::ComputeHours::<Test>::get(user), hours);
     });
 }
 
@@ -664,7 +664,7 @@ fn subscribe_fails_if_already_subscribed() {
 
         pallet_payment::SubscriptionFee::<Test>::put(10);
         pallet_payment::ServiceProviderAccount::<Test>::put(provider);
-        pallet_payment::ConsumerSubscription::<Test>::insert(user, 10);
+        pallet_payment::ComputeHours::<Test>::insert(user, 10);
 
         assert_noop!(
             PaymentModule::subscribe(RuntimeOrigin::signed(user), 5),
@@ -681,10 +681,10 @@ fn add_hours_works() {
 
         pallet_payment::SubscriptionFee::<Test>::put(10);
 		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
-		pallet_payment::ConsumerSubscription::<Test>::insert(user, 5);
+		pallet_payment::ComputeHours::<Test>::insert(user, 5);
 
         assert_ok!(PaymentModule::add_hours(RuntimeOrigin::signed(user), 5));
-        assert_eq!( pallet_payment::ConsumerSubscription::<Test>::get(user), Some(10));
+        assert_eq!( pallet_payment::ComputeHours::<Test>::get(user), 10);
     });
 }
 
