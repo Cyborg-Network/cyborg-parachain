@@ -109,10 +109,8 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Event triggered when compute hours are consumed.
 		HoursConsumed(T::AccountId, u32),
-		/// Event triggered when compute hours are purchased.
-		HoursPurchased(T::AccountId, u32, BalanceOf<T>),
-		/// Event triggered when the admin sets a new price per hour.
-		PricePerHourSet(BalanceOf<T>),
+		
+		
 		/// Event triggered when the admin sets a new service provider account.
 		ServiceProviderAccountSet(T::AccountId),
 		
@@ -246,31 +244,9 @@ pub mod pallet {
 			Ok(())
 		}
 		
-
-
-		/// Calculate the Reward of a miner using the reward rates of cpu , ram, storage .
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner() )]
-		pub fn reward_miner(origin: OriginFor<T>,hours_worked: u32, miner: T::AccountId,  cpu_rate: BalanceOf<T>, ram_rate: BalanceOf<T>, storage_rate: BalanceOf<T>) -> DispatchResult {
-			ensure_root(origin)?;
-			let (cpu_usage, ram_usage, storage_usage) = MinerUsage::<T>::get(&miner).ok_or(Error::<T>::InvalidUsageInput)?;
-
-			let hourly_payout = cpu_rate * cpu_usage.into() / 100u32.into()
-				+ ram_rate * ram_usage.into() / 100u32.into()
-				+ storage_rate * storage_usage.into() / 100u32.into();
-
-			let reward = hourly_payout
-				.checked_mul(&hours_worked.into())
-				.ok_or(ArithmeticError::Overflow)?;
-
-			MinerPendingRewards::<T>::mutate(&miner, |mut pending| *pending += reward);
-			Self::deposit_event(Event::MinerRewarded(miner, reward));
-			Ok(())
-		}
-
-		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner())]
-		pub fn reward_miner_new(
+		pub fn reward_miner(
 			origin: OriginFor<T>,
 			active_hours: u32,
 			idle_hours: u32,
@@ -313,7 +289,7 @@ pub mod pallet {
 
 
 		/// Distribute all pending rewards to miners from the service provider's balance.
-		#[pallet::call_index(6)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::distribute_rewards())]
 		pub fn distribute_rewards(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
@@ -330,7 +306,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(7)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(10_000)]
 		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -345,7 +321,7 @@ pub mod pallet {
 			Ok(())
 		}
 		
-		#[pallet::call_index(8)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(10_000)]
 		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -362,7 +338,7 @@ pub mod pallet {
 			Ok(())
 		}
 		
-		#[pallet::call_index(9)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(10_000)]
 		pub fn set_subscription_fee_per_hour(origin: OriginFor<T>, new_fee_per_hour: BalanceOf<T>) -> DispatchResult {
 			ensure_root(origin)?;

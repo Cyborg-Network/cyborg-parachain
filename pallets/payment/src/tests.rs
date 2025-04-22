@@ -110,69 +110,7 @@ fn it_fails_when_usage_input_is_invalid() {
 	);
 	});
 }
-#[test]
-fn it_rewards_miner_correctly() {
-	new_test_ext().execute_with(|| {
-		System::set_block_number(1);
 
-		// Set usage for USER4
-		pallet_edge_connect::AccountWorkers::<Test>::insert(USER4, 0);
-		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 50, 100, 50));
-
-		let cpu_rate: BalanceOf<Test> = 100u64.into();
-		let ram_rate: BalanceOf<Test> = 200u64.into();
-		let storage_rate: BalanceOf<Test> = 300u64.into();
-
-		let hours_worked = 2u32;
-
-		// Root calculates reward for USER4
-		assert_ok!(PaymentModule::reward_miner(
-			RuntimeOrigin::root(),
-			hours_worked,
-			USER4,
-			cpu_rate,
-			ram_rate,
-			storage_rate
-		));
-
-		// Expected calculation:
-		// hourly_payout = (100 * 50 + 200 * 100 + 300 * 50) / 100
-		//               = (5000 + 20000 + 15000) / 100 = 400
-		// total = 400 * 2 = 800
-		let expected_reward: BalanceOf<Test> = 800u64.into();
-
-		assert_eq!(
-			pallet_payment::MinerPendingRewards::<Test>::get(USER4),
-			expected_reward
-		);
-
-		let expected_event = RuntimeEvent::PaymentModule(crate::Event::MinerRewarded(USER4, expected_reward));
-		assert!(System::events().iter().any(|e| e.event == expected_event));
-	});
-}
-
-#[test]
-fn it_fails_to_reward_if_usage_not_recorded() {
-	new_test_ext().execute_with(|| {
-		System::set_block_number(1);
-
-		let cpu_rate: BalanceOf<Test> = 100u64.into();
-		let ram_rate: BalanceOf<Test> = 200u64.into();
-		let storage_rate: BalanceOf<Test> = 300u64.into();
-
-		assert_noop!(
-			PaymentModule::reward_miner(
-				RuntimeOrigin::root(),
-				2,
-				USER4,
-				cpu_rate,
-				ram_rate,
-				storage_rate
-			),
-			crate::Error::<Test>::InvalidUsageInput
-		);
-	});
-}
 
 #[test]
 fn it_distributes_rewards_to_miners() {
@@ -245,36 +183,7 @@ fn it_overwrites_existing_usage() {
 	});
 }
 
-//Reward zero hours
 
-#[test]
-fn it_rewards_zero_if_hours_worked_is_zero() {
-	new_test_ext().execute_with(|| {
-		pallet_edge_connect::AccountWorkers::<Test>::insert(USER4, 0);
-
-		assert_ok!(PaymentModule::record_usage(RuntimeOrigin::signed(USER4), 60, 70, 80));
-
-		let cpu_rate: BalanceOf<Test> = 100u64.into();
-		let ram_rate: BalanceOf<Test> = 200u64.into();
-		let storage_rate: BalanceOf<Test> = 300u64.into();
-
-		let hours_worked = 0u32;
-
-		assert_ok!(PaymentModule::reward_miner(
-			RuntimeOrigin::root(),
-			hours_worked,
-			USER4,
-			cpu_rate,
-			ram_rate,
-			storage_rate
-		));
-
-		assert_eq!(
-			pallet_payment::MinerPendingRewards::<Test>::get(USER4),
-			0u64.into()
-		);
-	});
-}
 
 // No transfer if reward is zero during distribution
 #[test]
@@ -466,7 +375,7 @@ fn reward_miner_new_works_with_active_and_idle_hours() {
         // Call reward_miner_new
         let active_hours = 2;
         let idle_hours = 3;
-        assert_ok!(PaymentModule::reward_miner_new(
+        assert_ok!(PaymentModule::reward_miner(
             RuntimeOrigin::root(),
             active_hours,
             idle_hours,
@@ -497,7 +406,7 @@ fn reward_miner_new_fails_when_rates_not_set() {
 
         // No rates inserted
         assert_noop!(
-            PaymentModule::reward_miner_new(
+            PaymentModule::reward_miner(
                 RuntimeOrigin::root(),
                 1,
                 1,
