@@ -12,16 +12,15 @@ mod tests;
 use pallet_edge_connect::AccountWorkers;
 
 pub mod weights;
-pub use weights::*;
-use sp_runtime::traits::Zero;
-use sp_runtime::traits::CheckedAdd;
 use log::info;
+use sp_runtime::traits::CheckedAdd;
+use sp_runtime::traits::Zero;
+pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-
 
 	use frame_support::{
 		pallet_prelude::*,
@@ -50,10 +49,27 @@ pub mod pallet {
 
 		/// A type representing the weights required by the dispatchable functions of this pallet.
 		type WeightInfo: WeightInfo;
+
+		// This will be added when we get the green signal
+
+		// Default idle reward rate (per hour) for CPU usage when the miner is idle.
+		// #[pallet::constant]
+		// type IdleCpuRate: Get<BalanceOf<Self>>;
+
+		// Default idle reward rate (per hour) for RAM usage when the miner is idle.
+		// #[pallet::constant]
+		// type IdleRamRate: Get<BalanceOf<Self>>;
+
+		// Default idle reward rate (per hour) for Storage usage when the miner is idle.
+		// #[pallet::constant]
+		// type IdleStorageRate: Get<BalanceOf<Self>>;
+
+		// The on-chain account ID of the Conductor server, responsible for fiat billing and orchestration.
+		// #[pallet::constant]
+		// type ConductorAccount: Get<Self::AccountId>;
 	}
 
-	
-
+	/// Struct to hold reward rates per resource type.
 	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 	pub struct RewardRates<Balance> {
 		pub cpu: Balance,
@@ -61,105 +77,80 @@ pub mod pallet {
 		pub storage: Balance,
 	}
 
+	/// Storage for global per-hour subscription fee.
 	#[pallet::storage]
-    #[pallet::getter(fn subscription_fee)]
-    pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+	#[pallet::getter(fn subscription_fee)]
+	pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-
-	// Storage map that tracks the number of compute hours owned by each account.
+	/// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
 	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
-
-	// Storage that holds the service provider's account ID.
+	/// Storage that holds the service provider's account ID.
 	#[pallet::storage]
 	pub type ServiceProviderAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
 
-	/// Tracks the latest recorded usage percentages per miner (cpu%, ram%, storage%).
+	/// Store the latest recorded usage (cpu%, ram%, storage%) for miners.
 	#[pallet::storage]
-	pub type MinerUsage<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, (u8, u8, u8), OptionQuery>; // cpu, ram, storage usage percentages
-	
-	/// Accumulated pending rewards for each miner.
-	#[pallet::storage]
-	pub type MinerPendingRewards<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
+	pub type MinerUsage<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, (u8, u8, u8), OptionQuery>; // cpu, ram, storage usage percentages
 
+	/// Store rewards waiting to be distributed to miners.
+	#[pallet::storage]
+	pub type MinerPendingRewards<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
+
+	/// Store custom reward rates when miner is active.
 	#[pallet::storage]
 	#[pallet::getter(fn active_reward_rates)]
-	pub type ActiveRewardRates<T: Config> = StorageMap<
-		_, 
-		Blake2_128Concat, 
-		T::AccountId, 
-		RewardRates<BalanceOf<T>>, 
-		OptionQuery
-	>;
+	pub type ActiveRewardRates<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
+	/// Store custom reward rates when miner is idle.
 	#[pallet::storage]
 	#[pallet::getter(fn idle_reward_rates)]
-	pub type IdleRewardRates<T: Config> = StorageMap<
-		_, 
-		Blake2_128Concat, 
-		T::AccountId, 
-		RewardRates<BalanceOf<T>>, 
-		OptionQuery
-	>;
+	pub type IdleRewardRates<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
-
+	/// Event declarations for extrinsic calls.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event triggered when compute hours are consumed.
-		HoursConsumed(T::AccountId, u32),
-		
-		
-		/// Event triggered when the admin sets a new service provider account.
-		ServiceProviderAccountSet(T::AccountId),
-		
-		/// Event triggered when a miner's usage has been recorded.
-		MinerUsageRecorded(T::AccountId, u8, u8, u8),
-		/// Event triggered when a miner has been rewarded.
-		MinerRewarded(T::AccountId, BalanceOf<T>),
-		SubscriptionFeeSet(BalanceOf<T>),
-		ConsumerSubscribed(T::AccountId, BalanceOf<T>, u32),
-		SubscriptionRenewed(T::AccountId,u32),
+		HoursConsumed(T::AccountId, u32), // Emitted when compute hours are used.
+		ServiceProviderAccountSet(T::AccountId), // When admin sets provider.
+		MinerUsageRecorded(T::AccountId, u8, u8, u8), // Usage data recorded.
+		MinerRewarded(T::AccountId, BalanceOf<T>), // Reward given to a miner.
+		SubscriptionFeeSet(BalanceOf<T>), // Admin set fee per hour.
+		ConsumerSubscribed(T::AccountId, BalanceOf<T>, u32), // New subscription made.
+		SubscriptionRenewed(T::AccountId, u32), // User adds hours.
 		RewardRatesUpdated {
 			miner: T::AccountId,
 			active: RewardRates<BalanceOf<T>>,
 			idle: RewardRates<BalanceOf<T>>,
-		},
-		}
-
-
-	/// Pallet Errors
-	#[pallet::error]
-	pub enum Error<T> {
-
-		/// The user's balance is insufficient for the transaction.
-		InsufficientBalance,
-		/// The user does not have enough compute hours to consume.
-		InsufficientComputeHours,
-		/// The user has provided an invalid input for the number of hours (e.g., 0).
-		InvalidHoursInput,
-		/// The service provider account is not found.
-		ServiceProviderAccountNotFound,
-		
-		/// Invalid usage percentages were provided (must be between 0 and 100).
-		InvalidUsageInput,
-		/// When a someone who is not a miner call miner permissioned extrinsics
-		NotRegisteredMiner,
-
-		InvalidFee,
-
-		AlreadySubscribed,
-        SubscriptionExpired,
-		RewardRateNotSet,
-
+		}, // When admin updates reward rates.
 	}
 
+	/// Custom pallet errors.
+	#[pallet::error]
+	pub enum Error<T> {
+		// Admin sets the global subscription cost per compute hour.W
+		InsufficientBalance,            // User doesn't have enough tokens.
+		InsufficientComputeHours,       // Not enough hours left to use.
+		InvalidHoursInput,              // Invalid hours requested (e.g., 0).
+		ServiceProviderAccountNotFound, // Service provider isn't set.
+		InvalidUsageInput,              // Usage percentages out of bounds.
+		NotRegisteredMiner,             // Miner not recognized by Edge Connect.
+		InvalidFee,                     // Fee value is zero or invalid.
+		AlreadySubscribed,              // User already subscribed.
+		SubscriptionExpired,            // User has no subscription.
+		RewardRateNotSet,               // Reward rate missing for a miner.
+	}
+
+	/// Declare callable extrinsics.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		
-
-		/// Allows the admin (root) to set the service provider's account.
+		/// Set the account that receives all payments.
+		/// Can only be set by root user
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_service_provider_account() )]
 		pub fn set_service_provider_account(
@@ -178,7 +169,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		
 		/// Allows a user to consume compute hours.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::consume_compute_hours() )]
@@ -204,13 +194,15 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Admin sets a miner's reward rates for active and idle states.
+		/// In future we idle rates will be static , will be set through the runtime configuration
 		#[pallet::call_index(2)]
 		#[pallet::weight(10_000)]
 		pub fn set_reward_rates_for_miner(
 			origin: OriginFor<T>,
 			miner: T::AccountId,
 			active: RewardRates<BalanceOf<T>>,
-			idle: RewardRates<BalanceOf<T>>
+			idle: RewardRates<BalanceOf<T>>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -226,9 +218,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-
-
-		/// Record resource usage percentages (cpu, ram, storage) for a miner.
+		/// Called by a registered miner to report their usage.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
 		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
@@ -237,13 +227,16 @@ pub mod pallet {
 				pallet_edge_connect::Pallet::<T>::account_workers(&who).is_some(),
 				Error::<T>::NotRegisteredMiner
 			);
-			// ensure!(Self::is_registered_miner(&who), Error::<T>::NotRegisteredMiner);
-			ensure!(cpu <= 100 && ram <= 100 && storage <= 100, Error::<T>::InvalidUsageInput);
+			ensure!(
+				cpu <= 100 && ram <= 100 && storage <= 100,
+				Error::<T>::InvalidUsageInput
+			);
 			MinerUsage::<T>::insert(&who, (cpu, ram, storage));
 			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
 			Ok(())
 		}
-		
+
+		/// Reward a miner for a given number of active and idle hours.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::reward_miner())]
 		pub fn reward_miner(
@@ -286,49 +279,65 @@ pub mod pallet {
 			Ok(())
 		}
 
-
-
-		/// Distribute all pending rewards to miners from the service provider's balance.
+		/// Transfer all pending rewards to miners from the provider account.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::distribute_rewards())]
 		pub fn distribute_rewards(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
-			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 			for (miner, reward) in MinerPendingRewards::<T>::drain() {
 				if reward.is_zero() {
 					continue;
 				}
 				T::Currency::transfer(&provider, &miner, reward, ExistenceRequirement::KeepAlive)?;
-				info!("{:?} rewarded with {:?} Native Coin",miner,reward);
+				info!("{:?} rewarded with {:?} Native Coin", miner, reward);
 				Self::deposit_event(Event::MinerRewarded(miner, reward));
-
 			}
 			Ok(())
 		}
 
+		/// Allows a new user to subscribe to compute by paying upfront.
 		#[pallet::call_index(6)]
 		#[pallet::weight(10_000)]
 		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(ComputeHours::<T>::get(&who) == 0 , Error::<T>::AlreadySubscribed);
+			ensure!(
+				ComputeHours::<T>::get(&who) == 0,
+				Error::<T>::AlreadySubscribed
+			);
 			let fee_per_hour = SubscriptionFee::<T>::get();
-			let total_fee = fee_per_hour.checked_mul(&hours.into()).ok_or(Error::<T>::InvalidFee)?;
-			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
+			let total_fee = fee_per_hour
+				.checked_mul(&hours.into())
+				.ok_or(Error::<T>::InvalidFee)?;
+			ensure!(
+				T::Currency::free_balance(&who) >= total_fee,
+				Error::<T>::InsufficientBalance
+			);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
 			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
 			ComputeHours::<T>::insert(&who, hours);
 			Self::deposit_event(Event::ConsumerSubscribed(who, total_fee, hours));
 			Ok(())
 		}
-		
+
+		/// Lets an existing user add more hours to their subscription.
 		#[pallet::call_index(7)]
 		#[pallet::weight(10_000)]
 		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(ComputeHours::<T>::contains_key(&who), Error::<T>::SubscriptionExpired);
+			ensure!(
+				ComputeHours::<T>::contains_key(&who),
+				Error::<T>::SubscriptionExpired
+			);
 			let fee_per_hour = SubscriptionFee::<T>::get();
-			let total_fee = fee_per_hour.checked_mul(&extra_hours.into()).ok_or(Error::<T>::InvalidFee)?;
-			ensure!(T::Currency::free_balance(&who) >= total_fee, Error::<T>::InsufficientBalance);
+			let total_fee = fee_per_hour
+				.checked_mul(&extra_hours.into())
+				.ok_or(Error::<T>::InvalidFee)?;
+			ensure!(
+				T::Currency::free_balance(&who) >= total_fee,
+				Error::<T>::InsufficientBalance
+			);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
 			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
 			ComputeHours::<T>::mutate(&who, |hours| {
@@ -337,20 +346,19 @@ pub mod pallet {
 			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
 			Ok(())
 		}
-		
+
+		/// Admin sets the global subscription cost per compute hour.
 		#[pallet::call_index(8)]
 		#[pallet::weight(10_000)]
-		pub fn set_subscription_fee_per_hour(origin: OriginFor<T>, new_fee_per_hour: BalanceOf<T>) -> DispatchResult {
+		pub fn set_subscription_fee_per_hour(
+			origin: OriginFor<T>,
+			new_fee_per_hour: BalanceOf<T>,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 			ensure!(new_fee_per_hour > Zero::zero(), Error::<T>::InvalidFee);
 			SubscriptionFee::<T>::put(new_fee_per_hour);
 			Self::deposit_event(Event::SubscriptionFeeSet(new_fee_per_hour));
 			Ok(())
 		}
-		
-
-
 	}
-
-
 }
