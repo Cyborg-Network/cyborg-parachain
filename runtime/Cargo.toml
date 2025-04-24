@@ -39,7 +39,7 @@ pallet-payment= { workspace = true}
 pallet-status-aggregator = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-zk-verifier = { workspace = true }
-pallet-test = { workspace = true }
+pallet-neuro-zk = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }

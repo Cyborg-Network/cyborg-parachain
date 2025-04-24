@@ -32,7 +32,7 @@ pallet-payment= { path = "pallets/payment", default-features = false, version = 
 pallet-status-aggregator = { path = "pallets/status-aggregator", default-features = false, version = "0.1.0" }
 pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 pallet-zk-verifier = { path = "pallets/zk-verifier", default-features = false, version = "0.1.0" }
-pallet-test = { path = "pallets/test", default-features = false, version = "0.1.0" }
+pallet-neuro-zk = { path = "pallets/neuro-zk", default-features = false, version = "0.1.0" }
 
 cumulus-pallet-xcm = { version = "0.14.0", default-features = false }
 cumulus-primitives-core = { version = "0.14.0", default-features = false }

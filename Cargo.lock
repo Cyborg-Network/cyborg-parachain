@@ -2645,12 +2645,12 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-neuro-zk",
  "pallet-payment",
  "pallet-session",
  "pallet-status-aggregator",
  "pallet-sudo",
  "pallet-task-management",
- "pallet-test",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -7264,6 +7264,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-neuro-zk"
+version = "0.1.0"
+dependencies = [
+ "cyborg-primitives",
+ "frame-support",
+ "frame-system",
+ "lite-json",
+ "log",
+ "pallet-task-management",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 34.0.0",
+ "sp-io",
+ "sp-keystore 0.42.0",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-nis"
 version = "35.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7731,24 +7749,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-test"
-version = "0.1.0"
-dependencies = [
- "cyborg-primitives",
- "frame-support",
- "frame-system",
- "lite-json",
- "log",
- "pallet-task-management",
- "parity-scale-codec",
- "scale-info",
- "sp-core 34.0.0",
- "sp-io",
- "sp-keystore 0.42.0",
- "sp-runtime",
 ]
 
 [[package]]

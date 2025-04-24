@@ -16,7 +16,7 @@ pub mod weights;
 use smallvec::smallvec;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	traits::{BlakeTwo256, IdentifyAccount, Verify, Extrinsic},
 	MultiSignature,
 };
 
@@ -34,7 +34,10 @@ use frame_support::{
 	},
 };
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{MultiAddress, Perbill, Permill};
+pub use sp_runtime::{MultiAddress, Perbill, Permill, generic::{Era, SignedPayload}, SaturatedConversion};
+use codec::Encode;
+
+use polkadot_runtime_common::BlockHashCount;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -52,8 +55,8 @@ pub use pallet_edge_connect;
 pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
+pub use pallet_neuro_zk;
 pub use pallet_zk_verifier;
-pub use pallet_test;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -289,6 +292,19 @@ impl pallet_membership::Config for Runtime {
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
+impl frame_system::offchain::SigningTypes for Runtime {
+    type Public = <Signature as Verify>::Signer;
+    type Signature = Signature;
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Runtime 
+where
+	RuntimeCall: From<LocalCall>,
+{
+    type Extrinsic = UncheckedExtrinsic;
+    type OverarchingCall = RuntimeCall;
+}
+
 /// OracleMembership wrapper used by benchmarks
 #[cfg(feature = "runtime-benchmarks")]
 pub struct OracleMembershipWrapper;
@@ -307,6 +323,51 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 	}
 }
 
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+     RuntimeCall: From<LocalCall>,
+{
+     fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+		call: RuntimeCall,
+        public: <Signature as Verify>::Signer,
+ 	    account: AccountId,
+ 	    nonce: Nonce,
+      ) -> Option<(RuntimeCall, <UncheckedExtrinsic as Extrinsic>::SignaturePayload)> {
+ 	     let tip = 0;
+ 	     // take the biggest period possible.
+ 	     let period =
+ 		      BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+ 	     let current_block = System::block_number()
+ 		      .saturated_into::<u64>()
+ 		      // The `System::block_number` is initialized with `n+1`,
+ 		      // so the actual block number is `n`.
+ 		      .saturating_sub(1);
+ 	     let era = Era::mortal(period, current_block);
+
+ 	     let extra = (
+ 		      frame_system::CheckNonZeroSender::<Runtime>::new(),
+ 		      frame_system::CheckSpecVersion::<Runtime>::new(),
+ 		      frame_system::CheckTxVersion::<Runtime>::new(),
+ 		      frame_system::CheckGenesis::<Runtime>::new(),
+ 		      frame_system::CheckEra::<Runtime>::from(era),
+ 		      frame_system::CheckNonce::<Runtime>::from(nonce),
+ 		      frame_system::CheckWeight::<Runtime>::new(),
+ 		      pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			  cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim::<Runtime>::new(),
+			  frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(true),
+ 	     );
+ 	     let raw_payload = SignedPayload::new(call, extra)
+ 		      .map_err(|e| {
+ 			       log::warn!("Unable to create signed payload: {:?}", e);
+ 		      })
+ 		      .ok()?;
+ 	     let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+ 	     let address = account;
+ 	     let (call, extra, _) = raw_payload.deconstruct();
+ 	     Some((call, (sp_runtime::MultiAddress::Id(address), signature, extra)))
+    }
+}
+
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
@@ -323,13 +384,20 @@ impl pallet_payment::Config for Runtime {
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 }
 
-impl pallet_test::Config for Runtime {
-  type AuthorityId = pallet_test::crypto::TestAuthId;
-  type RuntimeEvent = RuntimeEvent;
-  type GracePeriod = ConstU32<5>;
-  type MaxNumOfAuthenticatedVerifiers = ConstU32<5>;
-  type MaxNumOfProofVerifiers = ConstU32<5>;
-  type MinNumOfProofVerifiers = ConstU32<1>;
+impl pallet_neuro_zk::Config for Runtime {
+	//TODO: These are somewhat arbitrary for now, needs to be adjusted for prod
+	type AuthorityId = pallet_neuro_zk::crypto::TestAuthId;
+	type RuntimeEvent = RuntimeEvent;
+	type GracePeriod = ConstU32<5>;
+	type MaxVerificationsPerAcc = ConstU32<10>;
+	type MaxNumOfProofVerifiers = ConstU32<5>;
+	type MinNumOfProofVerifiers = ConstU32<1>;
+	type FinalizationDelay = ConstU32<10>;
+	type MaxScheduledFinalizations = ConstU32<10>;
+	type Stake = ConstU32<10000>;
+	type MaxTasks = ConstU32<100000>;
+	type MaxTasksPerBlock = ConstU32<1>;
+	type MaxVerificationsPerBlockPerAccount = ConstU32<1>;
 }
 
 parameter_types! {
@@ -515,8 +583,8 @@ mod runtime {
 	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
 
-  #[runtime::pallet_index(47)]
-  pub type Test = pallet_test;
+	#[runtime::pallet_index(47)]
+	pub type NeuroZK = pallet_neuro_zk;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
