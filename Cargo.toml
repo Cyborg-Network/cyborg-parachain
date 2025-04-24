@@ -33,6 +33,7 @@ pallet-status-aggregator = { path = "pallets/status-aggregator", default-feature
 pallet-task-management = { path = "pallets/task-management", default-features = false, version = "0.1.0" }
 pallet-zk-verifier = { path = "pallets/zk-verifier", default-features = false, version = "0.1.0" }
 
+cumulus-pallet-weight-reclaim = { version = "0.2.0", default-features = false }
 cumulus-pallet-xcm = { version = "0.19.1", default-features = false }
 cumulus-primitives-core = { version = "0.18.1", default-features = false }
 frame-benchmarking = { version = "40.0.0", default-features = false }

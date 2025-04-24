@@ -85,6 +85,7 @@ xcm-builder = { version = "20.0.0", package = "staging-xcm-builder", default-fea
 xcm-executor = { version = "19.1.0", package = "staging-xcm-executor", default-features = false }
 
 # Cumulus
+cumulus-pallet-weight-reclaim = { workspace = true }
 cumulus-pallet-aura-ext = { version = "0.20.0", default-features = false }
 cumulus-pallet-parachain-system = { version = "0.20.0", default-features = false }
 cumulus-pallet-session-benchmarking = { version = "21.0.0", default-features = false }

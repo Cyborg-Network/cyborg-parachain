@@ -193,6 +193,10 @@ parameter_types! {
 	pub const RelayOrigin: AggregateMessageOrigin = AggregateMessageOrigin::Parent;
 }
 
+impl cumulus_pallet_weight_reclaim::Config for Runtime {
+	type WeightInfo = ();
+}
+
 impl cumulus_pallet_parachain_system::Config for Runtime {
 	type WeightInfo = super::weights::cumulus_pallet_parachain_system::SubstrateWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
