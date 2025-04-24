@@ -20,6 +20,7 @@ pub type StringAPI = String;
 	Default,
 	Encode,
 	Decode,
+	DecodeWithMemTracking,
 	MaxEncodedLen,
 	Clone,
 	Copy,
@@ -36,7 +37,7 @@ pub struct ProcessStatus {
 	// TaskResultHash: Option<H256>,
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo)]
 pub struct OracleWorkerFormat<AccoundId> {
 	pub id: (AccoundId, WorkerId),
 	pub worker_type: WorkerType,

@@ -167,6 +167,9 @@ impl<T: frame_system::Config> pallet_message_queue::WeightInfo for SubstrateWeig
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+	fn set_service_head() -> sp_runtime::Weight {
+		todo!("Run benchmarks to get weights") 
+	}
 }
 
 // For backwards compatibility and tests.

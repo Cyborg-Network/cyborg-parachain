@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
@@ -21,13 +21,13 @@ pub type WorkerReputation = u8;
 /// An enum that is used to differentiate between the different kinds of workers that are
 /// registered on the cyborg parachain. There is no differentiation between the ZK Worker and the
 /// Executable Worker, as the executable worker will be able to execute ZK Tasks
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, DecodeWithMemTracking, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum WorkerType {
 	Docker,
 	Executable,
 }
 
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, DecodeWithMemTracking, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum WorkerStatusType {
 	Active,
 	Busy,
