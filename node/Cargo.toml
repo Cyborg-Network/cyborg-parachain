@@ -19,55 +19,55 @@ clap = { version = "4.5.3", features = ["derive"] }
 log = { workspace = true, default-features = true }
 codec = { package = "parity-scale-codec", version = "3.6.12" }
 serde = { features = ["derive"], workspace = true, default-features = true }
-jsonrpsee = { version = "0.22", features = ["server"] }
+jsonrpsee = { version = "0.24.3", features = ["server"] }
 futures = "0.3.28"
 serde_json = { workspace = true, default-features = true }
 docify = "0.2.8"
 cyborg-runtime = { version = "0.1.0", path = "../runtime" }
-frame-benchmarking = { version = "35.0.0" }
-frame-benchmarking-cli = { version = "39.0.0" }
-pallet-transaction-payment-rpc = { version = "37.0.0" }
-sc-basic-authorship = { version = "0.41.0" }
-sc-chain-spec = { version = "34.0.0" }
-sc-cli = { version = "0.43.0" }
-sc-client-api = { version = "35.0.0" }
-sc-offchain = { version = "36.0.0" }
-sc-consensus = { version = "0.40.0" }
-sc-executor = { version = "0.39.0" }
-sc-network = { version = "0.41.0" }
-sc-network-sync = { version = "0.40.0" }
-sc-rpc = { version = "36.0.0" }
-sc-service = { version = "0.42.0" }
-sc-sysinfo = { version = "34.0.0" }
-sc-telemetry = { version = "21.0.0" }
-sc-tracing = { version = "35.0.0" }
-sc-transaction-pool = { version = "35.0.0" }
-sc-transaction-pool-api = { version = "35.0.0" }
-sp-api = { version = "33.0.0" }
-sp-block-builder = { version = "33.0.0" }
-sp-blockchain = { version = "35.0.0" }
-sp-consensus-aura = { version = "0.39.0" }
-sp-core = { version = "34.0.0" }
-sp-keystore = { version = "0.40.0" }
-sp-io = { version = "37.0.0" }
-sp-runtime = { version = "38.0.0" }
-sp-timestamp = { version = "33.0.0" }
-substrate-frame-rpc-system = { version = "35.0.0" }
-prometheus-endpoint = { version = "0.17.0", package = "substrate-prometheus-endpoint" }
+frame-benchmarking = { version = "40.0.0" }
+frame-benchmarking-cli = { version = "47.0.0" }
+pallet-transaction-payment-rpc = { version = "43.0.0" }
+sc-basic-authorship = { version = "0.49.0" }
+sc-chain-spec = { version = "42.0.0" }
+sc-cli = { version = "0.51.0" }
+sc-client-api = { version = "39.0.0" }
+sc-offchain = { version = "44.0.0" }
+sc-consensus = { version = "0.48.0" }
+sc-executor = { version = "0.42.0" }
+sc-network = { version = "0.49.0" }
+sc-network-sync = { version = "0.48.0" }
+sc-rpc = { version = "44.0.0" }
+sc-service = { version = "0.50.0" }
+sc-sysinfo = { version = "42.0.0" }
+sc-telemetry = { version = "28.1.0" }
+sc-tracing = { version = "39.0.0" }
+sc-transaction-pool = { version = "39.0.0" }
+sc-transaction-pool-api = { version = "39.0.0" }
+sp-api = { version = "36.0.1" }
+sp-block-builder = { version = "36.0.0" }
+sp-blockchain = { version = "39.0.0" }
+sp-consensus-aura = { version = "0.42.0" }
+sp-core = { version = "36.1.0" }
+sp-keystore = { version = "0.42.0" }
+sp-io = { version = "40.0.0" }
+sp-runtime = { version = "41.1.0" }
+sp-timestamp = { version = "36.0.0" }
+substrate-frame-rpc-system = { version = "43.0.0" }
+prometheus-endpoint = { version = "0.17.2", package = "substrate-prometheus-endpoint" }
 
 # Polkadot
-polkadot-cli = { version = "14.0.0", features = ["rococo-native"] }
-polkadot-primitives = { version = "14.0.0" }
-xcm = { version = "14.0.0", package = "staging-xcm", default-features = false }
-cumulus-client-cli = { version = "0.14.0" }
-cumulus-client-collator = { version = "0.14.0" }
-cumulus-client-consensus-aura = { version = "0.14.0" }
-cumulus-client-consensus-common = { version = "0.14.0" }
-cumulus-client-consensus-proposer = { version = "0.14.0" }
-cumulus-client-service = { version = "0.14.0" }
-cumulus-primitives-core = { version = "0.14.0" }
-cumulus-primitives-parachain-inherent = { version = "0.14.0" }
-cumulus-relay-chain-interface = { version = "0.14.0" }
+polkadot-cli = { version = "23.0.0", features = ["rococo-native"] }
+polkadot-primitives = { version = "18.1.0" }
+xcm = { version = "16.1.0", package = "staging-xcm", default-features = false }
+cumulus-client-cli = { version = "0.22.0" }
+cumulus-client-collator = { version = "0.22.0" }
+cumulus-client-consensus-aura = { version = "0.22.0" }
+cumulus-client-consensus-common = { version = "0.22.0" }
+cumulus-client-consensus-proposer = { version = "0.19.0" }
+cumulus-client-service = { version = "0.23.0" }
+cumulus-primitives-core = { version = "0.18.1" }
+cumulus-primitives-parachain-inherent = { version = "0.18.1" }
+cumulus-relay-chain-interface = { version = "0.22.0" }
 color-print = "0.3.4"
 
 [build-dependencies]

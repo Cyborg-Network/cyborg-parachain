@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::{prelude::vec::Vec, TypeInfo};
 use sp_core::hash::H256;
@@ -18,7 +18,7 @@ pub enum TaskStatusType {
 	Expired,
 }
 
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, DecodeWithMemTracking, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskType {
 	Docker,
 	Executable,
