@@ -309,7 +309,7 @@ pub async fn start_parachain_node(
 				)),
 				network_provider: Arc::new(network.clone()),
 				is_validator: parachain_config.role.is_authority(),
-				enable_http_requests: false,
+				enable_http_requests: true,
 				custom_extensions: move |_| vec![],
 			})?;
 		task_manager.spawn_handle().spawn(

@@ -20,4 +20,9 @@ id = 1000
 name = "alice"
 rpc_port = 9988
 command = "cyborg-node"
-args = ["-lparachain=debug"]
+args = [
+    "--offchain-worker always", 
+    "--enable-offchain-indexing true", 
+    "--log offchain=trace,logger=trace", 
+    "-lparachain=debug"
+]
