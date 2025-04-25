@@ -14,6 +14,8 @@ use pallet_edge_connect::AccountWorkers;
 pub mod weights;
 use log::info;
 use sp_runtime::traits::CheckedAdd;
+use cyborg_primitives::payment::RewardRates;
+
 use sp_runtime::traits::Zero;
 pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
@@ -69,13 +71,6 @@ pub mod pallet {
 		// type ConductorAccount: Get<Self::AccountId>;
 	}
 
-	/// Struct to hold reward rates per resource type.
-	#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-	pub struct RewardRates<Balance> {
-		pub cpu: Balance,
-		pub ram: Balance,
-		pub storage: Balance,
-	}
 
 	/// Storage for global per-hour subscription fee.
 	#[pallet::storage]
