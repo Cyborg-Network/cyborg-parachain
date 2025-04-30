@@ -135,7 +135,7 @@ pub mod pallet {
 		ProofRequested { task_id: TaskId },
 		/// Event generated when new results are submitted by one offchain worker
 		NewResult {
-			results: OcwResponse<T::MaxTasksPerBlock>,
+			results: NodeProofResponse<T::MaxTasksPerBlock>,
 			who: T::AccountId,
 		},
 		/// Event generated when the proof has successfully been verified
@@ -162,6 +162,8 @@ pub mod pallet {
 		TooManyScheduledFinalizations,
 		/// The account trying to add verification results is not an authenticated verifier
 		NotAnAuthenticatedVerifier,
+		/// The account that should be added as a verifier is already an authenticated verifier
+		AlreadyAnAuthenticatedVerifier
 	}
 	
 	/// Used to aggregate verification results in a convenient mapping of `TaskId` to `VerificationStatusAggregator`,
@@ -309,8 +311,17 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			//TODO: Let users stake a certain amount of BORG to let their ocws participate in verification (add them to AuthenticatedVerifiers and CurrentNumberOfVerifiers)
-			todo!();
+			ensure!(
+				!AuthenticatedVerifiers::<T>::contains_key(&offchain_worker_account), 
+				Error::<T>::AlreadyAnAuthenticatedVerifier
+			);
+
+			AuthenticatedVerifiers::<T>::insert(&offchain_worker_account, ());
+			CurrentNumberOfVerifiers::<T>::mutate(|n| *n += 1);
+
+			//TODO Implement staking logic
+
+			Ok(().into())
 		}
 
 		/// Lets collator nodes opt out of verification
@@ -322,8 +333,17 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			//TODO: Let users retrieve their staked BORG and remove them from AuthenticatedVerifiers and CurrentNumberOfVerifiers
-			todo!();
+			ensure!(
+        		AuthenticatedVerifiers::<T>::contains_key(&offchain_worker_account),
+        		Error::<T>::NotAnAuthenticatedVerifier
+    		);
+
+    		AuthenticatedVerifiers::<T>::remove(&offchain_worker_account);
+			CurrentNumberOfVerifiers::<T>::mutate(|n| *n -= 1);
+
+    		// TODO: Implement unstaking logic
+
+    		Ok(().into())	
 		}
 		
 	}
@@ -395,7 +415,7 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	fn fetch_verification_result() -> Result<OcwResponse<T::MaxTasksPerBlock>, http::Error>
+	fn fetch_verification_result() -> Result<NodeProofResponse<T::MaxTasksPerBlock>, http::Error>
 	where
 		T::MaxTasksPerBlock: Get<u32>,	
 	{
@@ -426,7 +446,7 @@ impl<T: Config> Pallet<T> {
 
 		let body = response.body().collect::<Vec<u8>>();
 
-		let decoded: OcwResponse<T::MaxTasksPerBlock> = BoundedVec::decode(&mut &body[..])
+		let decoded: NodeProofResponse<T::MaxTasksPerBlock> = BoundedVec::decode(&mut &body[..])
 			.map_err(|_| http::Error::Unknown)?;
 
 		Ok(decoded)
@@ -435,7 +455,7 @@ impl<T: Config> Pallet<T> {
 	/// Add new result to the list
 	fn add_results(
 		who: T::AccountId,
-		results: OcwResponse<T::MaxTasksPerBlock>,
+		results: NodeProofResponse<T::MaxTasksPerBlock>,
 	) -> Result<(), Error<T>> {
 		for (task_id, is_verified) in results.clone().into_iter() {
 			<ConsensusAggregator<T>>::try_mutate(task_id, |maybe_aggregator| -> Result<(), Error<T>> {

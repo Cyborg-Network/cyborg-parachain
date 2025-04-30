@@ -73,11 +73,22 @@ use async_h1::server;
 use http_types::{Request, Response, StatusCode};
 use sc_client_api::HeaderBackend;
 use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::Block;
+use sp_runtime::{traits::{Block, ConstU32}, BoundedVec};
 use std::sync::Arc;
+use codec::{Encode};
 
 use cyborg_runtime::apis::NeuroZkStorageApi;
-use cyborg_primitives::proof::NeuroZkTaskInfo;
+use cyborg_primitives::{
+    task::TaskId,
+    proof::NeuroZkTaskInfo,
+};
+
+struct ProofCombination {
+    task_id: TaskId,
+    proof_data: NeuroZkTaskInfo,
+}
+
+type NodeProofResponse = BoundedVec<(TaskId, bool), ConstU32<5>>;
 
 pub fn start_daemon<B, T>(client: Arc<T>) -> impl futures::Future<Output = ()> + Send + 'static 
 where
@@ -124,10 +135,10 @@ where
             }
         };
 
-        verify_proofs(&proof_data); // currently dummy
+        let res_body = verify_proofs(&proof_data);
 
         let mut res = Response::new(StatusCode::Ok);
-        res.set_body("Verification complete");
+        res.set_body(res_body.encode());
         Ok(res)
     } else {
         let mut res = Response::new(StatusCode::NotFound);
@@ -136,7 +147,7 @@ where
     }
 }
 
-async fn fetch_proof_data<B, T>(client: Arc<T>) -> Result<Vec<NeuroZkTaskInfo>, sp_api::ApiError>
+async fn fetch_proof_data<B, T>(client: Arc<T>) -> Result<Vec<ProofCombination>, sp_api::ApiError>
 where
     B: Block,
     T: ProvideRuntimeApi<B> + HeaderBackend<B> + Send + Sync + 'static,
@@ -151,17 +162,34 @@ where
 
     for task_id in task_ids {
         let maybe_nzk_info = client.runtime_api().retrieve_verification_data(best_hash, task_id)?;
-        if let Some(nzk_info) = maybe_nzk_info {
-            proofs.push(nzk_info);
+        if let Some(proof_data) = maybe_nzk_info {
+            proofs.push(
+                ProofCombination {
+                    task_id,
+                    proof_data
+                }
+            );
         }
     }
 
     Ok(proofs)
 }
 
-fn verify_proofs(proof_data: &[NeuroZkTaskInfo]) {
+fn verify_proofs(proof_data: &[ProofCombination]) -> NodeProofResponse {
+    let mut response_vec = NodeProofResponse::new();
+
     for proof in proof_data {
-        println!("Verifying proof...");
-        // Your verification logic here
+        println!("Verifying proof for task with id: {}", proof.task_id);
+
+        // Verify proof using EZKL
+
+        // Dummy until ezkl is ready
+        let verification_result = true;
+
+        if let Err(e) = response_vec.try_push((proof.task_id, verification_result)) {
+            eprintln!("Failed to push verification result: {:?}", e);
+        }
     }
+
+    response_vec
 }

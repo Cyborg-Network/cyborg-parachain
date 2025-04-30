@@ -45,5 +45,5 @@ pub struct NeuroZkTaskInfo {
 
 pub type VerifiedTasks<MaxVerificationsPerAcc> = BoundedVec<(TaskId, bool), MaxVerificationsPerAcc>;
 
-/// Response from the off-chain worker containing the task id and its verification result
-pub type OcwResponse<MaxTasksPerBlock> = BoundedVec<(TaskId, bool), MaxTasksPerBlock>;
+/// Response from the node-side verifying-daemon containing the task id and its verification result
+pub type NodeProofResponse<MaxTasksPerBlock> = BoundedVec<(TaskId, bool), MaxTasksPerBlock>;
