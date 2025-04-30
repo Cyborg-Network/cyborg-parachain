@@ -377,7 +377,7 @@ pub async fn start_parachain_node(
 	task_manager.spawn_handle().spawn(
 		"neuro-zk-daemon",
 		None,
-		crate::neuro_zk_daemon::start_daemon(/*client.clone()*/),
+		crate::neuro_zk_daemon::start_daemon(client.clone()),
 	);
 
 	let announce_block = {

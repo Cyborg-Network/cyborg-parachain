@@ -27,7 +27,9 @@
 use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	weights::Weight,
+	BoundedVec,
 };
+use cyborg_primitives::proof::NeuroZkTaskInfo;
 use pallet_aura::Authorities;
 use sp_api::{decl_runtime_apis, impl_runtime_apis};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -41,6 +43,11 @@ use sp_std::prelude::Vec;
 use sp_version::RuntimeVersion;
 
 use pallet_task_management::Event as TaskManagementPalletEvent;
+
+use cyborg_primitives::{
+	task::TaskId,
+	proof::MaxTasksPerBlock,
+};
 
 // Local module imports
 use super::{
@@ -295,11 +302,27 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl crate::apis::NeuroZkStorageApi<Block> for Runtime {
+		fn retrieve_verification_data(task_id: TaskId) -> Option<NeuroZkTaskInfo> {
+			pallet_neuro_zk::Pallet::<Runtime>::retrieve_verification_data(task_id)
+		}
+
+		fn retrieve_current_tasks() -> BoundedVec<TaskId, MaxTasksPerBlock> {
+			pallet_neuro_zk::Pallet::<Runtime>::retrieve_current_tasks()
+		}
+	}
+
 }
 
 decl_runtime_apis! {
 	#[api_version(1)]
 	pub trait TaskManagementEventsApi {
 			fn get_recent_events() -> Vec<TaskManagementPalletEvent<Runtime>>;
+	}
+
+	/// Exposes the endpoints required for ZK verification by the node-side verifier daemon
+	pub trait NeuroZkStorageApi {
+		fn retrieve_current_tasks() -> BoundedVec<TaskId, MaxTasksPerBlock>;
+		fn retrieve_verification_data(task_id: TaskId) -> Option<NeuroZkTaskInfo>;
 	}
 }

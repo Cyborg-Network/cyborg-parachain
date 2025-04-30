@@ -19,7 +19,6 @@ pub use cyborg_primitives::{
 	proof::*,
 	task::{TaskId, TaskType},
 };
-use pallet_task_management::Tasks;
 use codec::{Decode, Encode, WrapperTypeEncode, WrapperTypeDecode, EncodeLike, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -85,7 +84,7 @@ pub mod pallet {
 	/// This pallet's configuration trait
 	#[pallet::config]
 	pub trait Config:
-		CreateSignedTransaction<Call<Self>> + frame_system::Config + pallet_task_management::Config
+		CreateSignedTransaction<Call<Self>> + frame_system::Config
 	{
 		/// The identifier type for an offchain worker.
 		type AuthorityId: AppCrypto<Self::Public, Self::Signature> + Encode + Decode + EncodeLike + MaxEncodedLen + TypeInfo;
@@ -97,10 +96,6 @@ pub mod pallet {
 		/// Number of blocks to wait before ocw submits result
 		#[pallet::constant]
 		type GracePeriod: Get<BlockNumberFor<Self>>;
-
-		/// Max number of proof verifiers, this is how many accounts will be assigned for verification
-		#[pallet::constant]
-		type MaxVerificationsPerAcc: Get<u32>;
 
 		/// Max number of proof verifiers, this is how many accounts will be assigned for verification
 		#[pallet::constant]
@@ -123,14 +118,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type Stake: Get<u32>;
 
-		//TODO Figure out if this is necessary
-		/// Max number of verifications that one account can do per block
-		#[pallet::constant]
-		type MaxVerificationsPerBlockPerAccount: Get<u32>;
-
+		/// The maximum amount of tasks that can be in the queue
 		#[pallet::constant]
 		type MaxTasks: Get<u32>;
 
+		/// The maximum amount of tasks that can be verified per block
 		#[pallet::constant]
 		type MaxTasksPerBlock: Get<u32>;
 	}
@@ -186,7 +178,7 @@ pub mod pallet {
 
 	/// Used by the miner to submit proofs of execution when requested
 	#[pallet::storage]
-	pub type Proofs<T: Config> = StorageMap<_, Identity, TaskId, (Proof, ProofVerificationStatus), OptionQuery>;
+	pub type NeuroZkTaskDetails<T: Config> = StorageMap<_, Identity, TaskId, NeuroZkTaskInfo, OptionQuery>;
 
 	/// Map of authenticated verifiers
 	#[pallet::storage]
@@ -227,6 +219,17 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			Self::check_verification_requirements(task_id)?;
+			
+			NeuroZkTaskDetails::<T>::try_mutate_exists(task_id, |maybe_task_info| {
+        		match maybe_task_info {
+            		Some(task_info) => {
+                		// Mutate the status
+                		task_info.status = ProofVerificationStatus::Requested;
+                		Ok::<(), DispatchError>(())
+            		}
+            		None => Err(Error::<T>::NeuroZkTaskDoesNotExist.into()),
+        		}
+    		});
 				
 			Self::deposit_event(Event::ProofRequested { task_id });
 
@@ -241,7 +244,7 @@ pub mod pallet {
 		pub fn submit_proof(
 			origin: OriginFor<T>,
 			task_id: TaskId,
-			proof: Proof,
+			proof: ZkProof,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
@@ -249,7 +252,17 @@ pub mod pallet {
 
 			Self::check_verification_requirements(task_id)?;
 
-			Proofs::<T>::insert(task_id, (proof, ProofVerificationStatus::Pending));
+			NeuroZkTaskDetails::<T>::try_mutate_exists(task_id, |maybe_task_info| {
+        		match maybe_task_info {
+            		Some(task_info) => {
+                		// Mutate the status
+                		task_info.status = ProofVerificationStatus::Pending;
+						task_info.zk_proof = Some(proof);
+                		Ok::<(), DispatchError>(())
+            		}
+            		None => Err(Error::<T>::NeuroZkTaskDoesNotExist.into()),
+        		}
+    		});
 
 			TaskQueue::<T>::mutate(|tasks| {
 				tasks.try_push(task_id).map_err(|_| Error::<T>::VerificationTaskListIsFull)
@@ -392,10 +405,7 @@ impl<T: Config> Pallet<T> {
 
 		let encoded_tasks: Vec<u8> = tasks.encode();
 
-		let request = http::Request::post(
-			"http://127.0.0.1:6666/verify",
-			vec![encoded_tasks]
-		);
+		let request = http::Request::get("http://127.0.0.1:6666/verify");
 
 		// Set deadline?
 		let pending = request
@@ -469,24 +479,17 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn check_verification_requirements(task_id: TaskId) -> Result<(), Error<T>> {
-		let task = Tasks::<T>::get(task_id).ok_or(Error::<T>::NeuroZkTaskDoesNotExist)?;
-
-		ensure!(
-			matches!(task.task_type, TaskType::ZK),
-			Error::<T>::NeuroZkTaskDoesNotExist
-		);
+		let task = NeuroZkTaskDetails::<T>::get(task_id).ok_or(Error::<T>::NeuroZkTaskDoesNotExist)?;
 
 		ensure!(
 			CurrentNumberOfVerifiers::<T>::get() > 0,
 			Error::<T>::NoAuthenticatedVerifiers
 		);
 
-		if let Some((proof, status)) = Proofs::<T>::get(task_id) {
-			ensure!(
-				status != ProofVerificationStatus::Pending,
-				Error::<T>::VerificationIsPending
-			);
-		}
+		ensure!(
+			task.status != ProofVerificationStatus::Pending,
+			Error::<T>::VerificationIsPending
+		);
 
 		Ok(())
 	}
@@ -494,5 +497,25 @@ impl<T: Config> Pallet<T> {
 	fn slash_reserved(who: &T::AccountId, amount: u64) {
 		//TODO: Implement slashing
 		todo!();
+	}
+
+	pub fn insert_neuro_zk_submission_details(task_id: TaskId, zk_verifier_files: NeuroZkTaskSubmissionDetails) {
+		let task_data = NeuroZkTaskInfo {
+			zk_input: zk_verifier_files.zk_input,
+			zk_settings: zk_verifier_files.zk_settings,
+			zk_verifying_key: zk_verifier_files.zk_verifying_key,
+			zk_proof: None,
+			status: ProofVerificationStatus::Init,
+		};
+
+		NeuroZkTaskDetails::<T>::insert(task_id ,task_data);
+	}
+
+	pub fn retrieve_verification_data(task_id: TaskId) -> Option<NeuroZkTaskInfo> {
+		NeuroZkTaskDetails::<T>::get(task_id)
+	}
+
+	pub fn retrieve_current_tasks() -> BoundedVec<TaskId, T::MaxTasksPerBlock> {
+		TasksPerBlock::<T>::get()
 	}
 }

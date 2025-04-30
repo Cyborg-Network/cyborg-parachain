@@ -19,7 +19,10 @@ use scale_info::prelude::vec::Vec;
 use sp_core::hash::H256;
 
 pub use cyborg_primitives::task::*;
-use cyborg_primitives::worker::{WorkerId, WorkerStatusType};
+use cyborg_primitives::{
+	worker::{WorkerId, WorkerStatusType},
+	proof::{NeuroZkTaskSubmissionDetails}
+};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -28,11 +31,12 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_edge_connect::{AccountWorkers, ExecutableWorkers, WorkerClusters};
 	use pallet_payment::ComputeHours;
+	use pallet_neuro_zk::NeuroZkTaskDetails;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config
+		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config + pallet_neuro_zk::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
@@ -92,7 +96,6 @@ pub mod pallet {
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 		},
 		/// A completed task has been submitted for verification.
 		SubmittedCompletedTask {
@@ -156,7 +159,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_type: TaskType,
 			task_data: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
+			zk_verifier_files: Option<NeuroZkTaskSubmissionDetails>,
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
@@ -167,22 +170,26 @@ pub mod pallet {
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
 
+			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
+			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
+
+			let task_id = NextTaskId::<T>::get();
+			NextTaskId::<T>::put(task_id.wrapping_add(1));
+
 			// Ensure that, if the task type is ZK, the ZK files actually are present
 			match task_type {
-				cyborg_primitives::task::TaskType::ZK => {
-					ensure!(zk_files_cid.is_some(), Error::<T>::ZkFilesMissing)
+				cyborg_primitives::task::TaskType::NeuroZk => {
+					if let Some(zk_verifier_files) = zk_verifier_files {
+						pallet_neuro_zk::Pallet::<T>::insert_neuro_zk_submission_details(task_id, zk_verifier_files);
+					} else {
+						return Err(Error::<T>::ZkFilesMissing.into());
+					}
 				}
 				_ => {}
 			}
 
-			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
-			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
-
 			// Call consume_compute_hours in the payment pallet to deduct the compute hours
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
-
-			let task_id = NextTaskId::<T>::get();
-			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
 			let selected_worker = (worker_owner, worker_id);
 
@@ -194,7 +201,7 @@ pub mod pallet {
 			}
 
 			if task_type == cyborg_primitives::task::TaskType::Executable
-				|| task_type == cyborg_primitives::task::TaskType::ZK
+				|| task_type == cyborg_primitives::task::TaskType::NeuroZk
 			{
 				ensure!(
 					ExecutableWorkers::<T>::contains_key(&selected_worker),
@@ -207,7 +214,6 @@ pub mod pallet {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
 				metadata: task_data.clone(),
-				zk_files_cid: zk_files_cid.clone(),
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				result: None,
@@ -228,7 +234,6 @@ pub mod pallet {
 				task_owner: who,
 				task_id,
 				task: task_data,
-				zk_files_cid: zk_files_cid,
 			});
 			Ok(())
 		}
@@ -492,7 +497,7 @@ pub mod pallet {
 						}) // TODO: change Inactive to Active with oracle
 						.collect::<Vec<_>>();
 				}
-				cyborg_primitives::task::TaskType::Executable | cyborg_primitives::task::TaskType::ZK => {
+				cyborg_primitives::task::TaskType::Executable | cyborg_primitives::task::TaskType::NeuroZk => {
 					workers = ExecutableWorkers::<T>::iter()
 						.filter(|&(_, ref worker)| {
 							worker.status == WorkerStatusType::Inactive

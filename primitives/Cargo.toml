@@ -25,13 +25,13 @@ orml-traits = { workspace = true }
 frame-benchmarking = { version = "40.0.0", default-features = false, optional = true }
 frame-support = { version = "40.1.0", default-features = false }
 frame-system = { version = "40.1.0", default-features = false }
+sp-runtime = { workspace = true }
 
 sp-std = { version = "14.0.0", default-features = false }
 sp-core = { version = "36.1.0", default-features = false }
 
 [dev-dependencies]
 sp-io = { version = "40.0.0" }
-sp-runtime = { version = "41.1.0" }
 
 [features]
 default = ["std"]

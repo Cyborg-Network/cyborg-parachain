@@ -17,8 +17,8 @@ extern crate alloc;
 
 use smallvec::smallvec;
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
-	traits::{BlakeTwo256, IdentifyAccount, Verify, Extrinsic},
+	generic, impl_opaque_keys,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
 
@@ -51,6 +51,7 @@ pub use frame_system::EnsureRoot;
 pub use cyborg_primitives::{
 	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus},
 	worker::WorkerId,
+	proof::MaxTasksPerBlock,
 };
 
 pub use pallet_edge_connect;
@@ -399,15 +400,13 @@ impl pallet_neuro_zk::Config for Runtime {
 	type AuthorityId = pallet_neuro_zk::crypto::TestAuthId;
 	type RuntimeEvent = RuntimeEvent;
 	type GracePeriod = ConstU32<5>;
-	type MaxVerificationsPerAcc = ConstU32<10>;
 	type MaxNumOfProofVerifiers = ConstU32<5>;
 	type MinNumOfProofVerifiers = ConstU32<1>;
 	type FinalizationDelay = ConstU32<10>;
 	type MaxScheduledFinalizations = ConstU32<10>;
 	type Stake = ConstU32<10000>;
 	type MaxTasks = ConstU32<100000>;
-	type MaxTasksPerBlock = ConstU32<1>;
-	type MaxVerificationsPerBlockPerAccount = ConstU32<1>;
+	type MaxTasksPerBlock = MaxTasksPerBlock;
 }
 
 parameter_types! {

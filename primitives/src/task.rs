@@ -22,7 +22,7 @@ pub enum TaskStatusType {
 pub enum TaskType {
 	Docker,
 	Executable,
-	ZK,
+	NeuroZk,
 }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -31,7 +31,6 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub create_block: BlockNumber,
 	// This is vaguely named as this could be a public docker image or a link to an executable
 	pub metadata: BoundedVec<u8, ConstU32<500>>,
-	pub zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 	pub time_elapsed: Option<BlockNumber>,
 	pub average_cpu_percentage_use: Option<u8>,
 	pub task_type: TaskType,

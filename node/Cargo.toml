@@ -14,7 +14,6 @@ build = "build.rs"
 # name = "cyborg-node"
 
 [dependencies]
-tiny_http = { version = "0.12.0" }
 clap = { version = "4.5.3", features = ["derive"] }
 log = { workspace = true, default-features = true }
 codec = { package = "parity-scale-codec", version = "3.6.12" }
@@ -55,6 +54,15 @@ sp-timestamp = { version = "36.0.0" }
 substrate-frame-rpc-system = { version = "43.0.0" }
 prometheus-endpoint = { version = "0.17.2", package = "substrate-prometheus-endpoint" }
 
+# Verifying Daemon
+tiny_http = { version = "0.12.0" }
+cess-rust-sdk = { git = 'https://github.com/CESSProject/cess-rust-sdk.git' , branch = 'cess-v0.7.9-venus' }
+ezkl = { git = "https://github.com/zkonduit/ezkl.git", tag = "v22.0.1" }
+async-std = { version = "1.13.1" }
+async-h1 = { version = "2.3.4" }
+http-types = { version = "2.12.0" }
+cyborg-primitives = { workspace = true }
+
 # Polkadot
 polkadot-cli = { version = "23.0.0", features = ["rococo-native"] }
 polkadot-primitives = { version = "18.1.0" }
@@ -69,6 +77,8 @@ cumulus-primitives-core = { version = "0.18.1" }
 cumulus-primitives-parachain-inherent = { version = "0.18.1" }
 cumulus-relay-chain-interface = { version = "0.22.0" }
 color-print = "0.3.4"
+
+
 
 [build-dependencies]
 substrate-build-script-utils = { version = "11.0.0" }
