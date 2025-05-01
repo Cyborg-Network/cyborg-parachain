@@ -10,23 +10,7 @@ pub type TaskId = u64;
 /// participation to avoid incorrect or manipulated results.
 pub type ForbiddenOwners<AccountId> = Vec<Option<AccountId>>;
 
-// #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
-// pub enum TaskStatusType {
-//     Assigned,           // Task assigned to miner, waiting execution.
 
-//     PendingValidation,  // Task submitted, waiting for verification.
-//     Completed,          // Task completed and verified.
-//     Expired,            // Task expired without completion.
-// }
-
-// /// Enum representing the current state of the task.
-// #[derive(Encode, Decode, Clone, Eq, PartialEq, RuntimeDebug, TypeInfo)]
-// pub enum TaskState {
-//     Scheduled,
-//     Running,
-//     Stopped,
-//     Vacated,
-// }
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
 pub enum TaskStatusType {
@@ -59,7 +43,6 @@ pub enum TaskStatusType {
 pub enum TaskType {
     Docker,      // Run a docker container.
     Executable,  // Run an executable binary.
-    ZK,          // Zero-Knowledge Proof task.
 }
 
 /// Kinds of overall tasks at a logical level (business logic: inference vs zk proof).
@@ -87,20 +70,6 @@ pub struct TaskInfo<AccountId, BlockNumber> {
     pub task_status: TaskStatusType,                           // Current lifecycle status.
 }
 
-// #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-// pub struct TaskInfo<AccountId, BlockNumber> {
-// 	pub task_owner: AccountId,
-// 	pub create_block: BlockNumber,
-// 	// This is vaguely named as this could be a public docker image or a link to an executable
-// 	pub metadata: BoundedVec<u8, ConstU32<500>>,
-// 	pub zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
-// 	pub time_elapsed: Option<BlockNumber>,
-// 	pub average_cpu_percentage_use: Option<u8>,
-// 	pub task_type: TaskType,
-// 	pub result: Option<BoundedVec<u8, ConstU32<500>>>,
-// 	pub compute_hours_deposit: Option<u32>,
-// 	pub consume_compute_hours: Option<u32>,
-// }
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct VerificationHashes<AccountId> {

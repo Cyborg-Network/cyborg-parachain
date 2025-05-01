@@ -5,8 +5,8 @@ pub use pallet::*;
 #[cfg(test)]
 mod mock;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -104,6 +104,7 @@ pub mod pallet {
 		TaskScheduled {
 			assigned_worker: (T::AccountId, WorkerId),
 			task_type: TaskType,
+			task_kind: TaskKind, // ✨ Added
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<500>>,
@@ -159,11 +160,17 @@ pub mod pallet {
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
 	#[pallet::error]
 	pub enum Error<T> {
+
+		
 		/// No new workers are available for the task reassignment.
 		NoNewWorkersAvailable,
 		/// The user has insufficient compute hours balance for the requested deposit.
 		InsufficientComputeHours,
 		InvalidTaskState,
+		NotTaskOwner,
+		InvalidZKExecution,
+		UnexpectedZkFiles,
+		InvalidInferenceExecution,
 		TaskNotFound,
 		// Scheduling errors
 		RequireComputeHoursDeposit, // A compute hour deposit is required to schedule or proceed with the task.
@@ -198,7 +205,7 @@ pub mod pallet {
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			task_type: TaskType,
-			task_kind:TaskKind, // ✨ new argument for high-level task categorization (NeuroZK vs OpenInference)
+			task_kind: TaskKind,
 			task_data: BoundedVec<u8, ConstU32<500>>,
 			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 			worker_owner: T::AccountId,
@@ -206,46 +213,64 @@ pub mod pallet {
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
-
-			// Ensure that compute_hour_deposit is provided and greater than zero
+		
+			// Validate deposit
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
-
-			// Ensure that, if the task type is ZK, the ZK files actually are present
-			match task_type {
-				cyborg_primitives::task::TaskType::ZK => {
-					ensure!(zk_files_cid.is_some(), Error::<T>::ZkFilesMissing)
-				}
-				_ => {}
+		
+			// Check task_type and task_kind compatibility
+			match task_kind {
+				TaskKind::NeuroZK => {
+					// For NeuroZK, zk_files_cid must be present
+					ensure!(zk_files_cid.is_some(), Error::<T>::ZkFilesMissing);
+		
+					// Allow only Executable or Docker environments
+					match task_type {
+						TaskType::Executable | TaskType::Docker => {}, // valid
+						_ => return Err(Error::<T>::InvalidZKExecution.into()),
+					}
+				},
+				TaskKind::OpenInference => {
+					// zk_files_cid should not be present for normal inference
+					ensure!(zk_files_cid.is_none(), Error::<T>::UnexpectedZkFiles);
+		
+					// OpenInference can also be run in Executable or Docker
+					match task_type {
+						TaskType::Executable | TaskType::Docker => {}, // valid
+						_ => return Err(Error::<T>::InvalidInferenceExecution.into()),
+					}
+				},
 			}
-
+		
+			// Ensure there's at least one worker registered
 			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
 			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
-
-			// Call consume_compute_hours in the payment pallet to deduct the compute hours
+		
+			// Consume compute hours from payment pallet
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
-
+		
+			// Generate task ID
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
-
+		
 			let selected_worker = (worker_owner, worker_id);
-
-			if task_type == cyborg_primitives::task::TaskType::Docker {
-				ensure!(
-					WorkerClusters::<T>::contains_key(&selected_worker),
-					Error::<T>::WorkerDoesNotExist
-				);
+		
+			// Ensure worker is registered in the appropriate registry
+			match task_type {
+				TaskType::Docker => {
+					ensure!(
+						WorkerClusters::<T>::contains_key(&selected_worker),
+						Error::<T>::WorkerDoesNotExist
+					);
+				},
+				TaskType::Executable => {
+					ensure!(
+						ExecutableWorkers::<T>::contains_key(&selected_worker),
+						Error::<T>::WorkerDoesNotExist
+					);
+				},
 			}
-
-			if task_type == cyborg_primitives::task::TaskType::Executable
-				|| task_type == cyborg_primitives::task::TaskType::ZK
-			{
-				ensure!(
-					ExecutableWorkers::<T>::contains_key(&selected_worker),
-					Error::<T>::WorkerDoesNotExist
-				);
-			}
-
+		
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
@@ -254,28 +279,28 @@ pub mod pallet {
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_type: task_type.clone(),
-        		task_kind: task_kind.clone(), // ✨ now added
+				task_kind: task_kind.clone(),
 				result: None,
 				compute_hours_deposit: Some(deposit),
-        		consume_compute_hours: None,
-        		task_status: TaskStatusType::Assigned, // ✨ default to Assigned
+				consume_compute_hours: None,
+				task_status: TaskStatusType::Assigned,
 			};
-
-			// Assign task to worker and set task owner.
+		
 			TaskAllocations::<T>::insert(task_id, selected_worker.clone());
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
-
-			// Emit an event.
+		
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_worker: selected_worker,
 				task_type,
+				task_kind, // ✨ Include this when emitting the event
 				task_owner: who,
 				task_id,
 				task: task_data,
-				zk_files_cid: zk_files_cid,
+				zk_files_cid,
 			});
+		
 			Ok(())
 		}
 
@@ -631,45 +656,61 @@ pub mod pallet {
 		/// With some Logic Expired
 		#[pallet::call_index(6)]
 		#[pallet::weight(10_000)]
-		pub fn confirm_miner_vacation(origin:OriginFor<T>)->DispatchResult{
-			todo!()
+		pub fn confirm_miner_vacation(origin:OriginFor<T>,task_id:TaskId)->DispatchResult{
+			let who = ensure_signed(origin)?;
+
+            let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+
+            // Ensure task owner is confirming.
+            ensure!(task.task_owner == who, Error::<T>::NotTaskOwner);
+
+            // Ensure task is stopped.
+            ensure!(task.task_status == TaskStatusType::Stopped, Error::<T>::InvalidTaskState);
+
+            // Move to Vacated state.
+            task.task_status = TaskStatusType::Vacated;
+            Tasks::<T>::insert(task_id, task);
+
+            // Emit event.
+            Self::deposit_event(Event::MinerVacated { task_id });
+
+            Ok(())
 		}
 
 	
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Returns a random available worker of the appropriate execution type (Docker or Executable),
+		/// avoiding the given forbidden owners.
 		pub fn return_random_worker_of_same_type(
 			task_type: cyborg_primitives::task::TaskType,
 			forbidden_owners: Vec<Option<T::AccountId>>,
 			randomness_salt: &Verifications<T::AccountId>,
 		) -> Result<(T::AccountId, WorkerId), Error<T>> {
-			let workers: Vec<_>;
-
-			match task_type {
+			let workers: Vec<_> = match task_type {
 				cyborg_primitives::task::TaskType::Docker => {
-					workers = WorkerClusters::<T>::iter()
+					WorkerClusters::<T>::iter()
 						.filter(|&(_, ref worker)| {
-							worker.status == WorkerStatusType::Inactive
-								&& !forbidden_owners.contains(&Some(worker.owner.clone()))
-						}) // TODO: change Inactive to Active with oracle
-						.collect::<Vec<_>>();
-				}
-				cyborg_primitives::task::TaskType::Executable | cyborg_primitives::task::TaskType::ZK => {
-					workers = ExecutableWorkers::<T>::iter()
+							worker.status == WorkerStatusType::Inactive &&
+								!forbidden_owners.contains(&Some(worker.owner.clone()))
+						})
+						.collect()
+				},
+				cyborg_primitives::task::TaskType::Executable => {
+					ExecutableWorkers::<T>::iter()
 						.filter(|&(_, ref worker)| {
-							worker.status == WorkerStatusType::Inactive
-								&& !forbidden_owners.contains(&Some(worker.owner.clone()))
-						}) // TODO: change Inactive to Active with oracle
-						.collect::<Vec<_>>();
-				}
-			}
+							worker.status == WorkerStatusType::Inactive &&
+								!forbidden_owners.contains(&Some(worker.owner.clone()))
+						})
+						.collect()
+				},
+			};
 
-			ensure!(workers.len() > 0, Error::<T>::NoNewWorkersAvailable);
+			ensure!(!workers.is_empty(), Error::<T>::NoNewWorkersAvailable);
 
-			let random_index =
-				(sp_io::hashing::blake2_256(&randomness_salt.encode())[0] as usize) % workers.len();
-			let assigned_verifier: (T::AccountId, WorkerId) = workers[random_index].0.clone();
+			let random_index = (sp_io::hashing::blake2_256(&randomness_salt.encode())[0] as usize) % workers.len();
+			let assigned_verifier = workers[random_index].0.clone(); // (AccountId, WorkerId)
 			Ok(assigned_verifier)
 		}
 	}
