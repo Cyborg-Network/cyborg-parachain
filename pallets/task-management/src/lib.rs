@@ -104,7 +104,7 @@ pub mod pallet {
 		TaskScheduled {
 			assigned_worker: (T::AccountId, WorkerId),
 			task_type: TaskType,
-			task_kind: TaskKind, // ✨ Added
+			task_kind: TaskKind, 
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<500>>,
@@ -294,7 +294,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_worker: selected_worker,
 				task_type,
-				task_kind, // ✨ Include this when emitting the event
+				task_kind, 
 				task_owner: who,
 				task_id,
 				task: task_data,
