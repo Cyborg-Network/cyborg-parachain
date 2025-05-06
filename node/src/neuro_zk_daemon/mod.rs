@@ -76,6 +76,8 @@ use sp_api::ProvideRuntimeApi;
 use sp_runtime::{traits::{Block, ConstU32}, BoundedVec};
 use std::sync::Arc;
 use codec::{Encode};
+// Requires "ios-bindings" feature flag, which currently throws an error when compiled
+//use ezkl::bindings::universal::verify;
 
 use cyborg_runtime::apis::NeuroZkStorageApi;
 use cyborg_primitives::{
@@ -88,7 +90,7 @@ struct ProofCombination {
     proof_data: NeuroZkTaskInfo,
 }
 
-type NodeProofResponse = BoundedVec<(TaskId, bool), ConstU32<5>>;
+type NodeProofResponse = BoundedVec<(TaskId, bool), ConstU32<1>>;
 
 pub fn start_daemon<B, T>(client: Arc<T>) -> impl futures::Future<Output = ()> + Send + 'static 
 where
@@ -181,7 +183,15 @@ fn verify_proofs(proof_data: &[ProofCombination]) -> NodeProofResponse {
     for proof in proof_data {
         println!("Verifying proof for task with id: {}", proof.task_id);
 
+        /*
         // Verify proof using EZKL
+        let verification_result = verify(
+            proof.proof_data.proof,
+            proof.proof_data.verification_key,
+            proof.proof_data.settings,
+            srs
+        );
+        */
 
         // Dummy until ezkl is ready
         let verification_result = true;

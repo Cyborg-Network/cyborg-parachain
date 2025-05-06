@@ -23,6 +23,6 @@ command = "cyborg-node"
 args = [
     "--offchain-worker always", 
     "--enable-offchain-indexing true", 
-    "--log offchain=trace,logger=trace", 
+    "--log", "offchain=trace,logger=trace,runtime=trace,pallet_balances=trace,system=trace", 
     "-lparachain=debug"
 ]

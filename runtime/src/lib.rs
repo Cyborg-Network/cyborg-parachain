@@ -362,10 +362,13 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			frame_metadata_hash_extension::CheckMetadataHash::new(true),
+			frame_metadata_hash_extension::CheckMetadataHash::new_with_custom_hash(metadata_hash),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 			.into();
+
+		log::warn!("Creating signed payload for: {:#?}", call);
+		
 		let raw_payload = SignedPayload::new(call, tx_ext)
 			.map_err(|e| {
 				log::warn!("Unable to create signed payload: {:?}", e);

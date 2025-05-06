@@ -163,9 +163,11 @@ pub mod pallet {
 		/// The account trying to add verification results is not an authenticated verifier
 		NotAnAuthenticatedVerifier,
 		/// The account that should be added as a verifier is already an authenticated verifier
-		AlreadyAnAuthenticatedVerifier
+		AlreadyAnAuthenticatedVerifier,
+		/// No ocws voted if proof is verified or not
+		NoVotes
 	}
-	
+
 	/// Used to aggregate verification results in a convenient mapping of `TaskId` to `VerificationStatusAggregator`,
 	/// wich is three `BoundedVec`s, one for each verification status variant (Pending, Verified, Rejected), each
 	/// containing a `BoundedVec` of the off-chain workers `AccountId`
@@ -182,9 +184,9 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type NeuroZkTaskDetails<T: Config> = StorageMap<_, Identity, TaskId, NeuroZkTaskInfo, OptionQuery>;
 
-	/// Map of authenticated verifiers
+	/// Map of authenticated verifiers where the key is the verifier and the value is the account that added it (only this account can remove it)
 	#[pallet::storage]
-	pub type AuthenticatedVerifiers<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, (), OptionQuery>;
+	pub type AuthenticatedVerifiers<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, T::AccountId, OptionQuery>;
 
 	/// Queue containing all the task queues up for verification
 	#[pallet::storage]
@@ -218,7 +220,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_id: TaskId,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 
 			Self::check_verification_requirements(task_id)?;
 			
@@ -231,7 +233,7 @@ pub mod pallet {
             		}
             		None => Err(Error::<T>::NeuroZkTaskDoesNotExist.into()),
         		}
-    		});
+    		})?;
 				
 			Self::deposit_event(Event::ProofRequested { task_id });
 
@@ -248,7 +250,7 @@ pub mod pallet {
 			task_id: TaskId,
 			proof: ZkProof,
 		) -> DispatchResultWithPostInfo {
-			let who = ensure_signed(origin)?;
+			ensure_signed(origin)?;
 
 			//TODO: Check if the tasks queue still has space left
 
@@ -264,7 +266,7 @@ pub mod pallet {
             		}
             		None => Err(Error::<T>::NeuroZkTaskDoesNotExist.into()),
         		}
-    		});
+    		})?;
 
 			TaskQueue::<T>::mutate(|tasks| {
 				tasks.try_push(task_id).map_err(|_| Error::<T>::VerificationTaskListIsFull)
@@ -288,9 +290,12 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn submit_verification_results(
 			origin: OriginFor<T>,
-			results: VerifiedTasks<T::MaxTasksPerBlock>,
+			results: NodeProofResponse<T::MaxTasksPerBlock>,
 		) -> DispatchResultWithPostInfo {
+			log::info!("Log before origin check");
 			let who = ensure_signed(origin)?;
+
+			log::info!("Received results from Verifying Daemon: {:#?}", results);
 
 			ensure!(
 				AuthenticatedVerifiers::<T>::contains_key(&who), 
@@ -316,7 +321,7 @@ pub mod pallet {
 				Error::<T>::AlreadyAnAuthenticatedVerifier
 			);
 
-			AuthenticatedVerifiers::<T>::insert(&offchain_worker_account, ());
+			AuthenticatedVerifiers::<T>::insert(&offchain_worker_account, who);
 			CurrentNumberOfVerifiers::<T>::mutate(|n| *n += 1);
 
 			//TODO Implement staking logic
@@ -346,6 +351,20 @@ pub mod pallet {
     		Ok(().into())	
 		}
 		
+		/// Submits list of `TaskId`s and their corresponding `VerificationStatus` from the Verifying Daemon, removes the processed tasks from the queue
+		#[pallet::call_index(5)]
+		#[pallet::weight(0)]
+		pub fn test(
+			origin: OriginFor<T>,
+			test: u8,
+		) -> DispatchResultWithPostInfo {
+			log::info!("Log before origin check");
+			let who = ensure_signed(origin)?;
+
+			log::info!("Received results from Verifying Daemon: {}", test);
+
+			Ok(().into())
+		}
 	}
 
 	#[pallet::hooks]
@@ -361,23 +380,41 @@ pub mod pallet {
 			log::info!("Hello World from offchain workers!");
 
 			let parent_hash = <system::Pallet<T>>::block_hash(block_number - 1u32.into());
-			log::debug!(
+			log::info!(
 				"Current block: {:?} (parent hash: {:?})",
 				block_number,
 				parent_hash
 			);
 
-			Self::fetch_verification_result_and_send_signed();
+			if let Err(e) = Self::fetch_verification_result_and_send_signed() {
+				log::info!("Failed to fetch verification result and send signed: {}", e);
+			}
 		}	
 
 		fn on_initialize(now: BlockNumberFor<T>) -> Weight {
+			// We take the tasks to be finalized on this block and finalize them
 			let tasks_to_finalize = FinalizationQueue::<T>::take(now);
 	
 			for task_id in tasks_to_finalize {
 				if let Err(e) = Self::finalize_verification(task_id) {
-					log::error!("Failed to finalize verification {}: {:?}", task_id, e);
+					log::info!("Failed to finalize verification {}: {:?}", task_id, e);
 				}
 			}
+
+			// We take the number of tasks per block from the TaskQueue overwrite the tasks for this block with them
+			
+			let mut task_queue = TaskQueue::<T>::take();
+			let mut tasks_for_block = BoundedVec::<_, T::MaxTasksPerBlock>::default();
+
+			while let Some(task) = task_queue.pop() {
+    			if tasks_for_block.try_push(task).is_err() {
+        			break;
+    			}
+			}
+
+			// Restore remaining queue and assign new tasks
+			TaskQueue::<T>::put(task_queue);
+			TasksPerBlock::<T>::put(tasks_for_block);
 	
 			//TODO: The wieght returned here needs to be adjusted for production
 			T::DbWeight::get().reads_writes(1, 1)
@@ -394,21 +431,25 @@ impl<T: Config> Pallet<T> {
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 
 		if !signer.can_sign() {
-				log::error!("No local accounts available. Consider adding one via `author_insertKey` RPC.");
+				log::info!("No local accounts available. Consider adding one via `author_insertKey` RPC.");
 		}
 
 		// Note this call will block until response is received.
 		let results =
 			Self::fetch_verification_result().map_err(|_| "Failed to fetch verification result")?;
 
+		log::info!("Impending result submission: {:#?}", results);
+
 		let submission_result = signer.send_signed_transaction(|_account| {
-			Call::submit_verification_results { results: results.clone() }
+			log::info!("Submitting verification result");
+			Call::test { test: 1 }
+			//Call::submit_verification_results { results: results.clone() }
 		});
 
 		for (acc, res) in &submission_result {
 			match res {
 				Ok(()) => log::info!("[{:?}] Submitted result {:?}", acc.id, res),
-				Err(e) => log::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
+				Err(e) => log::info!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
 			}
 		}
 
@@ -440,14 +481,18 @@ impl<T: Config> Pallet<T> {
 			.map_err(|_| http::Error::DeadlineReached)?;
 
 		if response.code as u16 != 200u16 {
-			log::warn!("Unexpected status code: {}", response.code);
+			log::info!("Unexpected status code: {}", response.code);
 			return Err(http::Error::Unknown);
 		}
 
 		let body = response.body().collect::<Vec<u8>>();
+		
+		log::info!("Received response: {}", body.len());
 
 		let decoded: NodeProofResponse<T::MaxTasksPerBlock> = BoundedVec::decode(&mut &body[..])
 			.map_err(|_| http::Error::Unknown)?;
+
+		log::info!("Decoded response: {:?}", decoded);
 
 		Ok(decoded)
 	}
@@ -457,6 +502,8 @@ impl<T: Config> Pallet<T> {
 		who: T::AccountId,
 		results: NodeProofResponse<T::MaxTasksPerBlock>,
 	) -> Result<(), Error<T>> {
+
+		log::info!("Adding results...");
 		for (task_id, is_verified) in results.clone().into_iter() {
 			<ConsensusAggregator<T>>::try_mutate(task_id, |maybe_aggregator| -> Result<(), Error<T>> {
 				let who = who.clone();
@@ -486,16 +533,52 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn mutate_nzk_task_details(task_id: TaskId, status: ProofVerificationStatus) -> Result<(), Error<T>> {
+		NeuroZkTaskDetails::<T>::try_mutate_exists(task_id, |maybe_task_info| {
+			match maybe_task_info {
+				Some(task_info) => {
+					// Mutate the status
+					task_info.status = status;
+					Ok::<(), sp_runtime::DispatchError>(())
+				}
+				None => Err(Error::<T>::NeuroZkTaskDoesNotExist.into()),
+			}
+		}).map_err(|_| Error::<T>::NeuroZkTaskDoesNotExist)
+	}
+
 	fn finalize_verification(task_id: TaskId) -> Result<(), Error<T>> {
-		let consensus_aggegator = ConsensusAggregator::<T>::get(task_id);
-	
-		//TODO Implement logic for reaching consensus
+    	let Some(aggregator) = ConsensusAggregator::<T>::get(task_id) else {
+        	log::warn!("No aggregator found for task_id: {:?}", task_id);
+        	return Err(Error::<T>::NeuroZkTaskDoesNotExist);
+    	};
 
-		//TODO Update queues
+    	let verified_len = aggregator.verified.len();
+    	let rejected_len = aggregator.rejected.len();
+    	let total_votes = verified_len + rejected_len;
 
-		//TODO SECONDARY implement slashing
+    	// Require at least one vote to consider consensus
+    	if total_votes == 0 {
+        	return Err(Error::<T>::NoVotes);
+    	}
 
-		todo!();
+    	let has_consensus = |count: usize| count * 2 > total_votes;
+
+		
+
+    	if has_consensus(verified_len) {
+			Self::mutate_nzk_task_details(task_id, ProofVerificationStatus::Verified)?;	
+    	} else if has_consensus(rejected_len) {
+			Self::mutate_nzk_task_details(task_id, ProofVerificationStatus::Rejected)?;	
+    	} else {
+			Self::mutate_nzk_task_details(task_id, ProofVerificationStatus::Rejected)?;	
+    	}
+
+    	// Remove the aggregator entry after finalization
+    	ConsensusAggregator::<T>::remove(task_id);
+
+    	// Queue updates would happen here (already handled in `on_initialize` logic)
+
+    	Ok(())
 	}
 
 	fn check_verification_requirements(task_id: TaskId) -> Result<(), Error<T>> {
@@ -531,10 +614,12 @@ impl<T: Config> Pallet<T> {
 		NeuroZkTaskDetails::<T>::insert(task_id ,task_data);
 	}
 
+	/// Helper function for runtime api consumed by the verifying daemon
 	pub fn retrieve_verification_data(task_id: TaskId) -> Option<NeuroZkTaskInfo> {
 		NeuroZkTaskDetails::<T>::get(task_id)
 	}
 
+	/// Helper function for runtime api consumed by the verifying daemon
 	pub fn retrieve_current_tasks() -> BoundedVec<TaskId, T::MaxTasksPerBlock> {
 		TasksPerBlock::<T>::get()
 	}

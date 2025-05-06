@@ -4490,6 +4490,7 @@ dependencies = [
  "frame-benchmarking 40.0.0",
  "frame-benchmarking-cli",
  "futures",
+ "futures-util",
  "http-types",
  "jsonrpsee",
  "log",
