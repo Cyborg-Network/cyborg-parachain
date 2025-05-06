@@ -1,14 +1,11 @@
 use crate::{mock::*, Error};
-use crate::{NextTaskId, TaskAllocations, TaskOwners, TaskStatus, Tasks,ComputeAggregations};
-use frame_support::traits::Task;
+use crate::{NextTaskId, TaskStatus, Tasks,ComputeAggregations};
 use frame_support::{assert_noop, assert_ok};
 
-pub use cyborg_primitives::task::{TaskStatusType,TaskKind,TaskInfo};
+pub use cyborg_primitives::task::{TaskStatusType,TaskKind};
 pub use cyborg_primitives::worker::*;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
-use sp_core::H256;
-use frame_system::Origin;
 use sp_std::convert::TryFrom;
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -29,7 +26,6 @@ fn register_worker(
 	)
 }
 
-#[test]
 #[test]
 fn it_works_for_task_scheduler() {
 	new_test_ext().execute_with(|| {

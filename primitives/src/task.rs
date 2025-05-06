@@ -1,7 +1,6 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
-use scale_info::{prelude::vec::Vec, TypeInfo};
-use sp_core::hash::H256;
+use scale_info::TypeInfo;
 
 pub type TaskId = u64;
 

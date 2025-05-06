@@ -1,5 +1,5 @@
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::sp_runtime::RuntimeDebug;
 use scale_info::TypeInfo;
 
 // Struct to hold reward rates per resource type.

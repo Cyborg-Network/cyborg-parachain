@@ -79,6 +79,15 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	pub type MinerReputation<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type MinerSlashCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type BannedMiners<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, bool, ValueQuery>;
+
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -114,6 +123,25 @@ pub mod pallet {
 			worker_id: WorkerId,
 			worker_status: WorkerStatusType,
 		},
+
+		/// A miner has been banned
+		MinerBanned {
+			miner: T::AccountId,
+			reason: BannedReason,
+		},
+
+		/// A miner's reputation has been updated
+		MinerReputationUpdated {
+			miner: T::AccountId,
+			new_reputation: u32,
+		},
+	}
+
+	#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq)]
+	pub enum BannedReason {
+		TooManyFailedTasks,
+		SuspiciousActivity,
+		ManualBan,
 	}
 
 	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
@@ -126,6 +154,11 @@ pub mod pallet {
 		WorkerExists,
 		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
+		/// Miner has been banned and cannot participate
+		MinerBanned,
+
+		/// Miner reputation is too low
+		ReputationTooLow,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -320,6 +353,45 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		/// Ban a miner (root only)
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_miner())]
+		pub fn ban_miner(
+			origin: OriginFor<T>,
+			miner: T::AccountId,
+			reason: BannedReason,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			BannedMiners::<T>::insert(&miner, true);
+			Self::deposit_event(Event::MinerBanned { miner, reason });
+			Ok(().into())
+		}
+		
+		/// Update miner reputation (root only)
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_reputation())]
+		pub fn update_reputation(
+			origin: OriginFor<T>,
+			miner: T::AccountId,
+			reputation_change: i32,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
+			
+			let current = MinerReputation::<T>::get(&miner);
+			let new_reputation = if reputation_change < 0 {
+				current.saturating_sub(reputation_change.unsigned_abs())
+			} else {
+				current.saturating_add(reputation_change as u32)
+			};
+			
+			MinerReputation::<T>::insert(&miner, new_reputation);
+			Self::deposit_event(Event::MinerReputationUpdated {
+				miner,
+				new_reputation,
+			});
+			Ok(().into())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -339,6 +411,34 @@ pub mod pallet {
 				None
 			} else {
 				Some(workers)
+			}
+		}
+
+		pub fn is_registered_miner(account: &T::AccountId) -> bool {
+			AccountWorkers::<T>::contains_key(account)
+		}
+
+		pub fn is_miner_banned(miner: &T::AccountId) -> bool {
+			BannedMiners::<T>::get(miner)
+		}
+		
+		pub fn miner_reputation(miner: &T::AccountId) -> u32 {
+			MinerReputation::<T>::get(miner)
+		}
+		
+		// Call this when a miner submits a bad task
+		pub fn penalize_miner(miner: &T::AccountId) {
+			let current = MinerReputation::<T>::get(miner);
+			let new_reputation = current.saturating_sub(1);
+			MinerReputation::<T>::insert(miner, new_reputation);
+			
+			// If reputation drops too low, auto-ban
+			if new_reputation < 5 {
+				BannedMiners::<T>::insert(miner, true);
+				Self::deposit_event(Event::MinerBanned {
+					miner: miner.clone(),
+					reason: BannedReason::TooManyFailedTasks,
+				});
 			}
 		}
 	}

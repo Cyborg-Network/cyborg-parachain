@@ -9,7 +9,6 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-use pallet_edge_connect::AccountWorkers;
 
 pub mod weights;
 use log::info;
@@ -192,7 +191,7 @@ pub mod pallet {
 		/// Admin sets a miner's reward rates for active and idle states.
 		/// In future we idle rates will be static , will be set through the runtime configuration
 		#[pallet::call_index(2)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_reward_rates_for_miner())]
 		pub fn set_reward_rates_for_miner(
 			origin: OriginFor<T>,
 			miner: T::AccountId,
@@ -294,7 +293,7 @@ pub mod pallet {
 
 		/// Allows a new user to subscribe to compute by paying upfront.
 		#[pallet::call_index(6)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::subscribe())]
 		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
@@ -318,7 +317,7 @@ pub mod pallet {
 
 		/// Lets an existing user add more hours to their subscription.
 		#[pallet::call_index(7)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_hours())]
 		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
@@ -344,7 +343,7 @@ pub mod pallet {
 
 		/// Admin sets the global subscription cost per compute hour.
 		#[pallet::call_index(8)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_subscription_fee_per_hour())]
 		pub fn set_subscription_fee_per_hour(
 			origin: OriginFor<T>,
 			new_fee_per_hour: BalanceOf<T>,
