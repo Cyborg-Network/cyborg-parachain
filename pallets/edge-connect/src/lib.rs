@@ -367,7 +367,7 @@ pub mod pallet {
 			Self::deposit_event(Event::MinerBanned { miner, reason });
 			Ok(().into())
 		}
-		
+
 		/// Update miner reputation (root only)
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_reputation())]
@@ -377,14 +377,14 @@ pub mod pallet {
 			reputation_change: i32,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			
+
 			let current = MinerReputation::<T>::get(&miner);
 			let new_reputation = if reputation_change < 0 {
 				current.saturating_sub(reputation_change.unsigned_abs())
 			} else {
 				current.saturating_add(reputation_change as u32)
 			};
-			
+
 			MinerReputation::<T>::insert(&miner, new_reputation);
 			Self::deposit_event(Event::MinerReputationUpdated {
 				miner,
@@ -421,17 +421,17 @@ pub mod pallet {
 		pub fn is_miner_banned(miner: &T::AccountId) -> bool {
 			BannedMiners::<T>::get(miner)
 		}
-		
+
 		pub fn miner_reputation(miner: &T::AccountId) -> u32 {
 			MinerReputation::<T>::get(miner)
 		}
-		
+
 		// Call this when a miner submits a bad task
 		pub fn penalize_miner(miner: &T::AccountId) {
 			let current = MinerReputation::<T>::get(miner);
 			let new_reputation = current.saturating_sub(1);
 			MinerReputation::<T>::insert(miner, new_reputation);
-			
+
 			// If reputation drops too low, auto-ban
 			if new_reputation < 5 {
 				BannedMiners::<T>::insert(miner, true);

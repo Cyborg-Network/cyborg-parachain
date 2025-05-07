@@ -9,11 +9,10 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-
 pub mod weights;
+use cyborg_primitives::payment::RewardRates;
 use log::info;
 use sp_runtime::traits::CheckedAdd;
-use cyborg_primitives::payment::RewardRates;
 
 use sp_runtime::traits::Zero;
 pub use weights::*;
@@ -69,7 +68,6 @@ pub mod pallet {
 		// #[pallet::constant]
 		// type ConductorAccount: Get<Self::AccountId>;
 	}
-
 
 	/// Storage for global per-hour subscription fee.
 	#[pallet::storage]

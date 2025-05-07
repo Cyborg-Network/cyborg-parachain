@@ -2,7 +2,6 @@ use crate::mock::*;
 use crate::BalanceOf;
 use frame_support::traits::fungible::Mutate;
 use frame_support::{assert_noop, assert_ok};
-use pallet_edge_connect::*;
 
 // Test to ensure consuming zero hours fails
 #[test]

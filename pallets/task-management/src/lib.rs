@@ -19,14 +19,13 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_edge_connect::AccountWorkers;
-	use frame_support::dispatch::PostDispatchInfo;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -147,8 +146,12 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
-			let pays_fee = if who == GatekeeperAccount::<T>::get().expect("Invalid Gatekeper") {
-				Pays::No
+			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
+				if who == gatekeeper {
+					Pays::No
+				} else {
+					Pays::Yes
+				}
 			} else {
 				Pays::Yes
 			};

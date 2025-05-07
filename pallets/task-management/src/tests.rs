@@ -1,13 +1,13 @@
 use crate::{mock::*, Error};
-use crate::{NextTaskId, TaskStatus, Tasks,ComputeAggregations};
+use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
 use frame_support::{assert_noop, assert_ok};
 
-pub use cyborg_primitives::task::{TaskStatusType,TaskKind};
+pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 pub use cyborg_primitives::worker::*;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
-use sp_std::convert::TryFrom;
 use frame_system::pallet_prelude::BlockNumberFor;
+use sp_std::convert::TryFrom;
 
 fn register_worker(
 	account: u64,
@@ -26,9 +26,14 @@ fn register_worker(
 	)
 }
 
+fn setup_gatekeeper() {
+    TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
+}
+
 #[test]
 fn it_works_for_task_scheduler() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let executor = 2;
@@ -47,12 +52,16 @@ fn it_works_for_task_scheduler() {
 
 		// zk_files_cid only required for NeuroZK
 		let zk_files_cid = Some(
-			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap()
+			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 		);
 
 		// Register worker for Docker and Executable
 		assert_ok!(register_worker(executor, WorkerType::Docker, "executor"));
-		assert_ok!(register_worker(executor, WorkerType::Executable, "executor"));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"executor"
+		));
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Docker Task (valid)
@@ -113,6 +122,7 @@ fn it_works_for_task_scheduler() {
 #[test]
 fn it_fails_when_worker_not_registered() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind_neurozk = TaskKind::NeuroZK;
@@ -120,7 +130,7 @@ fn it_fails_when_worker_not_registered() {
 		let worker_id = 99;
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-		
+
 		// Create zk_files_cid
 		let zk_files_cid =
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
@@ -147,6 +157,7 @@ fn it_fails_when_worker_not_registered() {
 #[test]
 fn it_fails_when_no_workers_are_available() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		let alice = 1;
 		let worker_owner = 2;
 		let worker_id = 0;
@@ -176,6 +187,7 @@ fn it_fails_when_no_workers_are_available() {
 #[test]
 fn it_fails_when_no_computer_hours_available() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		let alice = 1;
 
 		let worker_owner = 2;
@@ -204,6 +216,7 @@ fn it_fails_when_no_computer_hours_available() {
 #[test]
 fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let creator = 1;
 		let executor = 2;
@@ -245,6 +258,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 #[test]
 fn confirm_task_reception_should_fail_for_wrong_executor() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		let creator = 1;
 		let executor = 2;
 		let intruder = 99;
@@ -277,6 +291,7 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 #[test]
 fn confirm_task_reception_should_fail_if_already_running() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		let creator = 1;
 		let executor = 2;
 		let worker_id = 0;
@@ -311,10 +326,10 @@ fn confirm_task_reception_should_fail_if_already_running() {
 	});
 }
 
-
 #[test]
 fn it_works_for_confirm_miner_vacation() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind = TaskKind::OpenInference;
@@ -368,6 +383,7 @@ fn it_works_for_confirm_miner_vacation() {
 #[test]
 fn fails_if_not_task_owner_for_vacation() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
@@ -413,6 +429,7 @@ fn fails_if_not_task_owner_for_vacation() {
 #[test]
 fn fails_if_task_not_stopped() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind = TaskKind::OpenInference;
@@ -450,62 +467,64 @@ fn fails_if_task_not_stopped() {
 
 #[test]
 fn it_works_for_stop_task_and_vacate_miner() {
-    new_test_ext().execute_with(|| {
-        System::set_block_number(1);
-        let alice = 1;
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
 
-        let task_kind = TaskKind::OpenInference;
-        let metadata = BoundedVec::try_from(b"docker-image-task-v1.0".to_vec()).unwrap();
+		let task_kind = TaskKind::OpenInference;
+		let metadata = BoundedVec::try_from(b"docker-image-task-v1.0".to_vec()).unwrap();
 
-        // Provide compute hours and register worker
-        pallet_payment::ComputeHours::<Test>::insert(alice, 40);
-        assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		// Provide compute hours and register worker
+		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
+		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
 
-        // Schedule task
-        assert_ok!(TaskManagementModule::task_scheduler(
-            RuntimeOrigin::signed(alice),
-            task_kind,
-            metadata.clone(),
-            None,
-            alice,
-            0,
-            Some(10),
-        ));
+		// Schedule task
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			metadata.clone(),
+			None,
+			alice,
+			0,
+			Some(10),
+		));
 
-        let task_id = NextTaskId::<Test>::get() - 1;
+		let task_id = NextTaskId::<Test>::get() - 1;
 
-        // Confirm reception and set task to Running
-        assert_ok!(TaskManagementModule::confirm_task_reception(
-            RuntimeOrigin::signed(alice),
-            task_id,
-        ));
-        Tasks::<Test>::mutate(task_id, |task| {
-            if let Some(ref mut t) = task {
-                t.task_status = TaskStatusType::Running;
-            }
-        });
+		// Confirm reception and set task to Running
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(alice),
+			task_id,
+		));
+		Tasks::<Test>::mutate(task_id, |task| {
+			if let Some(ref mut t) = task {
+				t.task_status = TaskStatusType::Running;
+			}
+		});
 
 		let now = System::block_number();
 		ComputeAggregations::<Test>::insert(task_id, (now, None::<BlockNumberFor<Test>>));
 
-        // Call extrinsic
-        assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
-            RuntimeOrigin::signed(alice),
-            task_id,
-        ));
+		// Call extrinsic
+		assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
+			RuntimeOrigin::signed(alice),
+			task_id,
+		));
 
-        let updated_task = Tasks::<Test>::get(task_id).unwrap();
-        assert_eq!(updated_task.task_status, TaskStatusType::Stopped);
+		let updated_task = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(updated_task.task_status, TaskStatusType::Stopped);
 
-        let agg = ComputeAggregations::<Test>::get(task_id).unwrap();
-        assert_eq!(agg.0, 1);
-        assert_eq!(agg.1, Some(System::block_number()));
-    });
+		let agg = ComputeAggregations::<Test>::get(task_id).unwrap();
+		assert_eq!(agg.0, 1);
+		assert_eq!(agg.1, Some(System::block_number()));
+	});
 }
 
 #[test]
 fn fails_if_task_is_not_running() {
 	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind = TaskKind::OpenInference;
@@ -529,10 +548,7 @@ fn fails_if_task_is_not_running() {
 
 		// ❌ Call stop while task is not Running
 		assert_noop!(
-			TaskManagementModule::stop_task_and_vacate_miner(
-				RuntimeOrigin::signed(alice),
-				task_id
-			),
+			TaskManagementModule::stop_task_and_vacate_miner(RuntimeOrigin::signed(alice), task_id),
 			Error::<Test>::InvalidTaskState
 		);
 	});
@@ -545,13 +561,8 @@ fn fails_if_task_does_not_exist() {
 		let task_id = 9999; // nonexistent task ID
 
 		assert_noop!(
-			TaskManagementModule::stop_task_and_vacate_miner(
-				RuntimeOrigin::signed(1),
-				task_id
-			),
+			TaskManagementModule::stop_task_and_vacate_miner(RuntimeOrigin::signed(1), task_id),
 			Error::<Test>::TaskNotFound
 		);
 	});
 }
-
-
