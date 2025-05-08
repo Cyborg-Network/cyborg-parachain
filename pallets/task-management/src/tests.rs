@@ -27,7 +27,7 @@ fn register_worker(
 }
 
 fn setup_gatekeeper() {
-    TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
+	TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
 }
 
 #[test]

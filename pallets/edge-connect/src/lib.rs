@@ -48,8 +48,8 @@ pub mod pallet {
 
 	// A helper function providing a default value for worker reputations.
 	#[pallet::type_value]
-	pub fn WorkerReputationDefault() -> WorkerReputation {
-		0
+	pub fn WorkerReputationDefault<T: Config>() -> WorkerReputation<BlockNumberFor<T>> {
+		WorkerReputation::default()
 	}
 
 	/// AccountWorkers Information, Storage map for associating an account ID with a worker ID. If no worker exists, the query returns None.
@@ -78,15 +78,6 @@ pub mod pallet {
 		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
-
-	#[pallet::storage]
-	pub type MinerReputation<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u32, ValueQuery>;
-
-	#[pallet::storage]
-	pub type MinerSlashCount<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u32, ValueQuery>;
-
-	#[pallet::storage]
-	pub type BannedMiners<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, bool, ValueQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -124,24 +115,27 @@ pub mod pallet {
 			worker_status: WorkerStatusType,
 		},
 
-		/// A miner has been banned
-		MinerBanned {
-			miner: T::AccountId,
-			reason: BannedReason,
+		/// Event emitted when a worker is penalized
+		WorkerPenalized {
+			worker: (T::AccountId, WorkerId),
+			penalty: i32,
+			reason: PenaltyReason,
 		},
 
-		/// A miner's reputation has been updated
-		MinerReputationUpdated {
-			miner: T::AccountId,
-			new_reputation: u32,
+		/// Event emitted when a worker is suspended
+		WorkerSuspended {
+			worker: (T::AccountId, WorkerId),
+			until_block: BlockNumberFor<T>,
 		},
 	}
 
-	#[derive(Encode, Decode, Clone, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialEq)]
-	pub enum BannedReason {
-		TooManyFailedTasks,
-		SuspiciousActivity,
-		ManualBan,
+	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+	pub enum PenaltyReason {
+		TaskRejection,
+		FalseCompletion,
+		LateResponse,
+		SpamAttempt,
+		Other,
 	}
 
 	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
@@ -154,11 +148,10 @@ pub mod pallet {
 		WorkerExists,
 		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
-		/// Miner has been banned and cannot participate
-		MinerBanned,
-
-		/// Miner reputation is too low
-		ReputationTooLow,
+		/// Worker is suspended and cannot perform actions.
+		WorkerSuspended,
+		/// Worker reputation is too low
+		InsufficientReputation,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -229,7 +222,7 @@ pub mod pallet {
 				owner: creator.clone(),
 				location: worker_location,
 				specs: worker_specs,
-				reputation: 0,
+				reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
@@ -354,43 +347,21 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Ban a miner (root only)
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_miner())]
-		pub fn ban_miner(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_worker())]
+		pub fn penalize_worker(
 			origin: OriginFor<T>,
-			miner: T::AccountId,
-			reason: BannedReason,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-			BannedMiners::<T>::insert(&miner, true);
-			Self::deposit_event(Event::MinerBanned { miner, reason });
-			Ok(().into())
-		}
-
-		/// Update miner reputation (root only)
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_reputation())]
-		pub fn update_reputation(
-			origin: OriginFor<T>,
-			miner: T::AccountId,
-			reputation_change: i32,
-		) -> DispatchResultWithPostInfo {
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+			penalty: i32,
+			reason: PenaltyReason,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			let current = MinerReputation::<T>::get(&miner);
-			let new_reputation = if reputation_change < 0 {
-				current.saturating_sub(reputation_change.unsigned_abs())
-			} else {
-				current.saturating_add(reputation_change as u32)
-			};
+			Self::apply_penalty(&(worker_owner, worker_id), worker_type, penalty, reason)?;
 
-			MinerReputation::<T>::insert(&miner, new_reputation);
-			Self::deposit_event(Event::MinerReputationUpdated {
-				miner,
-				new_reputation,
-			});
-			Ok(().into())
+			Ok(())
 		}
 	}
 
@@ -418,28 +389,78 @@ pub mod pallet {
 			AccountWorkers::<T>::contains_key(account)
 		}
 
-		pub fn is_miner_banned(miner: &T::AccountId) -> bool {
-			BannedMiners::<T>::get(miner)
-		}
-
-		pub fn miner_reputation(miner: &T::AccountId) -> u32 {
-			MinerReputation::<T>::get(miner)
-		}
-
-		// Call this when a miner submits a bad task
-		pub fn penalize_miner(miner: &T::AccountId) {
-			let current = MinerReputation::<T>::get(miner);
-			let new_reputation = current.saturating_sub(1);
-			MinerReputation::<T>::insert(miner, new_reputation);
-
-			// If reputation drops too low, auto-ban
-			if new_reputation < 5 {
-				BannedMiners::<T>::insert(miner, true);
-				Self::deposit_event(Event::MinerBanned {
-					miner: miner.clone(),
-					reason: BannedReason::TooManyFailedTasks,
-				});
+		/// Apply penalty to a worker's reputation
+		fn apply_penalty(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+			penalty: i32,
+			reason: PenaltyReason,
+		) -> DispatchResult {
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
 			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Apply penalty
+			worker.reputation.score = worker.reputation.score.saturating_sub(penalty);
+			worker.reputation.violations += 1;
+			worker.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
+
+			// If reputation drops below threshold, suspend the worker
+			if worker.reputation.score < 30 {
+				worker.status = WorkerStatusType::Suspended;
+				// Suspend for 1000 blocks (~4 hours at 6s/block)
+				worker.status_last_updated = <frame_system::Pallet<T>>::block_number() + 1000u32.into();
+			}
+
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			Self::deposit_event(Event::WorkerPenalized {
+				worker: worker_key.clone(),
+				penalty,
+				reason,
+			});
+
+			Ok(())
+		}
+
+		/// Check if worker can perform actions
+		pub fn check_worker_status(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+		) -> DispatchResult {
+			let worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Check if suspended
+			if worker.status == WorkerStatusType::Suspended {
+				if <frame_system::Pallet<T>>::block_number() < worker.status_last_updated {
+					return Err(Error::<T>::WorkerSuspended.into());
+				} else {
+					// Auto-unsuspend if suspension period is over
+					let mut worker = worker.clone();
+					worker.status = WorkerStatusType::Inactive;
+					match worker_type {
+						WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+						WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+					}
+				}
+			}
+
+			// Check reputation
+			if worker.reputation.score < 50 {
+				return Err(Error::<T>::InsufficientReputation.into());
+			}
+
+			Ok(())
 		}
 	}
 

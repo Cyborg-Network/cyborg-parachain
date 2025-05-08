@@ -18,6 +18,7 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
+use cyborg_primitives::worker::WorkerType;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -67,6 +68,15 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type GatekeeperAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+
+	#[pallet::storage]
+	pub type TaskRateLimits<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		T::AccountId,
+		(BlockNumberFor<T>, u32), // (last_block, count)
+		ValueQuery,
+	>;
 
 	/// Storage for compute aggregation information (start and end block).
 	#[pallet::storage]
@@ -127,6 +137,9 @@ pub mod pallet {
 
 		// Verification-specific errors
 		RequireAssignedVerifier, // A verifier must be assigned to the task.
+
+		/// Account has exceeded task submission rate limit
+		RateLimitExceeded,
 	}
 
 	#[pallet::call]
@@ -145,6 +158,15 @@ pub mod pallet {
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
+
+			// Check rate limit
+			Self::check_rate_limit(&who)?;
+
+			// Check worker reputation
+			pallet_edge_connect::Pallet::<T>::check_worker_status(
+				&(worker_owner.clone(), worker_id),
+				WorkerType::Docker,
+			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
 				if who == gatekeeper {
@@ -335,6 +357,30 @@ pub mod pallet {
 			ensure_root(origin)?;
 			GatekeeperAccount::<T>::put(new_gatekeeper);
 			Ok(().into())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		fn check_rate_limit(who: &T::AccountId) -> DispatchResult {
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			let (last_block, count) = TaskRateLimits::<T>::get(who);
+
+			// Reset counter if it's a new block
+			let new_count = if current_block == last_block {
+				count + 1
+			} else {
+				1
+			};
+
+			// Update storage
+			TaskRateLimits::<T>::insert(who, (current_block, new_count));
+
+			// Allow up to 5 tasks per block per account
+			if new_count > 5 {
+				Err(Error::<T>::RateLimitExceeded.into())
+			} else {
+				Ok(())
+			}
 		}
 	}
 }

@@ -34,8 +34,7 @@ pub trait WeightInfo {
 	fn register_worker() -> Weight;
 	fn remove_worker() -> Weight;
     fn toggle_worker_visibility() -> Weight;
-	fn ban_miner() -> Weight;
-	fn update_reputation() -> Weight;
+	fn penalize_worker() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -77,28 +76,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 
-	/// Storage: `EdgeConnect::BannedMiners` (r:0 w:1)
-    /// Proof: `EdgeConnect::BannedMiners` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-    fn ban_miner() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `0`
-        //  Estimated: `0`
-        // Minimum execution time: 8_000_000 picoseconds.
-        Weight::from_parts(9_000_000, 0)
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-
-    /// Storage: `EdgeConnect::MinerReputation` (r:1 w:1)
-    /// Proof: `EdgeConnect::MinerReputation` (`max_values`: None, `max_size`: Some(49), added: 2524, mode: `MaxEncodedLen`)
-    fn update_reputation() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `76`
-        //  Estimated: `3514`
-        // Minimum execution time: 10_000_000 picoseconds.
-        Weight::from_parts(11_000_000, 3514)
-            .saturating_add(T::DbWeight::get().reads(1_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
+	fn penalize_worker() -> Weight {
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
 
 // For backwards compatibility and tests.
@@ -138,23 +120,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	fn penalize_worker() -> Weight {
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
 
-	fn ban_miner() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `0`
-        //  Estimated: `0`
-        // Minimum execution time: 8_000_000 picoseconds.
-        Weight::from_parts(9_000_000, 0)
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
-
-    fn update_reputation() -> Weight {
-        // Proof Size summary in bytes:
-        //  Measured:  `76`
-        //  Estimated: `3514`
-        // Minimum execution time: 10_000_000 picoseconds.
-        Weight::from_parts(11_000_000, 3514)
-            .saturating_add(RocksDbWeight::get().reads(1_u64))
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
 }

@@ -37,7 +37,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 			last_status_check: current_timestamp,
 		};
 
@@ -50,7 +50,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 			last_status_check: current_timestamp,
 		};
 
@@ -123,7 +123,7 @@ fn it_works_for_registering_domain() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 			last_status_check: current_timestamp,
 		};
 
