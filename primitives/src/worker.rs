@@ -16,8 +16,6 @@ pub type StorageBytes = u64;
 
 pub type CpuCores = u16;
 
-pub type WorkerReputation = u8;
-
 /// An enum that is used to differentiate between the different kinds of workers that are
 /// registered on the cyborg parachain. There is no differentiation between the ZK Worker and the
 /// Executable Worker, as the executable worker will be able to execute ZK Tasks
@@ -32,6 +30,7 @@ pub enum WorkerStatusType {
 	Active,
 	Busy,
 	Inactive,
+	Suspended,
 }
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -58,7 +57,7 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 	pub owner: AccountId,
 	pub location: Location,
 	pub specs: WorkerSpecs,
-	pub reputation: WorkerReputation,
+	pub reputation: WorkerReputation<BlockNumber>,
 	pub start_block: BlockNumber,
 	pub status: WorkerStatusType,
 	pub status_last_updated: BlockNumber,
@@ -76,4 +75,23 @@ pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
 		worker_type: &WorkerType,
 		worker: Worker<AccountId, BlockNumber, TimeStamp>,
 	);
+}
+
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, Copy)]
+pub struct WorkerReputation<BlockNumber> {
+	pub score: i32,
+	pub last_updated: Option<BlockNumber>,
+	pub violations: u32,
+	pub successful_tasks: u32,
+}
+
+impl<BlockNumber> Default for WorkerReputation<BlockNumber> {
+	fn default() -> Self {
+		Self {
+			score: 100,
+			last_updated: None,
+			violations: 0,
+			successful_tasks: 0,
+		}
+	}
 }

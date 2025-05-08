@@ -5,19 +5,14 @@ use crate::{
 	WorkerStatusEntriesPerPeriod,
 };
 
-use frame_support::{
-	assert_noop, assert_ok, pallet_prelude::ConstU32, sp_runtime::RuntimeDebug,
-	testing_prelude::bounded_vec, traits::OnFinalize, BoundedVec,
-};
+use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_oracle;
-use orml_traits::{CombineData, OnNewData};
+use orml_traits::OnNewData;
 
 use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
+	oracle::{OracleWorkerFormat, ProcessStatus},
 	worker::*,
 };
-use std::error::Error;
 
 #[test]
 fn prevents_nonexistent_worker_storage() {

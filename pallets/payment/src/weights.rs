@@ -37,6 +37,11 @@ pub trait WeightInfo {
 	fn purchase_compute_hours() -> Weight;
 	fn consume_compute_hours() -> Weight;
 
+	fn set_reward_rates_for_miner() -> Weight;
+    fn subscribe() -> Weight;
+    fn add_hours() -> Weight;
+    fn set_subscription_fee_per_hour() -> Weight;
+
 	// New extrinsics
 	fn record_usage() -> Weight;
 	fn reward_miner() -> Weight;
@@ -108,6 +113,28 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		Weight::from_parts(16_000_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) // adjust based on loop size
 	}
+
+	fn set_reward_rates_for_miner() -> Weight {
+        Weight::from_parts(3_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    fn subscribe() -> Weight {
+        Weight::from_parts(5_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    fn add_hours() -> Weight {
+        Weight::from_parts(4_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
+
+    fn set_subscription_fee_per_hour() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
 	
 	
 
@@ -177,5 +204,27 @@ impl WeightInfo for () {
 		Weight::from_parts(16_000_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads_writes(10, 10))
 	}
+
+	fn set_reward_rates_for_miner() -> Weight {
+        Weight::from_parts(3_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(2_u64))
+    }
+
+    fn subscribe() -> Weight {
+        Weight::from_parts(5_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(3_u64))
+            .saturating_add(RocksDbWeight::get().writes(2_u64))
+    }
+
+    fn add_hours() -> Weight {
+        Weight::from_parts(4_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(3_u64))
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+    fn set_subscription_fee_per_hour() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
 	
 }

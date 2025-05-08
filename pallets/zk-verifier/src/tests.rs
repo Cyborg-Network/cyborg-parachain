@@ -37,7 +37,7 @@ use frame_support::{assert_err, assert_ok};
 
 const ALICE_ACCOUNT_ID: u64 = 2;
 const BOB_ACCOUNT_ID: u64 = 3;
-const taskId: TaskId = 0;
+const TASK_ID: TaskId = 0;
 
 #[test]
 fn test_setup_verification() {
@@ -46,13 +46,13 @@ fn test_setup_verification() {
 		// Call the function and verify it works correctly
 		assert_ok!(ZKVerifierModule::setup_verification(
 			RuntimeOrigin::none(),
-			taskId,
+			TASK_ID,
 			prepare_correct_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
 
 		// Updated storage check
-		let stored_vk = VerificationKeyStorage::<Test>::get(taskId);
+		let stored_vk = VerificationKeyStorage::<Test>::get(TASK_ID);
 		assert_eq!(stored_vk.is_some(), true);
 
 		// Verify the event was emitted
@@ -68,7 +68,7 @@ fn test_not_supported_vk_curve() {
 		assert_err!(
 			ZKVerifierModule::setup_verification(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				prepare_correct_public_inputs_json().as_bytes().into(),
 				vk.as_bytes().into()
 			),
@@ -86,7 +86,7 @@ fn test_not_supported_vk_protocol() {
 		assert_err!(
 			ZKVerifierModule::setup_verification(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				prepare_correct_public_inputs_json().as_bytes().into(),
 				vk.as_bytes().into()
 			),
@@ -104,7 +104,7 @@ fn test_too_long_verification_key() {
 		assert_err!(
 			ZKVerifierModule::setup_verification(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				prepare_correct_public_inputs_json().as_bytes().into(),
 				too_long_vk
 			),
@@ -120,7 +120,7 @@ fn test_too_long_public_inputs() {
 		assert_err!(
 			ZKVerifierModule::setup_verification(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				vec![0; (<Test as Config>::MaxPublicInputsLength::get() + 1) as usize],
 				prepare_vk_json("groth16", "bls12381", None)
 					.as_bytes()
@@ -138,7 +138,7 @@ fn test_public_inputs_mismatch() {
 		assert_err!(
 			ZKVerifierModule::setup_verification(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				prepare_empty_public_inputs_json().as_bytes().into(),
 				prepare_vk_json("groth16", "bls12381", None)
 					.as_bytes()
@@ -148,7 +148,7 @@ fn test_public_inputs_mismatch() {
 		);
 
 		// Check storage to ensure no key was set
-		assert!(!VerificationKeyStorage::<Test>::contains_key(taskId));
+		assert!(!VerificationKeyStorage::<Test>::contains_key(TASK_ID));
 		assert_eq!(zk_events().len(), 0);
 	});
 }
@@ -159,7 +159,7 @@ fn test_too_long_proof() {
 		assert_err!(
 			ZKVerifierModule::verify(
 				RuntimeOrigin::none(),
-				taskId,
+				TASK_ID,
 				vec![0; (<Test as Config>::MaxProofLength::get() + 1) as usize]
 			),
 			Error::<Test>::TooLongProof
@@ -174,7 +174,7 @@ fn test_not_supported_proof_protocol() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, proof.as_bytes().into()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, proof.as_bytes().into()),
 			Error::<Test>::NotSupportedProtocol
 		);
 		assert_eq!(zk_events().len(), 0);
@@ -187,7 +187,7 @@ fn test_not_supported_proof_curve() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, proof.as_bytes().into()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, proof.as_bytes().into()),
 			Error::<Test>::NotSupportedCurve
 		);
 		assert_eq!(zk_events().len(), 0);
@@ -198,7 +198,7 @@ fn test_not_supported_proof_curve() {
 fn test_empty_proof() {
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, Vec::new()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, Vec::new()),
 			Error::<Test>::ProofIsEmpty
 		);
 		assert_eq!(zk_events().len(), 0);
@@ -211,7 +211,7 @@ fn test_verify_without_verification_key() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, proof.as_bytes().into()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, proof.as_bytes().into()),
 			Error::<Test>::VerificationKeyIsNotSet
 		);
 		assert_eq!(zk_events().len(), 0);
@@ -226,13 +226,13 @@ fn test_verification_success() {
 
 		assert_ok!(ZKVerifierModule::setup_verification(
 			RuntimeOrigin::none(),
-			taskId,
+			TASK_ID,
 			prepare_correct_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
 		assert_ok!(ZKVerifierModule::verify(
 			RuntimeOrigin::signed(ALICE_ACCOUNT_ID),
-			taskId,
+			TASK_ID,
 			proof.as_bytes().into()
 		));
 
@@ -257,13 +257,13 @@ fn test_verification_failed() {
 
 		assert_ok!(ZKVerifierModule::setup_verification(
 			RuntimeOrigin::none(),
-			taskId,
+			TASK_ID,
 			prepare_incorrect_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
 		assert_ok!(ZKVerifierModule::verify(
 			RuntimeOrigin::signed(BOB_ACCOUNT_ID),
-			taskId,
+			TASK_ID,
 			proof.as_bytes().into()
 		));
 
@@ -283,12 +283,12 @@ fn test_could_not_create_proof() {
 
 		assert_ok!(ZKVerifierModule::setup_verification(
 			RuntimeOrigin::none(),
-			taskId,
+			TASK_ID,
 			prepare_correct_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, proof.as_bytes().into()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, proof.as_bytes().into()),
 			Error::<Test>::ProofCreationError
 		);
 
@@ -306,12 +306,12 @@ fn test_could_not_create_verification_key() {
 
 		assert_ok!(ZKVerifierModule::setup_verification(
 			RuntimeOrigin::none(),
-			taskId,
+			TASK_ID,
 			prepare_correct_public_inputs_json().as_bytes().into(),
 			vk.as_bytes().into()
 		));
 		assert_err!(
-			ZKVerifierModule::verify(RuntimeOrigin::none(), taskId, proof.as_bytes().into()),
+			ZKVerifierModule::verify(RuntimeOrigin::none(), TASK_ID, proof.as_bytes().into()),
 			Error::<Test>::VerificationKeyCreationError
 		);
 

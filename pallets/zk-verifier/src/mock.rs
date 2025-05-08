@@ -3,8 +3,8 @@ use frame_support::parameter_types;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use sp_runtime::{traits::ConstU64, BuildStorage};
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
+// type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+// type Block = frame_system::mocking::MockBlock<Test>;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -52,7 +52,7 @@ impl crate::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut storage = GenesisConfig::<Test>::default().build_storage().unwrap();
+	let storage = GenesisConfig::<Test>::default().build_storage().unwrap();
 	let mut ext = sp_io::TestExternalities::new(storage);
 	ext.execute_with(|| frame_system::Pallet::<Test>::set_block_number(1));
 	ext
