@@ -79,6 +79,21 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Workers by Location - Maps location to list of (owner, worker_id) pairs
+	#[pallet::storage]
+	pub type WorkersByLocation<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		(Latitude, Longitude),
+		Vec<(T::AccountId, WorkerId)>,
+		ValueQuery,
+	>;
+
+	/// Workers by Owner - Maps owner to list of worker_ids (enhanced version of AccountWorkers)
+	#[pallet::storage]
+	pub type WorkersByOwner<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, Vec<WorkerId>, ValueQuery>;
+
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -200,7 +215,7 @@ pub mod pallet {
 				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
-				api: api,
+				api,
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
@@ -237,25 +252,22 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			match worker_type {
-				WorkerType::Docker => {
-					ensure!(
-						WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
-						Error::<T>::WorkerDoesNotExist
-					);
+			// Get worker before removal to know its location
+			let worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get((creator.clone(), worker_id)),
+				WorkerType::Executable => ExecutableWorkers::<T>::get((creator.clone(), worker_id)),
+			};
 
-					// update storage
-					WorkerClusters::<T>::remove((creator.clone(), worker_id));
-				}
-				WorkerType::Executable => {
-					ensure!(
-						ExecutableWorkers::<T>::get((creator.clone(), worker_id)) != None,
-						Error::<T>::WorkerDoesNotExist
-					);
+			if let Some(worker) = worker {
+				// Remove from location index
+				WorkersByLocation::<T>::mutate(worker.location, |workers| {
+					workers.retain(|(owner, id)| !(owner == &creator && id == &worker_id));
+				});
 
-					// update storage
-					ExecutableWorkers::<T>::remove((creator.clone(), worker_id));
-				}
+				// Remove from owner index
+				WorkersByOwner::<T>::mutate(creator.clone(), |worker_ids| {
+					worker_ids.retain(|id| id != &worker_id);
+				});
 			}
 
 			// Emit an event.
@@ -339,6 +351,30 @@ pub mod pallet {
 				None
 			} else {
 				Some(workers)
+			}
+		}
+
+		/// Get workers by location
+		pub fn get_workers_by_location(
+			location: (Latitude, Longitude),
+		) -> Vec<(T::AccountId, WorkerId)> {
+			WorkersByLocation::<T>::get(location)
+		}
+
+		/// Get workers by owner
+		pub fn get_workers_by_owner(owner: T::AccountId) -> Vec<WorkerId> {
+			WorkersByOwner::<T>::get(owner)
+		}
+
+		/// Get worker details by owner and id
+		pub fn get_worker_details(
+			owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get((owner, worker_id)),
+				WorkerType::Executable => ExecutableWorkers::<T>::get((owner, worker_id)),
 			}
 		}
 	}
