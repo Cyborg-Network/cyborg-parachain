@@ -141,6 +141,7 @@ pub mod pallet {
 
 		/// Account has exceeded task submission rate limit
 		RateLimitExceeded,
+		WorkerDoesNotExist,
 	}
 
 	#[pallet::call]
@@ -168,6 +169,25 @@ pub mod pallet {
 				TaskKind::NeuroZK => WorkerType::Executable,
 				TaskKind::OpenInference => WorkerType::Docker,
 			};
+
+			// First check if any workers exist at all
+			let any_workers_exist = match task_kind {
+				TaskKind::NeuroZK => !ExecutableWorkers::<T>::iter().next().is_none(),
+				TaskKind::OpenInference => !WorkerClusters::<T>::iter().next().is_none(),
+			};
+			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
+
+			// Ensure the specific worker exists in the correct storage
+			let worker_exists = match task_kind {
+				TaskKind::NeuroZK => pallet_edge_connect::ExecutableWorkers::<T>::contains_key((
+					worker_owner.clone(),
+					worker_id,
+				)),
+				TaskKind::OpenInference => {
+					pallet_edge_connect::WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
+				}
+			};
+			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
 
 			// Check worker status and reputation
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
@@ -200,25 +220,6 @@ pub mod pallet {
 					ensure!(zk_files_cid.is_none(), Error::<T>::UnexpectedZkFiles);
 				}
 			}
-
-			// First check if any workers exist at all
-			let any_workers_exist = match task_kind {
-				TaskKind::NeuroZK => !ExecutableWorkers::<T>::iter().next().is_none(),
-				TaskKind::OpenInference => !WorkerClusters::<T>::iter().next().is_none(),
-			};
-			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
-
-			// Ensure the specific worker exists in the correct storage
-			let worker_exists = match task_kind {
-				TaskKind::NeuroZK => pallet_edge_connect::ExecutableWorkers::<T>::contains_key((
-					worker_owner.clone(),
-					worker_id,
-				)),
-				TaskKind::OpenInference => {
-					pallet_edge_connect::WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
-				}
-			};
-			ensure!(worker_exists, Error::<T>::NoWorkersAvailable);
 
 			// Consume compute hours from payment pallet
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
