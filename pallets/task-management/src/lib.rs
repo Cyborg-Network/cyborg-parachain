@@ -26,7 +26,7 @@ pub mod pallet {
 	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
-	use pallet_edge_connect::AccountWorkers;
+	// use pallet_edge_connect::AccountWorkers;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -165,7 +165,10 @@ pub mod pallet {
 			// Check worker reputation
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
 				&(worker_owner.clone(), worker_id),
-				WorkerType::Docker,
+				match task_kind {
+					TaskKind::NeuroZK => WorkerType::Executable,
+					TaskKind::OpenInference => WorkerType::Docker,
+				},
 			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
@@ -194,9 +197,17 @@ pub mod pallet {
 				}
 			}
 
-			// Ensure there's at least one worker registered
-			let existing_workers = AccountWorkers::<T>::iter().next().is_some();
-			ensure!(existing_workers, Error::<T>::NoWorkersAvailable);
+			// Ensure the specific worker exists
+			let worker_exists = match task_kind {
+				TaskKind::NeuroZK => pallet_edge_connect::ExecutableWorkers::<T>::contains_key((
+					worker_owner.clone(),
+					worker_id,
+				)),
+				TaskKind::OpenInference => {
+					pallet_edge_connect::WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
+				}
+			};
+			ensure!(worker_exists, Error::<T>::NoWorkersAvailable);
 
 			// Consume compute hours from payment pallet
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
