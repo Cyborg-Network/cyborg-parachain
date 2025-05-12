@@ -18,11 +18,11 @@ fn register_worker(
 		RuntimeOrigin::signed(account),
 		worker_type,
 		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
-		590000,
-		120000,
-		10000000,
-		10000000,
-		12,
+		590000,   // latitude
+		120000,   // longitude
+		10000000, // ram
+		10000000, // storage
+		12,       // cpu
 	)
 }
 
@@ -39,8 +39,16 @@ fn it_works_for_task_scheduler() {
 		let executor = 2;
 
 		// Register workers first
-        assert_ok!(register_worker(executor, WorkerType::Docker, "docker.worker"));
-        assert_ok!(register_worker(executor, WorkerType::Executable, "exec.worker"));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Docker,
+			"docker.worker"
+		));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"exec.worker"
+		));
 
 		let task_kind_neurozk = TaskKind::NeuroZK;
 		let task_kind_infer = TaskKind::OpenInference;
@@ -58,14 +66,6 @@ fn it_works_for_task_scheduler() {
 		let zk_files_cid = Some(
 			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 		);
-
-		// Register worker for Docker and Executable
-		assert_ok!(register_worker(executor, WorkerType::Docker, "executor"));
-		assert_ok!(register_worker(
-			executor,
-			WorkerType::Executable,
-			"executor"
-		));
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Docker Task (valid)
@@ -143,7 +143,9 @@ fn it_fails_when_worker_not_registered() {
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Ensure no workers exist
-        assert!(pallet_edge_connect::WorkerClusters::<Test>::iter().next().is_none());
+		assert!(pallet_edge_connect::WorkerClusters::<Test>::iter()
+			.next()
+			.is_none());
 
 		// Dispatch a signed extrinsic.
 		assert_noop!(
@@ -156,7 +158,7 @@ fn it_fails_when_worker_not_registered() {
 				worker_id,
 				Some(1),
 			),
-			Error::<Test>::NoWorkersAvailable
+			Error::<Test>::WorkerDoesNotExist
 		);
 	});
 }
@@ -172,14 +174,16 @@ fn it_fails_when_no_workers_are_available() {
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		 // Ensure no workers exist
-		 assert!(pallet_edge_connect::WorkerClusters::<Test>::iter().next().is_none());
-		 assert!(pallet_edge_connect::ExecutableWorkers::<Test>::iter().next().is_none());
+		// Ensure no workers exist
+		assert!(pallet_edge_connect::WorkerClusters::<Test>::iter()
+			.next()
+			.is_none());
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::iter()
+			.next()
+			.is_none());
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-
-	
 
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
@@ -208,7 +212,11 @@ fn it_fails_when_no_computer_hours_available() {
 		let task_kind_infer = TaskKind::OpenInference;
 
 		// Register worker first
-        assert_ok!(register_worker(worker_owner, WorkerType::Docker, "worker.domain"));
+		assert_ok!(register_worker(
+			worker_owner,
+			WorkerType::Docker,
+			"worker.domain"
+		));
 
 		// Create a task data BoundedVec
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
@@ -241,7 +249,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 		let task_data = BoundedVec::truncate_from(b"model.bin".to_vec());
 
 		// Register worker first
-        assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
+		assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
 
@@ -283,7 +291,7 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let worker_id = 0;
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
-		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
+		assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
 
 		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(

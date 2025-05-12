@@ -19,6 +19,7 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
+use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -162,13 +163,16 @@ pub mod pallet {
 			// Check rate limit
 			Self::check_rate_limit(&who)?;
 
-			// Check worker reputation
+			// Determine worker type based on task kind
+			let worker_type = match task_kind {
+				TaskKind::NeuroZK => WorkerType::Executable,
+				TaskKind::OpenInference => WorkerType::Docker,
+			};
+
+			// Check worker status and reputation
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
 				&(worker_owner.clone(), worker_id),
-				match task_kind {
-					TaskKind::NeuroZK => WorkerType::Executable,
-					TaskKind::OpenInference => WorkerType::Docker,
-				},
+				worker_type,
 			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
@@ -197,7 +201,14 @@ pub mod pallet {
 				}
 			}
 
-			// Ensure the specific worker exists
+			// First check if any workers exist at all
+			let any_workers_exist = match task_kind {
+				TaskKind::NeuroZK => !ExecutableWorkers::<T>::iter().next().is_none(),
+				TaskKind::OpenInference => !WorkerClusters::<T>::iter().next().is_none(),
+			};
+			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
+
+			// Ensure the specific worker exists in the correct storage
 			let worker_exists = match task_kind {
 				TaskKind::NeuroZK => pallet_edge_connect::ExecutableWorkers::<T>::contains_key((
 					worker_owner.clone(),
