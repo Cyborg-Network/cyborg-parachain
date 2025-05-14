@@ -15,6 +15,8 @@ pub mod weights;
 pub use weights::*;
 
 pub use cyborg_primitives::worker::*;
+use frame_support::traits::ConstU32;
+use sp_std::prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -87,14 +89,19 @@ pub mod pallet {
 		Latitude,
 		Twox64Concat,
 		Longitude,
-		Vec<(T::AccountId, WorkerId)>,
+		BoundedVec<(T::AccountId, WorkerId), ConstU32<100>>, // Max 100 workers per location
 		ValueQuery,
 	>;
 
 	/// Storage map to index all workers by owner
 	#[pallet::storage]
-	pub type WorkersByOwner<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, Vec<WorkerId>, ValueQuery>;
+	pub type WorkersByOwner<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		T::AccountId,
+		BoundedVec<WorkerId, ConstU32<100>>, // Max 100 workers per owner
+		ValueQuery,
+	>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -143,6 +150,8 @@ pub mod pallet {
 		WorkerExists,
 		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
+		TooManyWorkersAtLocation,
+		TooManyWorkersForOwner,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -231,12 +240,14 @@ pub mod pallet {
 			}
 
 			// Update indices
-			WorkersByLocation::<T>::append(
+			WorkersByLocation::<T>::try_append(
 				worker.location.latitude,
 				worker.location.longitude,
 				(creator.clone(), worker_id.clone()),
-			);
-			WorkersByOwner::<T>::append(creator.clone(), worker_id.clone());
+			)
+			.map_err(|_| Error::<T>::TooManyWorkersAtLocation)?;
+			WorkersByOwner::<T>::try_append(creator.clone(), worker_id.clone())
+				.map_err(|_| Error::<T>::TooManyWorkersForOwner)?;
 
 			Self::deposit_event(Event::WorkerRegistered {
 				creator: creator.clone(),
@@ -387,12 +398,12 @@ pub mod pallet {
 		pub fn get_workers_by_location(
 			latitude: Latitude,
 			longitude: Longitude,
-		) -> Vec<(T::AccountId, WorkerId)> {
+		) -> BoundedVec<(T::AccountId, WorkerId), ConstU32<100>> {
 			WorkersByLocation::<T>::get(latitude, longitude)
 		}
 
 		/// Get workers owned by a specific account
-		pub fn get_workers_by_owner(owner: T::AccountId) -> Vec<WorkerId> {
+		pub fn get_workers_by_owner(owner: T::AccountId) -> BoundedVec<WorkerId, ConstU32<100>> {
 			WorkersByOwner::<T>::get(owner)
 		}
 
@@ -402,9 +413,9 @@ pub mod pallet {
 			longitude: Longitude,
 		) -> Vec<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			WorkersByLocation::<T>::get(latitude, longitude)
+				.into_inner() 
 				.into_iter()
 				.filter_map(|(owner, id)| {
-					// Check both storage maps
 					WorkerClusters::<T>::get((owner.clone(), id))
 						.or_else(|| ExecutableWorkers::<T>::get((owner, id)))
 				})
