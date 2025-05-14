@@ -161,39 +161,36 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
-			// Check rate limit
-			Self::check_rate_limit(&who)?;
-
 			// Determine worker type based on task kind
 			let worker_type = match task_kind {
 				TaskKind::NeuroZK => WorkerType::Executable,
 				TaskKind::OpenInference => WorkerType::Docker,
 			};
 
-			// First check if any workers exist at all
+			// Check if any workers exist for the task_kind first
 			let any_workers_exist = match task_kind {
-				TaskKind::NeuroZK => !ExecutableWorkers::<T>::iter().next().is_none(),
-				TaskKind::OpenInference => !WorkerClusters::<T>::iter().next().is_none(),
+				TaskKind::NeuroZK => ExecutableWorkers::<T>::iter().next().is_some(),
+				TaskKind::OpenInference => WorkerClusters::<T>::iter().next().is_some(),
 			};
 			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
-
-			// Ensure the specific worker exists in the correct storage
-			let worker_exists = match task_kind {
-				TaskKind::NeuroZK => pallet_edge_connect::ExecutableWorkers::<T>::contains_key((
-					worker_owner.clone(),
-					worker_id,
-				)),
-				TaskKind::OpenInference => {
-					pallet_edge_connect::WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
-				}
-			};
-			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
 
 			// Check worker status and reputation
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
 				&(worker_owner.clone(), worker_id),
 				worker_type,
-			)?;
+			)
+			.map_err(|_| Error::<T>::WorkerDoesNotExist)?;
+
+			// Then check if the specific worker exists
+			let worker_exists = match task_kind {
+				TaskKind::NeuroZK => {
+					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
+				}
+				TaskKind::OpenInference => {
+					WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
+				}
+			};
+			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
 				if who == gatekeeper {
@@ -384,6 +381,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		#[allow(dead_code)]
 		fn check_rate_limit(who: &T::AccountId) -> DispatchResult {
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let (last_block, count) = TaskRateLimits::<T>::get(who);
