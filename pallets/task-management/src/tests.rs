@@ -51,9 +51,10 @@ fn it_works_for_task_scheduler() {
 		));
 
 		// Verify workers are registered
-        assert!(pallet_edge_connect::WorkerClusters::<Test>::contains_key((executor, 0)));
-        assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
-
+		assert!(pallet_edge_connect::WorkerClusters::<Test>::contains_key((
+			executor, 0
+		)));
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
 
 		let task_kind_neurozk = TaskKind::NeuroZK;
 		let task_kind_infer = TaskKind::OpenInference;

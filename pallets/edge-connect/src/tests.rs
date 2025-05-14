@@ -1,6 +1,6 @@
 use crate::{mock::*, Error, Event};
-use frame_system::pallet_prelude::BlockNumberFor;
 use frame_support::{assert_noop, assert_ok, sp_runtime::traits::ConstU32, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
 
 use cyborg_primitives::worker::*;
 use sp_std::convert::TryFrom;
