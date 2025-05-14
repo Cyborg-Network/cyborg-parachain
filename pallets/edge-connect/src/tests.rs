@@ -465,6 +465,33 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 	})
 }
 
+#[test]
+fn test_workers_by_location() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+		let domain = BoundedVec::try_from(b"test.com".to_vec()).unwrap();
+		let latitude = 1000;
+		let longitude = 2000;
+
+		// Register worker
+		assert_ok!(EdgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			WorkerType::Docker,
+			domain.clone(),
+			latitude,
+			longitude,
+			1000,
+			1000,
+			1
+		));
+
+		// Check location index
+		let workers = EdgeConnectModule::get_workers_by_location(latitude, longitude);
+		assert_eq!(workers.len(), 1);
+		assert_eq!(workers[0], (alice, 0));
+	});
+}
+
 /*
 
 	let domain_str = "some_api_domain.com";
