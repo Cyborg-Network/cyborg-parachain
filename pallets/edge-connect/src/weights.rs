@@ -34,6 +34,7 @@ pub trait WeightInfo {
 	fn register_worker() -> Weight;
 	fn remove_worker() -> Weight;
     fn toggle_worker_visibility() -> Weight;
+	fn penalize_worker() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -70,6 +71,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		//  Measured:  `260`
 		//  Estimated: `3688`
 		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	fn penalize_worker() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
@@ -113,4 +120,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+	fn penalize_worker() -> Weight {
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
 }

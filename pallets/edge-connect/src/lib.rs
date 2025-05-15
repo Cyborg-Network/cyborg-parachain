@@ -48,8 +48,8 @@ pub mod pallet {
 
 	// A helper function providing a default value for worker reputations.
 	#[pallet::type_value]
-	pub fn WorkerReputationDefault() -> WorkerReputation {
-		0
+	pub fn WorkerReputationDefault<T: Config>() -> WorkerReputation<BlockNumberFor<T>> {
+		WorkerReputation::default()
 	}
 
 	/// AccountWorkers Information, Storage map for associating an account ID with a worker ID. If no worker exists, the query returns None.
@@ -114,6 +114,28 @@ pub mod pallet {
 			worker_id: WorkerId,
 			worker_status: WorkerStatusType,
 		},
+
+		/// Event emitted when a worker is penalized
+		WorkerPenalized {
+			worker: (T::AccountId, WorkerId),
+			penalty: i32,
+			reason: PenaltyReason,
+		},
+
+		/// Event emitted when a worker is suspended
+		WorkerSuspended {
+			worker: (T::AccountId, WorkerId),
+			until_block: BlockNumberFor<T>,
+		},
+	}
+
+	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+	pub enum PenaltyReason {
+		TaskRejection,
+		FalseCompletion,
+		LateResponse,
+		SpamAttempt,
+		Other,
 	}
 
 	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
@@ -126,6 +148,10 @@ pub mod pallet {
 		WorkerExists,
 		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
+		/// Worker is suspended and cannot perform actions.
+		WorkerSuspended,
+		/// Worker reputation is too low
+		InsufficientReputation,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -196,7 +222,7 @@ pub mod pallet {
 				owner: creator.clone(),
 				location: worker_location,
 				specs: worker_specs,
-				reputation: 0,
+				reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
@@ -320,6 +346,23 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_worker())]
+		pub fn penalize_worker(
+			origin: OriginFor<T>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+			penalty: i32,
+			reason: PenaltyReason,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Self::apply_penalty(&(worker_owner, worker_id), worker_type, penalty, reason)?;
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -340,6 +383,84 @@ pub mod pallet {
 			} else {
 				Some(workers)
 			}
+		}
+
+		pub fn is_registered_miner(account: &T::AccountId) -> bool {
+			AccountWorkers::<T>::contains_key(account)
+		}
+
+		/// Apply penalty to a worker's reputation
+		fn apply_penalty(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+			penalty: i32,
+			reason: PenaltyReason,
+		) -> DispatchResult {
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Apply penalty
+			worker.reputation.score = worker.reputation.score.saturating_sub(penalty);
+			worker.reputation.violations += 1;
+			worker.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
+
+			// If reputation drops below threshold, suspend the worker
+			if worker.reputation.score < 30 {
+				worker.status = WorkerStatusType::Suspended;
+				// Suspend for 1000 blocks (~4 hours at 6s/block)
+				worker.status_last_updated = <frame_system::Pallet<T>>::block_number() + 1000u32.into();
+			}
+
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			Self::deposit_event(Event::WorkerPenalized {
+				worker: worker_key.clone(),
+				penalty,
+				reason,
+			});
+
+			Ok(())
+		}
+
+		/// Check if worker can perform actions
+		pub fn check_worker_status(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+		) -> DispatchResult {
+			let worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Check if suspended
+			if worker.status == WorkerStatusType::Suspended {
+				if <frame_system::Pallet<T>>::block_number() < worker.status_last_updated {
+					return Err(Error::<T>::WorkerSuspended.into());
+				} else {
+					// Auto-unsuspend if suspension period is over
+					let mut worker = worker.clone();
+					worker.status = WorkerStatusType::Inactive;
+					match worker_type {
+						WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+						WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+					}
+				}
+			}
+
+			// Check reputation
+			if worker.reputation.score < 50 {
+				return Err(Error::<T>::InsufficientReputation.into());
+			}
+
+			Ok(())
 		}
 	}
 

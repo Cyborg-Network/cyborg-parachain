@@ -107,6 +107,28 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
 		Weight::from_parts(16_000_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads_writes(10, 10)) 
 	}
+
+	fn set_reward_rates_for_miner() -> Weight {
+        Weight::from_parts(3_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    fn subscribe() -> Weight {
+        Weight::from_parts(5_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    fn add_hours() -> Weight {
+        Weight::from_parts(4_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
+
+    fn set_subscription_fee_per_hour() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
 }
 
 // For backwards compatibility and tests.

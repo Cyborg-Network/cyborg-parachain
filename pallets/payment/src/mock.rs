@@ -1,7 +1,6 @@
 pub use crate as pallet_payment;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
-use pallet_edge_connect::*;
 use pallet_sudo;
 use sp_runtime::{
 	traits::{ConstU32, ConstU64},
