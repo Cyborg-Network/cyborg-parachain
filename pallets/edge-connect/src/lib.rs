@@ -463,6 +463,7 @@ pub mod pallet {
 						.or_else(|| ExecutableWorkers::<T>::get((owner, id)))
 				})
 				.collect()
+			}
 		pub fn is_registered_miner(account: &T::AccountId) -> bool {
 			AccountWorkers::<T>::contains_key(account)
 		}
