@@ -1,5 +1,6 @@
 use crate::{mock::*, Error, Event};
 use frame_support::{assert_noop, assert_ok, sp_runtime::traits::ConstU32, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
 
 use cyborg_primitives::worker::*;
 use sp_std::convert::TryFrom;
@@ -37,7 +38,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<Test>>::default(),
 			last_status_check: current_timestamp,
 		};
 
@@ -50,7 +51,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<Test>>::default(),
 			last_status_check: current_timestamp,
 		};
 
@@ -123,7 +124,7 @@ fn it_works_for_registering_domain() {
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
-			reputation: 0,
+			reputation: WorkerReputation::<BlockNumberFor<Test>>::default(),
 			last_status_check: current_timestamp,
 		};
 

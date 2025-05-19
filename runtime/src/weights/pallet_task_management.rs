@@ -33,6 +33,10 @@ pub trait WeightInfo {
 	fn submit_completed_task(s: u32, ) -> Weight;
 	fn verify_completed_task(s: u32, ) -> Weight;
 	fn resolve_completed_task(s: u32, ) -> Weight;
+	fn confirm_task_reception() -> Weight;
+    fn stop_task_and_vacate_miner() -> Weight;
+    fn confirm_miner_vacation() -> Weight;
+	fn set_gatekeeper() -> Weight; 
 }
 
 /// Weights for `pallet_task_management` using the Substrate node and recommended hardware.
@@ -114,6 +118,61 @@ impl<T: frame_system::Config> pallet_task_management::WeightInfo for SubstrateWe
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	
+/// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskAllocations` (r:1 w:0)
+    /// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskStatus` (r:1 w:1)
+    /// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::ComputeAggregations` (r:0 w:1)
+    /// Proof: `TaskManagement::ComputeAggregations` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    fn confirm_task_reception() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 25_000_000 picoseconds.
+        Weight::from_parts(26_000_000, 3647)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(3_u64))
+    }
+
+    /// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::ComputeAggregations` (r:1 w:1)
+    /// Proof: `TaskManagement::ComputeAggregations` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    fn stop_task_and_vacate_miner() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 20_000_000 picoseconds.
+        Weight::from_parts(21_000_000, 3647)
+            .saturating_add(T::DbWeight::get().reads(2_u64))
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    /// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    fn confirm_miner_vacation() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 15_000_000 picoseconds.
+        Weight::from_parts(16_000_000, 3647)
+            .saturating_add(T::DbWeight::get().reads(1_u64))
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
+
+	/// Storage: `TaskManagement::GatekeeperAccount` (r:0 w:1)
+    /// Proof: `TaskManagement::GatekeeperAccount` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+    fn set_gatekeeper() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `0`
+        //  Estimated: `0`
+        // Minimum execution time: 10_000_000 picoseconds.
+        Weight::from_parts(10_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
 }
 
 // For backwards compatibility and tests.
@@ -194,4 +253,57 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+
+	/// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskAllocations` (r:1 w:0)
+    /// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskStatus` (r:1 w:1)
+    /// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::ComputeAggregations` (r:0 w:1)
+    /// Proof: `TaskManagement::ComputeAggregations` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    fn confirm_task_reception() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 25_000_000 picoseconds.
+        Weight::from_parts(26_000_000, 3647)
+            .saturating_add(RocksDbWeight::get().reads(3_u64))
+            .saturating_add(RocksDbWeight::get().writes(3_u64))
+    }
+
+    /// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::ComputeAggregations` (r:1 w:1)
+    /// Proof: `TaskManagement::ComputeAggregations` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    fn stop_task_and_vacate_miner() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 20_000_000 picoseconds.
+        Weight::from_parts(21_000_000, 3647)
+            .saturating_add(RocksDbWeight::get().reads(2_u64))
+            .saturating_add(RocksDbWeight::get().writes(2_u64))
+    }
+
+    /// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    fn confirm_miner_vacation() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `361`
+        //  Estimated: `3647`
+        // Minimum execution time: 15_000_000 picoseconds.
+        Weight::from_parts(16_000_000, 3647)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+	fn set_gatekeeper() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `0`
+        //  Estimated: `0`
+        // Minimum execution time: 10_000_000 picoseconds.
+        Weight::from_parts(10_000_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
 }
