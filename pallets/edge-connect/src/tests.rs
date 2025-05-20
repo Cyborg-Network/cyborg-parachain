@@ -23,9 +23,15 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 		let alice = 0;
 		let api_info = WorkerAPI { domain: domain };
 		let worker_specs = WorkerSpecs { ram, storage, cpu };
+		let geohash_precision = 6; // ~1.2km precision
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, geohash_precision);
 		let worker_location = Location {
-			latitude,
-			longitude,
+			coordinates: GeoCoordinates {
+				latitude,
+				longitude,
+				geohash: geohash.clone(),
+			},
+			geohash_precision,
 		};
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
@@ -109,9 +115,15 @@ fn it_works_for_registering_domain() {
 		let alice = 0;
 		let api_info = WorkerAPI { domain: domain };
 		let worker_specs = WorkerSpecs { ram, storage, cpu };
+		let geohash_precision = 6; // ~1.2km precision
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, geohash_precision);
 		let worker_location = Location {
-			latitude,
-			longitude,
+			coordinates: GeoCoordinates {
+				latitude,
+				longitude,
+				geohash: geohash.clone(),
+			},
+			geohash_precision,
 		};
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
@@ -464,6 +476,36 @@ fn it_fails_for_changing_visibility_on_nonexistant_worker() {
 			Error::<Test>::WorkerDoesNotExist
 		);
 	})
+}
+
+#[test]
+fn test_workers_by_location() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+		let domain = BoundedVec::try_from(b"test.com".to_vec()).unwrap();
+		let latitude = 1000;
+		let longitude = 2000;
+
+		// Register worker
+		assert_ok!(EdgeConnectModule::register_worker(
+			RuntimeOrigin::signed(alice),
+			WorkerType::Docker,
+			domain.clone(),
+			latitude,
+			longitude,
+			1000,
+			1000,
+			1
+		));
+
+		// Get geohash for the location
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, 6);
+
+		// Check geohash index
+		let workers = EdgeConnectModule::get_workers_in_geohash_area(geohash);
+		assert_eq!(workers.len(), 1);
+		assert_eq!(workers[0], (alice, 0));
+	});
 }
 
 /*

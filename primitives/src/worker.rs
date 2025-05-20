@@ -4,6 +4,8 @@ use scale_info::TypeInfo;
 
 pub type WorkerId = u64;
 
+pub type GeoHash = BoundedVec<u8, ConstU32<12>>;
+
 pub type Domain = BoundedVec<u8, ConstU32<128>>;
 
 pub type Latitude = i32;
@@ -40,8 +42,8 @@ pub struct WorkerAPI {
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Location {
-	pub latitude: Latitude,
-	pub longitude: Longitude,
+	pub coordinates: GeoCoordinates,
+	pub geohash_precision: u8, // Precision level (1-12) used for grouping
 }
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -94,4 +96,11 @@ impl<BlockNumber> Default for WorkerReputation<BlockNumber> {
 			successful_tasks: 0,
 		}
 	}
+}
+
+#[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+pub struct GeoCoordinates {
+	pub latitude: Latitude,
+	pub longitude: Longitude,
+	pub geohash: GeoHash, // The geohash string for these coordinates
 }
