@@ -498,8 +498,11 @@ fn test_workers_by_location() {
 			1
 		));
 
-		// Check location index
-		let workers = EdgeConnectModule::get_workers_by_location(latitude, longitude);
+		// Get geohash for the location
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, 6);
+
+		// Check geohash index
+		let workers = EdgeConnectModule::get_workers_in_geohash_area(geohash);
 		assert_eq!(workers.len(), 1);
 		assert_eq!(workers[0], (alice, 0));
 	});
