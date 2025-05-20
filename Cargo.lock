@@ -6707,6 +6707,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "libm",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",

@@ -23,9 +23,15 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 		let alice = 0;
 		let api_info = WorkerAPI { domain: domain };
 		let worker_specs = WorkerSpecs { ram, storage, cpu };
+		let geohash_precision = 6; // ~1.2km precision
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, geohash_precision);
 		let worker_location = Location {
-			latitude,
-			longitude,
+			coordinates: GeoCoordinates {
+				latitude,
+				longitude,
+				geohash: geohash.clone(),
+			},
+			geohash_precision,
 		};
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
@@ -109,9 +115,15 @@ fn it_works_for_registering_domain() {
 		let alice = 0;
 		let api_info = WorkerAPI { domain: domain };
 		let worker_specs = WorkerSpecs { ram, storage, cpu };
+		let geohash_precision = 6; // ~1.2km precision
+		let geohash = EdgeConnectModule::coordinates_to_geohash(latitude, longitude, geohash_precision);
 		let worker_location = Location {
-			latitude,
-			longitude,
+			coordinates: GeoCoordinates {
+				latitude,
+				longitude,
+				geohash: geohash.clone(),
+			},
+			geohash_precision,
 		};
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
