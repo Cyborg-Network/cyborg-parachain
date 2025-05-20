@@ -664,7 +664,6 @@ pub mod pallet {
 			longitude: Longitude,
 			radius_km: u32,
 		) -> Vec<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			// Start with high precision and expand if needed
 			let mut precision = 6; // ~1.2km
 			if radius_km > 20 {
 				precision = 5; // ~5km
@@ -675,9 +674,7 @@ pub mod pallet {
 
 			let mut workers = Self::get_workers_near_location(latitude, longitude, precision);
 
-			// Filter by actual distance if needed
 			if precision > 4 {
-				// For higher precision areas, we might want exact distance
 				workers.retain(|worker| {
 					let distance = Self::calculate_distance(
 						latitude,
