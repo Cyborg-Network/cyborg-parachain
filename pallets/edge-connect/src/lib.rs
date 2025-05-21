@@ -19,11 +19,11 @@ pub use cyborg_primitives::worker::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
-	use frame_support::sp_runtime::Saturating;
 
 	// The `Config` trait defines the configuration for this pallet. It specifies the types and parameters
 	// that the pallet depends on and provides flexibility to the runtime in how it implements these
@@ -431,7 +431,7 @@ pub mod pallet {
 			worker_type: WorkerType,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-	
+
 			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
 		}
 	}
@@ -651,29 +651,29 @@ pub mod pallet {
 				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
 			}
 			.ok_or(Error::<T>::WorkerDoesNotExist)?;
-	
+
 			// Only proceed if actually suspended
 			if worker.status != WorkerStatusType::Suspended {
 				return Ok(());
 			}
-	
+
 			// Update worker status
 			worker.status = WorkerStatusType::Inactive;
 			worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
-	
+
 			// Update storage
 			match worker_type {
 				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
 				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
 			}
-	
+
 			// Remove from suspended workers
 			SuspendedWorkers::<T>::remove(worker_key);
-	
+
 			Self::deposit_event(Event::WorkerUnsuspended {
 				worker: worker_key.clone(),
 			});
-	
+
 			Ok(())
 		}
 	}
