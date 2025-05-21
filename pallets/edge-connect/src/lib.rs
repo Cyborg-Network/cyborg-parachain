@@ -19,6 +19,7 @@ pub use cyborg_primitives::worker::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
@@ -58,6 +59,16 @@ pub mod pallet {
 	#[pallet::getter(fn account_workers)]
 	pub type AccountWorkers<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn suspended_workers)]
+	pub type SuspendedWorkers<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		(T::AccountId, WorkerId),
+		(BlockNumberFor<T>, SuspensionReason),
+		OptionQuery,
+	>;
 
 	/// Worker Cluster information, Storage map to keep track of detailed worker cluster information for each (account ID, worker ID) pair.
 	#[pallet::storage]
@@ -127,6 +138,21 @@ pub mod pallet {
 			worker: (T::AccountId, WorkerId),
 			until_block: BlockNumberFor<T>,
 		},
+
+		/// Event emitted when a worker is put under review
+		WorkerUnderReview {
+			worker: (T::AccountId, WorkerId),
+			reason: SuspensionReason,
+		},
+
+		/// Event emitted when a worker is banned
+		WorkerBanned {
+			worker: (T::AccountId, WorkerId),
+			reason: SuspensionReason,
+		},
+
+		/// Event emitted when a worker is unsuspended
+		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
 	}
 
 	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -359,9 +385,54 @@ pub mod pallet {
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::apply_penalty(&(worker_owner, worker_id), worker_type, penalty, reason)?;
+			Self::apply_penalty(&(worker_owner, worker_id), &worker_type, penalty, reason)?;
 
 			Ok(())
+		}
+
+		/// Manually suspend a worker (root only)
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::suspend_worker())]
+		pub fn suspend_worker(
+			origin: OriginFor<T>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+			blocks: BlockNumberFor<T>,
+			reason: SuspensionReason,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Self::suspend_workers(&(worker_owner, worker_id), &worker_type, blocks, reason)
+		}
+
+		/// Manually ban a worker (root only)
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_worker())]
+		pub fn ban_worker(
+			origin: OriginFor<T>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+			reason: SuspensionReason,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Self::ban_workers(&(worker_owner, worker_id), worker_type, reason)
+		}
+
+		/// Lift suspension from a worker (root only)
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::unsuspend_worker())]
+		pub fn unsuspend_worker(
+			origin: OriginFor<T>,
+			worker_owner: T::AccountId,
+			worker_id: WorkerId,
+			worker_type: WorkerType,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
 		}
 	}
 
@@ -392,7 +463,7 @@ pub mod pallet {
 		/// Apply penalty to a worker's reputation
 		fn apply_penalty(
 			worker_key: &(T::AccountId, WorkerId),
-			worker_type: WorkerType,
+			worker_type: &WorkerType,
 			penalty: i32,
 			reason: PenaltyReason,
 		) -> DispatchResult {
@@ -407,17 +478,37 @@ pub mod pallet {
 			worker.reputation.violations += 1;
 			worker.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
 
-			// If reputation drops below threshold, suspend the worker
+			// Automatic suspension triggers
 			if worker.reputation.score < 30 {
-				worker.status = WorkerStatusType::Suspended;
-				// Suspend for 1000 blocks (~4 hours at 6s/block)
-				worker.status_last_updated = <frame_system::Pallet<T>>::block_number() + 1000u32.into();
+				// Severe penalty - suspend for 1000 blocks (~4 hours at 6s/block)
+				Self::suspend_workers(
+					worker_key,
+					&worker_type.clone(),
+					1000u32.into(),
+					SuspensionReason::ReputationThreshold,
+				)?;
+			} else if worker.reputation.score < 50 {
+				// Moderate penalty - put under review
+				Self::put_worker_under_review(
+					worker_key,
+					&worker_type.clone(),
+					SuspensionReason::ReputationThreshold,
+				)?;
+			} else if worker.reputation.violations > 10 {
+				// Too many violations - review
+				Self::put_worker_under_review(
+					worker_key,
+					&worker_type.clone(),
+					SuspensionReason::RepeatedTaskFailures,
+				)?;
 			}
 
-			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			// Update storage if not suspended
+			if worker.status != WorkerStatusType::Suspended {
+				match worker_type {
+					WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+					WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+				}
 			}
 
 			Self::deposit_event(Event::WorkerPenalized {
@@ -459,6 +550,129 @@ pub mod pallet {
 			if worker.reputation.score < 50 {
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
+
+			Ok(())
+		}
+
+		/// Suspend a worker with a specific reason and duration
+		fn suspend_workers(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: &WorkerType,
+			blocks: BlockNumberFor<T>,
+			reason: SuspensionReason,
+		) -> DispatchResult {
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			let suspension_end = current_block.saturating_add(blocks);
+
+			// Update worker status
+			worker.status = WorkerStatusType::Suspended;
+			worker.status_last_updated = suspension_end;
+			worker.reputation.suspension_count += 1;
+
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			// Record suspension
+			SuspendedWorkers::<T>::insert(worker_key, (suspension_end, reason.clone()));
+
+			Self::deposit_event(Event::WorkerSuspended {
+				worker: worker_key.clone(),
+				until_block: suspension_end,
+			});
+
+			Ok(())
+		}
+
+		/// Put worker under review
+		fn put_worker_under_review(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: &WorkerType,
+			reason: SuspensionReason,
+		) -> DispatchResult {
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			worker.status = WorkerStatusType::Inactive; // Can't accept new tasks
+			worker.reputation.review_count += 1;
+
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			Self::deposit_event(Event::WorkerUnderReview {
+				worker: worker_key.clone(),
+				reason,
+			});
+
+			Ok(())
+		}
+
+		/// Ban a worker permanently
+		fn ban_workers(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+			reason: SuspensionReason,
+		) -> DispatchResult {
+			// Remove from active workers
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::remove(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::remove(worker_key),
+			}
+
+			Self::deposit_event(Event::WorkerBanned {
+				worker: worker_key.clone(),
+				reason,
+			});
+
+			Ok(())
+		}
+
+		/// Lift suspension from a worker
+		fn lift_suspension(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: &WorkerType,
+		) -> DispatchResult {
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Only proceed if actually suspended
+			if worker.status != WorkerStatusType::Suspended {
+				return Ok(());
+			}
+
+			// Update worker status
+			worker.status = WorkerStatusType::Inactive;
+			worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			// Remove from suspended workers
+			SuspendedWorkers::<T>::remove(worker_key);
+
+			Self::deposit_event(Event::WorkerUnsuspended {
+				worker: worker_key.clone(),
+			});
 
 			Ok(())
 		}
