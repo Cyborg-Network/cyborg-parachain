@@ -53,6 +53,7 @@ pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
 pub use pallet_zk_verifier;
+pub use pallet_neuro_zk;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -335,6 +336,15 @@ impl pallet_status_aggregator::Config for Runtime {
 	type WorkerInfoHandler = EdgeConnect;
 }
 
+impl pallet_neuro_zk::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxBlockRangePeriod = MaxBlockRangePeriod;
+	type ThresholdAcceptanceStatus = ConstU8<75>;
+	type MaxAggregateParamLength = ConstU32<300>;
+	type NzkTaskInfoHandler = TaskManagement;
+}
+
 parameter_types! {
 	pub const MaxPublicInputsLength: u32 = 9;
 	pub const MaxVerificationKeyLength: u32 = 4143;
@@ -504,6 +514,9 @@ mod runtime {
 
 	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
+
+	#[runtime::pallet_index(47)]
+	pub type NeuroZk = pallet_neuro_zk;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

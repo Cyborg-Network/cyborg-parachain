@@ -32,7 +32,7 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_owner: AccountId,                   // Who scheduled the task.
 	pub create_block: BlockNumber,               // Block when created.
 	pub metadata: BoundedVec<u8, ConstU32<500>>, // Could be model link, executable link, etc.
-	pub zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>, // Optional: ZK files if needed.
+	pub nzk_data: Option<NzkData<BlockNumber>>, // Optional: NZK data if task is NZK.
 	pub time_elapsed: Option<BlockNumber>,       // Time consumed.
 	pub average_cpu_percentage_use: Option<u8>,  // CPU usage.
 	pub task_kind: TaskKind,                     // New: Logical kind (NeuroZK or OpenInference).
@@ -40,6 +40,27 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub compute_hours_deposit: Option<u32>,      // Deposit paid upfront.
 	pub consume_compute_hours: Option<u32>,      // How much was actually consumed.
 	pub task_status: TaskStatusType,             // Current lifecycle status.
+}
+
+pub type ZkInput = BoundedVec<u8, ConstU32<1000000>>;
+pub type ZkSettings = BoundedVec<u8, ConstU32<1000000>>;
+pub type ZkVerifyingKey = BoundedVec<u8, ConstU32<1000000>>;
+pub type ZkProof = BoundedVec<u8, ConstU32<1000000>>;
+
+#[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Debug)]
+pub struct NeuroZkTaskSubmissionDetails {
+	pub zk_input: ZkInput,
+	pub zk_settings: ZkSettings,
+	pub zk_verifying_key: ZkVerifyingKey,
+}
+
+#[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Eq, Debug)]
+pub struct NzkData<BlockNumber> {
+	pub zk_input: ZkInput,
+	pub zk_settings: ZkSettings,
+	pub zk_verifying_key: ZkVerifyingKey,
+	pub zk_proof: Option<ZkProof>,
+	pub last_proof_accepted: Option<(bool, BlockNumber)>,
 }
 
 // #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -54,3 +75,13 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 // 	pub verifier: Option<VerificationHashes<AccountId>>,
 // 	pub resolver: Option<VerificationHashes<AccountId>>,
 // }
+
+pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber> {
+	fn get_nzk_task(
+		task_id: TaskId,
+	) -> Option<TaskInfo<AccountId, BlockNumber>>;
+	fn update_nzk_task(
+		task_id: TaskId,
+		task: TaskInfo<AccountId, BlockNumber>,
+	);
+}

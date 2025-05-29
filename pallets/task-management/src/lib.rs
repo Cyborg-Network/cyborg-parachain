@@ -27,12 +27,13 @@ pub mod pallet {
 	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
+	use pallet_timestamp as timestamp;
 	// use pallet_edge_connect::AccountWorkers;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config
+		frame_system::Config + pallet_edge_connect::Config + pallet_payment::Config + timestamp::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
@@ -102,7 +103,6 @@ pub mod pallet {
 			task_owner: T::AccountId,
 			task_id: TaskId,
 			task: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
 		},
 
 		/// A worker confirmed reception of task data and started execution.
@@ -149,12 +149,14 @@ pub mod pallet {
 		/// Creates a new task and assigns it to a randomly selected worker.
 		/// None -> Assigned
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_data.len() as u32))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_location.len() as u32))]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
+			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
+			// TODO requesting_user: Option<Some data that identifies the user>,
 			task_kind: TaskKind,
-			task_data: BoundedVec<u8, ConstU32<500>>,
-			zk_files_cid: Option<BoundedVec<u8, ConstU32<500>>>,
+			task_location: BoundedVec<u8, ConstU32<500>>,
+			nzk_info: Option<NeuroZkTaskSubmissionDetails>,
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
@@ -187,7 +189,7 @@ pub mod pallet {
 					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 				TaskKind::OpenInference => {
-					WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
+					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 			};
 			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
@@ -206,15 +208,28 @@ pub mod pallet {
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
 
-			// Check task_type and task_kind compatibility
+			let mut nzk_data = None;
+
 			match task_kind {
 				TaskKind::NeuroZK => {
-					// For NeuroZK, zk_files_cid must be present
-					ensure!(zk_files_cid.is_some(), Error::<T>::ZkFilesMissing);
+					// For NeuroZK, zk_info must be present
+					match nzk_info {
+						Some(data) => {
+							nzk_data = Some(NzkData {
+								zk_input: data.zk_input,
+								zk_settings: data.zk_settings,
+								zk_verifying_key: data.zk_verifying_key,
+								zk_proof: None,
+								last_proof_accepted: None,
+							});
+						}
+						None => {
+							return Err(Error::<T>::ZkFilesMissing.into());
+						}
+					}
 				}
 				TaskKind::OpenInference => {
-					// zk_files_cid should not be present for normal inference
-					ensure!(zk_files_cid.is_none(), Error::<T>::UnexpectedZkFiles);
+					ensure!(nzk_info.is_none(), Error::<T>::UnexpectedZkFiles);
 				}
 			}
 
@@ -230,8 +245,8 @@ pub mod pallet {
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
-				metadata: task_data.clone(),
-				zk_files_cid: zk_files_cid.clone(),
+				metadata: task_location.clone(),
+				nzk_data,
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_kind: task_kind.clone(),
@@ -251,8 +266,7 @@ pub mod pallet {
 				task_kind,
 				task_owner: who,
 				task_id,
-				task: task_data,
-				zk_files_cid,
+				task: task_location,
 			});
 
 			Ok(PostDispatchInfo {
@@ -402,6 +416,25 @@ pub mod pallet {
 			} else {
 				Ok(())
 			}
+		}
+	}
+
+	impl<T: Config + timestamp::Config>
+		NzkTaskInfoHandler<T::AccountId, TaskId, BlockNumberFor<T>> for Pallet<T>
+	{
+		// Implementation of the NzkTaskInfoHandler trait, which provides methods for accessing NZK task information.
+		fn get_nzk_task(
+			task_key: TaskId,
+		) -> Option<TaskInfo<T::AccountId, BlockNumberFor<T>>> {
+			Tasks::<T>::get(task_key)
+		}
+
+		// Implementation of the NzkTaskInfoHandler trait, which provides methods for NZK task information.
+		fn update_nzk_task(
+			task_key: TaskId,
+			task: TaskInfo<T::AccountId, BlockNumberFor<T>>,
+		) {
+			Tasks::<T>::insert(task_key, task);
 		}
 	}
 }

@@ -2442,6 +2442,7 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
+ "pallet-neuro-zk",
  "pallet-payment",
  "pallet-session",
  "pallet-status-aggregator",
@@ -6946,6 +6947,27 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-neuro-zk"
+version = "0.1.0"
+dependencies = [
+ "cyborg-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-oracle",
+ "orml-traits",
+ "pallet-edge-connect",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
