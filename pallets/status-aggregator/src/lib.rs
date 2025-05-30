@@ -278,8 +278,57 @@ pub mod pallet {
 				log::warn!("Worker cluster not found for the given account and worker_id.");
 			}
 		}
+
+		pub fn on_new_data(
+			who: &T::AccountId,
+			key: &OracleWorkerFormat<T::AccountId>,
+			value: &ProcessStatus,
+		) {
+			if T::WorkerInfoHandler::get_worker_cluster(&key.id, &key.worker_type).is_none() {
+				log::error!(
+					target: LOG_TARGET,
+					"No worker registed by this key: {:?}",
+					key
+				);
+				return;
+			}
+			if SubmittedPerPeriod::<T>::get((who, key)) {
+				log::error!(
+					target: LOG_TARGET,
+					"A value for this period was already submitted by: {:?}",
+					who
+				);
+				return;
+			}
+			WorkerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
+				match status_vec.try_push(StatusInstance {
+					is_online: value.online,
+					is_available: value.available,
+					block: <frame_system::Pallet<T>>::block_number(),
+				}) {
+					Ok(()) => {
+						log::info!(
+							target: LOG_TARGET,
+							"Successfully push status instance value for period. \
+							Value was submitted by: {:?}",
+							who
+						);
+					}
+					Err(_) => {
+						log::error!(
+						target: LOG_TARGET,
+								"Failed to push status instance value due to exceeded capacity. \
+								Value was submitted by: {:?}",
+								who
+						);
+					}
+				}
+			});
+			SubmittedPerPeriod::<T>::set((who, key), true);
+		}
 	}
 
+/* 
 	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus>
 		for Pallet<T>
@@ -331,8 +380,9 @@ pub mod pallet {
 			});
 			SubmittedPerPeriod::<T>::set((who, key), true);
 		}
-	}
+	 }*/
 
+	/*
 	impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, WorkerId), TimestampedValue<T>>
 		for Pallet<T>
 	{
@@ -344,4 +394,5 @@ pub mod pallet {
 			None
 		}
 	}
+	*/
 }

@@ -19,7 +19,7 @@ pub type CpuCores = u16;
 /// An enum that is used to differentiate between the different kinds of workers that are
 /// registered on the cyborg parachain. There is no differentiation between the ZK Worker and the
 /// Executable Worker, as the executable worker will be able to execute ZK Tasks
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, PartialOrd, Ord)]
 pub enum WorkerType {
 	Docker,
 	Executable,

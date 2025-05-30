@@ -12,6 +12,8 @@ mod benchmarks;
 
 pub mod configs;
 pub mod weights;
+mod oracle_router;
+use oracle_router::OracleRouter;
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -44,7 +46,7 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus},
+	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus, OracleKey, OracleValue},
 	worker::WorkerId,
 };
 
@@ -256,11 +258,11 @@ where
 
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnNewData = StatusAggregator;
+	type OnNewData = OracleRouter;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = OracleWorkerFormat<AccountId>;
-	type OracleValue = ProcessStatus;
+	type OracleKey = OracleKey<Self::AccountId>;
+	type OracleValue = OracleValue;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Members = OracleMembership;
@@ -339,9 +341,8 @@ impl pallet_status_aggregator::Config for Runtime {
 impl pallet_neuro_zk::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type MaxBlockRangePeriod = MaxBlockRangePeriod;
-	type ThresholdAcceptanceStatus = ConstU8<75>;
-	type MaxAggregateParamLength = ConstU32<300>;
+	type AcceptanceThreshold = ConstU8<75>;
+	type AggregateLength = ConstU32<1>;
 	type NzkTaskInfoHandler = TaskManagement;
 }
 
