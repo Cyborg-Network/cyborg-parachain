@@ -37,6 +37,9 @@ pub trait WeightInfo {
     fn stop_task_and_vacate_miner() -> Weight;
     fn confirm_miner_vacation() -> Weight;
 	fn set_gatekeeper() -> Weight; 
+	fn register_model_hash()-> Weight;
+	fn get_model_hash()->Weight;
+
 }
 
 /// Weights for `pallet_task_management` using the Substrate node and recommended hardware.
@@ -173,6 +176,32 @@ impl<T: frame_system::Config> pallet_task_management::WeightInfo for SubstrateWe
         Weight::from_parts(10_000_000, 0)
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
+
+	/// Storage: `TaskManagement::GatekeeperAccount` (r:1 w:0)
+	/// Proof: `TaskManagement::GatekeeperAccount` (`max_values`: Some(1), `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::ModelHashes` (r:1 w:1)
+	/// Proof: `TaskManagement::ModelHashes` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	fn register_model_hash() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `178`
+		//  Estimated: `5046`
+		// Minimum execution time: 12_000_000 picoseconds.
+		Weight::from_parts(13_100_000, 5046)
+			.saturating_add(T::DbWeight::get().reads(2_u64))  // Gatekeeper + ModelHashes
+			.saturating_add(T::DbWeight::get().writes(1_u64)) // ModelHashes insert
+	}
+
+	/// Storage: `TaskManagement::ModelHashes` (r:1 w:0)
+	/// Proof: `TaskManagement::ModelHashes` (`max_values`: None, `max_size`: Some(96), added: 2592, mode: `MaxEncodedLen`)
+	fn get_model_hash() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `128`
+		//  Estimated: `2592`
+		// Minimum execution time: 6_000_000 picoseconds.
+		Weight::from_parts(6_500_000, 2592)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+	}
+
 }
 
 // For backwards compatibility and tests.
@@ -306,4 +335,31 @@ impl WeightInfo for () {
         Weight::from_parts(10_000_000, 0)
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
+
+	/// Storage: `TaskManagement::Tasks` (r:1 w:0)
+	/// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::ModelHashes` (r:0 w:1)
+	/// Proof: `TaskManagement::ModelHashes` (`max_values`: None, `max_size`: Some(64), added: 2560, mode: `MaxEncodedLen`)
+	fn register_model_hash() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `300`
+		//  Estimated: `5217`
+		// Minimum execution time: 12_000_000 picoseconds.
+		Weight::from_parts(13_500_000, 5217)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
+	/// Storage: `TaskManagement::ModelHashes` (r:1 w:0)
+	/// Proof: `TaskManagement::ModelHashes` (`max_values`: None, `max_size`: Some(64), added: 2560, mode: `MaxEncodedLen`)
+	fn get_model_hash() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `150`
+		//  Estimated: `2560`
+		// Minimum execution time: 6_000_000 picoseconds.
+		Weight::from_parts(6_500_000, 2560)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+	}
+
+
 }
