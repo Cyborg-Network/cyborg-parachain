@@ -398,10 +398,10 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(7)]
-		#[pallet::weight(10_000)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_model_hash())]
 		pub fn register_model_hash(
 			origin: OriginFor<T>,
-			model_id: Vec<u8>, // still accept as Vec<u8> for input convenience
+			model_id: Vec<u8>,
 			model_hash: T::Hash,
 		) -> DispatchResult {
 		let _sender = ensure_signed(origin)?;
@@ -431,7 +431,7 @@ pub mod pallet {
 	}
 
 	#[pallet::call_index(8)]
-	#[pallet::weight(10_000)]
+	#[pallet::weight(<T as pallet::Config>::WeightInfo::get_model_hash())]
 	pub fn get_model_hash(
 		origin: OriginFor<T>,
 		model_id: Vec<u8>,
