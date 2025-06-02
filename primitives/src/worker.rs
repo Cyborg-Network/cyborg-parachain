@@ -83,6 +83,8 @@ pub struct WorkerReputation<BlockNumber> {
 	pub last_updated: Option<BlockNumber>,
 	pub violations: u32,
 	pub successful_tasks: u32,
+	pub suspension_count: u32,
+	pub review_count: u32,
 }
 
 impl<BlockNumber> Default for WorkerReputation<BlockNumber> {
@@ -92,6 +94,24 @@ impl<BlockNumber> Default for WorkerReputation<BlockNumber> {
 			last_updated: None,
 			violations: 0,
 			successful_tasks: 0,
+			suspension_count: 0,
+			review_count: 0,
 		}
 	}
+}
+
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+pub enum SuspicionLevel {
+	Review,
+	Suspension,
+	Ban,
+}
+
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+pub enum SuspensionReason {
+	RepeatedTaskFailures,
+	SpamBehavior,
+	MaliciousActivity,
+	ReputationThreshold,
+	ManualOverride,
 }
