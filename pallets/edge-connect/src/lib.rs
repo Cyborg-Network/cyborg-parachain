@@ -15,6 +15,8 @@ pub mod weights;
 pub use weights::*;
 
 pub use cyborg_primitives::worker::*;
+use frame_support::traits::ConstU32;
+use sp_std::prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -78,6 +80,43 @@ pub mod pallet {
 		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
+
+	/// Storage map to index workers by their location (latitude, longitude)
+	#[pallet::storage]
+	pub type WorkersByLocation<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		Latitude,
+		Twox64Concat,
+		Longitude,
+		BoundedVec<(T::AccountId, WorkerId), ConstU32<100>>, // Max 100 workers per location
+		ValueQuery,
+	>;
+
+	/// Storage map to index all workers by owner
+	#[pallet::storage]
+	pub type WorkersByOwner<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		T::AccountId,
+		BoundedVec<WorkerId, ConstU32<100>>, // Max 100 workers per owner
+		ValueQuery,
+	>;
+
+	/// Storage map to index workers by their geohash at a specific precision level
+	#[pallet::storage]
+	pub type WorkersByGeohash<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		GeoHash,                                              // Geohash at specified precision
+		BoundedVec<(T::AccountId, WorkerId), ConstU32<1000>>, // Increased limit for geohash areas
+		ValueQuery,
+	>;
+
+	/// Storage map to track all geohash precision levels used in the system
+	#[pallet::storage]
+	pub type GeohashPrecisionLevels<T: Config> =
+		StorageValue<_, BoundedVec<u8, ConstU32<12>>, ValueQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -148,6 +187,8 @@ pub mod pallet {
 		WorkerExists,
 		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
 		WorkerDoesNotExist,
+		TooManyWorkersAtLocation,
+		TooManyWorkersForOwner,
 		/// Worker is suspended and cannot perform actions.
 		WorkerSuspended,
 		/// Worker reputation is too low
@@ -177,26 +218,30 @@ pub mod pallet {
 
 			let api = WorkerAPI { domain };
 			let worker_keys = AccountWorkers::<T>::get(creator.clone());
+			let geohash_precision = 6; // ~1.2km precision
+			let geohash = Self::coordinates_to_geohash(latitude, longitude, geohash_precision);
+
 			let worker_location = Location {
-				latitude,
-				longitude,
+				coordinates: GeoCoordinates {
+					latitude,
+					longitude,
+					geohash: geohash.clone(),
+				},
+				geohash_precision,
 			};
 			let worker_specs = WorkerSpecs { ram, storage, cpu };
 
-			//TODO: There needs to be a proper id mechanism to avoid loops and the increment id system
+			// Check for existing workers with same API
 			match worker_keys {
 				Some(keys) => {
 					for id in 0..=keys {
-						// Get the Worker associated with the creator and worker_id
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
 							if worker_type == cyborg_primitives::worker::WorkerType::Docker {
-								// Check if the API matches and throw an error if it does
 								ensure!(api != worker.api, Error::<T>::WorkerExists);
 							}
 						}
 						if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
 							if worker_type == cyborg_primitives::worker::WorkerType::Executable {
-								// Check if the API matches and throw an error if it does
 								ensure!(api != worker.api, Error::<T>::WorkerExists);
 							}
 						}
@@ -230,7 +275,7 @@ pub mod pallet {
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			// update storage
+			// Update storage
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
 
 			match worker_type {
@@ -242,14 +287,18 @@ pub mod pallet {
 				}
 			}
 
-			// Emit an event.
+			WorkersByGeohash::<T>::try_append(geohash, (creator.clone(), worker_id.clone()))
+				.map_err(|_| Error::<T>::TooManyWorkersAtLocation)?;
+
+			WorkersByOwner::<T>::try_append(creator.clone(), worker_id.clone())
+				.map_err(|_| Error::<T>::TooManyWorkersForOwner)?;
+
 			Self::deposit_event(Event::WorkerRegistered {
 				creator: creator.clone(),
 				worker: (worker.owner, worker.id),
 				domain: worker.api.domain,
 			});
 
-			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
 
@@ -263,14 +312,35 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
+			// Clean up indices before removing worker
+			if let Some(worker) = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get((creator.clone(), worker_id)),
+				WorkerType::Executable => ExecutableWorkers::<T>::get((creator.clone(), worker_id)),
+			} {
+				// Remove from geohash index
+				WorkersByGeohash::<T>::mutate(&worker.location.coordinates.geohash, |workers| {
+					if let Some(pos) = workers
+						.iter()
+						.position(|w| w == &(creator.clone(), worker_id))
+					{
+						workers.swap_remove(pos);
+					}
+				});
+
+				// Remove from owner index
+				WorkersByOwner::<T>::mutate(&creator, |worker_ids| {
+					if let Some(pos) = worker_ids.iter().position(|id| id == &worker_id) {
+						worker_ids.swap_remove(pos);
+					}
+				});
+			}
+
 			match worker_type {
 				WorkerType::Docker => {
 					ensure!(
 						WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
 						Error::<T>::WorkerDoesNotExist
 					);
-
-					// update storage
 					WorkerClusters::<T>::remove((creator.clone(), worker_id));
 				}
 				WorkerType::Executable => {
@@ -278,16 +348,12 @@ pub mod pallet {
 						ExecutableWorkers::<T>::get((creator.clone(), worker_id)) != None,
 						Error::<T>::WorkerDoesNotExist
 					);
-
-					// update storage
 					ExecutableWorkers::<T>::remove((creator.clone(), worker_id));
 				}
 			}
 
-			// Emit an event.
 			Self::deposit_event(Event::WorkerRemoved { creator, worker_id });
 
-			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
 
@@ -385,6 +451,33 @@ pub mod pallet {
 			}
 		}
 
+		/// Get workers at a specific location
+		pub fn get_workers_by_location(
+			latitude: Latitude,
+			longitude: Longitude,
+		) -> BoundedVec<(T::AccountId, WorkerId), ConstU32<100>> {
+			WorkersByLocation::<T>::get(latitude, longitude)
+		}
+
+		/// Get workers owned by a specific account
+		pub fn get_workers_by_owner(owner: T::AccountId) -> BoundedVec<WorkerId, ConstU32<100>> {
+			WorkersByOwner::<T>::get(owner)
+		}
+
+		/// Get detailed worker information by location
+		pub fn get_worker_details_by_location(
+			latitude: Latitude,
+			longitude: Longitude,
+		) -> Vec<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			WorkersByLocation::<T>::get(latitude, longitude)
+				.into_inner()
+				.into_iter()
+				.filter_map(|(owner, id)| {
+					WorkerClusters::<T>::get((owner.clone(), id))
+						.or_else(|| ExecutableWorkers::<T>::get((owner, id)))
+				})
+				.collect()
+		}
 		pub fn is_registered_miner(account: &T::AccountId) -> bool {
 			AccountWorkers::<T>::contains_key(account)
 		}
@@ -461,6 +554,158 @@ pub mod pallet {
 			}
 
 			Ok(())
+		}
+
+		/// Convert coordinates to geohash at specified precision
+		pub fn coordinates_to_geohash(
+			latitude: Latitude,
+			longitude: Longitude,
+			precision: u8,
+		) -> GeoHash {
+			// Normalize coordinates to 0-180 range
+			let lat_normalized = (latitude + 90) as u32;
+			let lon_normalized = (longitude + 180) as u32;
+
+			// Simple bit interleaving
+			let mut hash = Vec::new();
+			for i in 0..precision {
+				let lat_bit = (lat_normalized >> (i % 5)) & 1;
+				let lon_bit = (lon_normalized >> (i % 5)) & 1;
+				hash.push(b'0' + lat_bit as u8);
+				hash.push(b'0' + lon_bit as u8);
+			}
+
+			BoundedVec::try_from(hash).expect("Geohash length exceeds maximum")
+		}
+
+		/// Get geohash neighbors (adjacent geohash areas)
+		fn get_geohash_neighbors(geohash: &GeoHash) -> Vec<GeoHash> {
+			vec![geohash.clone()]
+		}
+
+		/// Update worker location and geohash indices
+		#[allow(dead_code)]
+		fn update_worker_location(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: WorkerType,
+			new_latitude: Latitude,
+			new_longitude: Longitude,
+		) -> DispatchResult {
+			// Get the worker
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Remove from old geohash index
+			WorkersByGeohash::<T>::mutate(&worker.location.coordinates.geohash, |workers| {
+				if let Some(pos) = workers.iter().position(|w| w == worker_key) {
+					workers.swap_remove(pos);
+				}
+			});
+
+			// Calculate new geohash
+			let precision = worker.location.geohash_precision;
+			let new_geohash = Self::coordinates_to_geohash(new_latitude, new_longitude, precision);
+
+			// Update worker location
+			worker.location.coordinates.latitude = new_latitude;
+			worker.location.coordinates.longitude = new_longitude;
+			worker.location.coordinates.geohash = new_geohash.clone();
+
+			// Add to new geohash index
+			WorkersByGeohash::<T>::try_append(new_geohash, worker_key.clone())
+				.map_err(|_| Error::<T>::TooManyWorkersAtLocation)?;
+
+			// Update worker in storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			Ok(())
+		}
+
+		/// Get workers in the same geohash area
+		pub fn get_workers_in_geohash_area(
+			geohash: GeoHash,
+		) -> BoundedVec<(T::AccountId, WorkerId), ConstU32<1000>> {
+			WorkersByGeohash::<T>::get(geohash)
+		}
+
+		/// Get workers near a location (checks neighboring geohashes)
+		pub fn get_workers_near_location(
+			latitude: Latitude,
+			longitude: Longitude,
+			precision: u8,
+		) -> Vec<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			let geohash = Self::coordinates_to_geohash(latitude, longitude, precision);
+			let neighbors = Self::get_geohash_neighbors(&geohash);
+
+			let mut workers = Vec::new();
+
+			for neighbor in neighbors {
+				for (owner, id) in WorkersByGeohash::<T>::get(neighbor).into_inner() {
+					if let Some(worker) = WorkerClusters::<T>::get((owner.clone(), id))
+						.or_else(|| ExecutableWorkers::<T>::get((owner, id)))
+					{
+						workers.push(worker);
+					}
+				}
+			}
+
+			workers
+		}
+
+		/// Find closest workers to a location within radius (km)
+		pub fn find_workers_in_radius(
+			latitude: Latitude,
+			longitude: Longitude,
+			radius_km: u32,
+		) -> Vec<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			let mut precision = 6; // ~1.2km
+			if radius_km > 20 {
+				precision = 5; // ~5km
+			}
+			if radius_km > 80 {
+				precision = 4; // ~20km
+			}
+
+			let mut workers = Self::get_workers_near_location(latitude, longitude, precision);
+
+			if precision > 4 {
+				workers.retain(|worker| {
+					let distance = Self::calculate_distance(
+						latitude,
+						longitude,
+						worker.location.coordinates.latitude,
+						worker.location.coordinates.longitude,
+					);
+					distance <= radius_km as f64
+				});
+			}
+
+			workers
+		}
+
+		/// Calculate distance between two points in kilometers (Haversine formula)
+		fn calculate_distance(lat1: Latitude, lon1: Longitude, lat2: Latitude, lon2: Longitude) -> f64 {
+			use core::f64::consts::PI;
+
+			let lat1_rad = lat1 as f64 * PI / 180.0;
+			let lon1_rad = lon1 as f64 * PI / 180.0;
+			let lat2_rad = lat2 as f64 * PI / 180.0;
+			let lon2_rad = lon2 as f64 * PI / 180.0;
+
+			let dlat = lat2_rad - lat1_rad;
+			let dlon = lon2_rad - lon1_rad;
+
+			let a = libm::pow(libm::sin(dlat / 2.0), 2.0)
+				+ libm::cos(lat1_rad) * libm::cos(lat2_rad) * libm::pow(libm::sin(dlon / 2.0), 2.0);
+			let c = 2.0 * libm::atan2(libm::sqrt(a), libm::sqrt(1.0 - a));
+
+			6371.0 * c // Earth radius in km
 		}
 	}
 

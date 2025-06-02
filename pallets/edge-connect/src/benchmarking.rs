@@ -78,6 +78,14 @@ fn set_initial_benchmark_data<T: Config>() {
 
 			// Insert the worker into the WorkerClusters map
 			WorkerClusters::<T>::insert((creator.clone(), worker_id), worker);
+
+			WorkersByLocation::<T>::append(
+				worker_location.latitude,
+				worker_location.longitude,
+				(creator.clone(), worker_id)
+			);
+			
+			WorkersByOwner::<T>::append(creator.clone(), worker_id);
 		}
 	}
 }
