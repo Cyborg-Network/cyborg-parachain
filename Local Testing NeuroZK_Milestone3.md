@@ -58,6 +58,17 @@ zombienet --provider native spawn ./zombienet.toml
 ```
 This should spawn a local testnetwork that can be inspected via the URL shown by zombienet in the terminal.
 
+To test the Mining Rewards Module (Payments Pallet):
+```
+cd pallets/payment
+cargo test
+```
+
+To test the Mining Rewards Module (Payments Pallet):
+```
+cd pallets/neuro-zk
+cargo test
+```
 
 ### Cyborg Miner
 ###### Notes
