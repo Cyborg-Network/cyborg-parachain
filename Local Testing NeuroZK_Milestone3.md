@@ -21,6 +21,7 @@ Running these requires the following:
 - Zombienet (setup explained later, when needed)
 - Docker (installation via apt: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository)
 - Ports available: All ports required for zombienet, additionally 8080, 8081 and 9000 for communication between Cyborg Connect and the Miner / Gatekeeper
+- wscat installed (for inference testing)
 
 This document will walk through how to set each of them up for local testing and how to test their functionality.
 
@@ -119,18 +120,21 @@ cd cyborg-connect
 ```
 npm install
 ```
-3. Start the development server
+3. Edit the development environment variable `.env.development`
+- REACT_APP_PARACHAIN_URL= => current collator websocket address exposed by zombienet (eg. ws://127.0.0.1:43927)
+- REACT_APP_PROVIDER_SOCKET= => current collator websocket address exposed by zombienet (eg. ws://127.0.0.1:43927
+5. Start the development server
 ```
 npm run start
 ```
-4. Prepare the zombienet parachain testnet for testing
+5. Prepare the zombienet parachain testnet for testing
 - To test cyborg network locally, make sure that zombienet is already running a local version of the Cyborg Parachain otherwise Cyborg Connect will throw an error when in
  the development environment
 - To register our account as an oracle feeder (necessary to run Cyborg Oracle feeder) we will use the link provided by zombienet to access the polkadot.js blockexplorer.
 - At this point it is important that our polkadot.js wallet is connected to the blockexplorer with the "Alice" testing account that we previously added.
 - Next, in the "Developer/Sudo" section we will select the `oracleMembership` pallet with the `addMember` extrinsic and submit a SUDO call to our testnet, adding the `Eve` testing account (address can be selected from the accounts list) as an oracle feeder.
 - To be able to purchase compute hours, we need to submit two other extrinsics, so we will select the `payment` pallet with the `setServiceProviderAccount` extrinsic. Again, we want to submit a SUDO call, setting the `Bob` testing account as the service provider (the account that receives the funds when compute hours are purchased).
-- The next call that we want to make is in the same pallet, but this time the `setPricePerHour` extrinsic, where we want to sumbit another SUDO call with arbitraty number that sets the price of a single compute hour. When we submit a payment to purchase compute hours, we can come back here and check that Bob has in fact received the funds from the transaction.
+- The next call that we want to make is in the same pallet, but this time the `setSubscriptionFeePerHour` extrinsic, where we want to sumbit another SUDO call with arbitraty number that sets the price of a single compute hour. When we submit a payment to purchase compute hours, we can come back here and check that Bob has in fact received the funds from the transaction.
 
 We now have 4 different accounts in the loop, Alice, which is the account adopting the comupte consumer perspective, Dave which is the accounts owning the miner, Bob, which is the payment receiving account and Eve which is the account submitting the worker status updates and zk proof verification updates to the parachain as an oracle feeder.
 
@@ -211,11 +215,20 @@ The page following service selection shows a world map and asks for the users lo
 ###### Selection of Additional Workers and Purchase of Compute Hours
 The page following the worker selection map allows the user to do two things:
 - Select additional workers: In case the task that the user wants to execute should run on mutliple workers. The worker that the user selected on the map is pre-selected, but additional nearby workers will be recommended. This is disabled for now, as the Cyborg Parachain currently does not accept tasks with assigned to multiple workers yet.
-- Subscribe to the service: To execute tasks, the user will be required to deposit the amount of computational hours that the task in question is expected to consume. Each user has a balance of computational hours of which hours can be allocated towards the execution of a task. The users balance of compute hours can be topped up here. Excess hours that have been allocated toward the execution of a task will be refunded to the users balance.
+- Subscribe to the service: To execute tasks, the user will be required to deposit the amount of computational hours that the task in question is expected to consume. Each user has a balance of computational hours of which hours can be allocated towards the execution of a task. The users balance of compute hours can be topped up here. Excess hours that have been allocated toward the execution of a task will be refunded to the users balance. **This is necessary to be able to submit an inference request!**
 ###### Payment Method
-For now, the only available payment method is the native token used in Cyborg Network, but in the future it will be possible to pay with other cryptocurrencies, or even FIAT. This page also shows the total cost of execution and requires the user to accept the terms of service to continue with task execution. For task execution, there is a testing binary that we uploaded to IPFS that can be used. The CID is: `bafkreicw5qjlocihbchmsctw7zbpabicre2ixq6rfimgw372kch5czh3rq`. To execute the binary on your Worker Node, just paste the CID into the modal prompting for the binary.
+For now, the only available payment method is the native token used in Cyborg Network, but in the future it will be possible to pay with other cryptocurrencies, or even FIAT. This page also shows the total cost of execution and requires the user to accept the terms of service to continue with task execution. For model uploading, we will use an example model and public input that can be obtained here:
+
+Model: 
+https://github.com/zkonduit/ezkl/blob/main/examples/onnx/random_forest/network.onnx
+Public Input:
+https://github.com/zkonduit/ezkl/blob/main/examples/onnx/random_forest/input.json
+
+After subscribing to the service, on the deployment screen we want to input these files and click deploy. This will upload the files to the gatekeeper, which makes the files ZK ready and submits the required data to the parachain.
+
+After submission is complete we want to navigate to `http://localhost:8000/access-compute/dashboard/` to access our deployed inference task.
 ###### Dashboard
-Once a task has been dispatched for execution, the dashboard is shown, which shows a list of Cyborg Workers that the user is currently occupying, which in this case can only be one. When selecting one of the workers, information about the execution process is shown. The user will be able to access confidential information about the task that was dispatched, like logs or execution result locations. This information is being kept confidential, by having the user sign a timestamp with the users wallet. The worker confirms the users identity and establishes a symetrically encrypted websocket connection between Cyborg Connect and the Worker. Once the indentity of the user has beeen confirmed, the user is able to see the following information:
+The dashboard is shown, which shows a list of Cyborg Workers that the user is currently occupying, which in this case can only be one. When selecting one of the workers, information about the execution process is shown. The user will be able to access confidential information about the task that was dispatched, like logs or execution result locations. This information is being kept confidential, by having the user sign a timestamp with the users wallet. The worker confirms the users identity and establishes a symetrically encrypted websocket connection between Cyborg Connect and the Worker. Once the indentity of the user has beeen confirmed, the user is able to see the following information:
 - status of the task
 - logs generated during task execution
 - location of the result
@@ -223,6 +236,20 @@ Once a task has been dispatched for execution, the dashboard is shown, which sho
 - usage metrics (cpu, ram, storage)
 - worker specifications (location, OS, amount of memory, amount of storage, etc.)
 - current status in the zk proof cycle
+
+###### Inference
+Now that the task has been deployed, inference requests can be sent to the miner via wscat under:
+```
+wscat -c ws://localhost:3000/inference/0
+```
+A sample inference request to the model that we just deployed would be:
+```
+{"input_shapes":[[4]],"input_data":[[0.7871868014335632,0.137956440448761,0.38045984506607056,0.012494146823883057]],"output_data":[[0.02]]}
+```
+This can just be pasted into the wscat connection and the model will respond with an inference response.
+
+Furthermore, ZK proofs can be requested in the dashboard by clicking the `Request Proof` button, which will prompt the miner to submit a zk proof of the model that it is running and submit it to chain. This in turn will prompt the oracle feeder(s) to pick up that proof, verify it and submit the result back to chain, where it will get aggregated with the results from the other feeders.
+The ZK Progress bar will reflect the stage advancements.
 
 `Note that this can only be done as soon as the block with containing the task assignment has been finalized and the Worker Node has picked up the assignment, as it will then set the user who assigned the task as the task owner, granting the user access. If that has not yet happened, the user will not be able to open the lock. Finalizaton can take a while, but for now, you can check if the log can be opened by checking if the Worker Node has begun execution.`
 
