@@ -23,15 +23,15 @@ mod benchmarks {
 			for i in 1u32..500 {
 				// Set the price for compute hours in each iteration.
 				let new_dummy_price = i;
-				Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_dummy_price.into()).unwrap();
+				Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_dummy_price.into()).unwrap();
 			}
 			// Set the final price for compute hours.
-			Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_price.clone()).unwrap();
+			Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_price.clone()).unwrap();
 		}
 
 		// Verification code:
 		// Ensure that the price was set correctly by asserting its value.
-		assert_eq!(PricePerHour::<T>::get(), new_price);
+		assert_eq!(SubscriptionFee::<T>::get(), new_price);
 
 		Ok(())
 	}
@@ -64,7 +64,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn purchase_compute_hours<T: Config>() -> Result<(), BenchmarkError> {
+	fn subscribe<T: Config>() -> Result<(), BenchmarkError> {
 		// Set up the account balance
 		// The runtime's ExistentialDeposit is configured to be 1_000_000_000;
 		// We are ensuring the balance is set above the ExistentialDeposit.
@@ -72,8 +72,8 @@ mod benchmarks {
 
 		// Set the price per hour for compute hours.
 		let new_price: BalanceOf<T> = 10u32.saturated_into();
-		Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_price).unwrap();
-		assert_eq!(PricePerHour::<T>::get(), new_price);
+		Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_price).unwrap();
+		assert_eq!(SubscriptionFee::<T>::get(), new_price);
 
 		// Create a new service provider account and deposit the initial balance.
 		let new_service_account: T::AccountId = account("service_account", 0, 0);
@@ -98,7 +98,7 @@ mod benchmarks {
 		{
 			// Loop to simulate multiple compute hour purchase operations.
 			for _i in 1u32..501 {
-				Pallet::<T>::purchase_compute_hours(RawOrigin::Signed(caller.clone()).into(), 10u32)
+				Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 10u32)
 					.unwrap();
 			}
 		}
@@ -127,8 +127,8 @@ mod benchmarks {
 
 		// Set the price per hour for compute hours.
 		let new_price: BalanceOf<T> = 10u32.into();
-		Pallet::<T>::set_price_per_hour(RawOrigin::Root.into(), new_price).unwrap();
-		assert_eq!(PricePerHour::<T>::get(), new_price);
+		Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_price).unwrap();
+		assert_eq!(SubscriptionFee::<T>::get(), new_price);
 
 		// Create a new service provider account and deposit the initial balance.
 		let new_service_account: T::AccountId = account("service_account", 0, 0);
@@ -149,7 +149,7 @@ mod benchmarks {
 		);
 
 		// Set up initial purchase computer hours
-		Pallet::<T>::purchase_compute_hours(RawOrigin::Signed(caller.clone()).into(), 5_000u32)
+		Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 5_000u32)
 			.unwrap();
 		assert_eq!(ComputeHours::<T>::get(&caller), 5_000u32);
 
