@@ -1,7 +1,9 @@
-pub use crate as pallet_status_aggregator;
+pub use crate as pallet_neuro_zk;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
+use pallet_task_management;
+use pallet_payment;
 use sp_runtime::{
 	traits::{ConstU32, ConstU64, ConstU8},
 	BuildStorage,
@@ -34,7 +36,13 @@ mod test_runtime {
 	pub type EdgeConnectModule = pallet_edge_connect;
 
 	#[runtime::pallet_index(3)]
-	pub type StatusAggregator = pallet_status_aggregator;
+	pub type TaskManagementModule = pallet_task_management;
+
+	#[runtime::pallet_index(4)]
+	pub type PaymentModule = pallet_payment;
+
+	#[runtime::pallet_index(5)]
+	pub type NeuroZk = pallet_neuro_zk;
 }
 
 pub type AccountId = u64;
@@ -52,13 +60,12 @@ parameter_types! {
 	pub const MaxBlockRangePeriod: BlockNumber = 5u32;
 }
 
-impl pallet_status_aggregator::Config for Test {
+impl pallet_neuro_zk::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type MaxBlockRangePeriod = MaxBlockRangePeriod;
-	type ThresholdUptimeStatus = ConstU8<75>;
-	type MaxAggregateParamLength = ConstU32<10>;
-	type WorkerInfoHandler = EdgeConnectModule;
+	type AcceptanceThreshold = ConstU8<75>;
+	type AggregateLength = ConstU32<5>;
+	type NzkTaskInfoHandler = TaskManagementModule;
 }
 
 impl pallet_timestamp::Config for Test {
@@ -70,6 +77,17 @@ impl pallet_timestamp::Config for Test {
 
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_task_management::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+impl pallet_payment::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = ();
 	type WeightInfo = ();
 }
 

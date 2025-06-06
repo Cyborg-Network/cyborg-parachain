@@ -14,7 +14,8 @@ pallets=(
     #"pallet_edge_connect"
     #"pallet_task_management"
     #"pallet_status_aggregator"
-    "pallet_payment"
+    #"pallet_payment"
+    "pallet_neuro_zk"
 )
 
 # List all unique pallets and extrinsics available for benchmarking

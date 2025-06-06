@@ -157,7 +157,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Requests a nzk proof from the given task
 		#[pallet::call_index(0)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_proof())]
 		pub fn request_proof(
 			origin: OriginFor<T>,
 			//TODO keep track of who requests the proof in case it is not the gatekeeper
@@ -198,7 +198,7 @@ pub mod pallet {
 
 		/// Submits a nzk proof from the given task
 		#[pallet::call_index(1)]
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_proof())]
 		pub fn submit_proof(
 			origin: OriginFor<T>,
 			//TODO keep track of who requests the proof in case it is not the gatekeeper

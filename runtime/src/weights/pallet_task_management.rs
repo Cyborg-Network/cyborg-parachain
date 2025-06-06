@@ -29,7 +29,8 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for `pallet_task_management`.
 pub trait WeightInfo {
-	fn task_scheduler(s: u32, ) -> Weight;
+	fn task_scheduler_no_nzk(s: u32, ) -> Weight;
+	fn task_scheduler_nzk(s: u32, ) -> Weight;
 	fn submit_completed_task(s: u32, ) -> Weight;
 	fn verify_completed_task(s: u32, ) -> Weight;
 	fn resolve_completed_task(s: u32, ) -> Weight;
@@ -57,7 +58,31 @@ impl<T: frame_system::Config> pallet_task_management::WeightInfo for SubstrateWe
 	/// Storage: `TaskManagement::TaskOwners` (r:0 w:1)
 	/// Proof: `TaskManagement::TaskOwners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// The range of component `s` is `[0, 100]`.
-	fn task_scheduler(_s: u32, ) -> Weight {
+	fn task_scheduler_nzk(_s: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `306`
+		//  Estimated: `6394`
+		// Minimum execution time: 22_000_000 picoseconds.
+		Weight::from_parts(23_418_294, 6394)
+			.saturating_add(T::DbWeight::get().reads(5_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+	}
+	/// Storage: `EdgeConnect::AccountWorkers` (r:2 w:0)
+	/// Proof: `EdgeConnect::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::NextTaskId` (r:1 w:1)
+	/// Proof: `TaskManagement::NextTaskId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::WorkerClusters` (r:2 w:0)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(227), added: 2702, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskStatus` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskAllocations` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::Tasks` (r:0 w:1)
+	/// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(313), added: 2788, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskOwners` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskOwners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// The range of component `s` is `[0, 100]`.
+	fn task_scheduler_no_nzk(_s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `306`
 		//  Estimated: `6394`
@@ -192,7 +217,31 @@ impl WeightInfo for () {
 	/// Storage: `TaskManagement::TaskOwners` (r:0 w:1)
 	/// Proof: `TaskManagement::TaskOwners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
 	/// The range of component `s` is `[0, 100]`.
-	fn task_scheduler(_s: u32, ) -> Weight {
+	fn task_scheduler_nzk(_s: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `306`
+		//  Estimated: `6394`
+		// Minimum execution time: 22_000_000 picoseconds.
+		Weight::from_parts(23_418_294, 6394)
+			.saturating_add(RocksDbWeight::get().reads(5_u64))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
+	}
+	/// Storage: `EdgeConnect::AccountWorkers` (r:2 w:0)
+	/// Proof: `EdgeConnect::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::NextTaskId` (r:1 w:1)
+	/// Proof: `TaskManagement::NextTaskId` (`max_values`: Some(1), `max_size`: Some(8), added: 503, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::WorkerClusters` (r:2 w:0)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(227), added: 2702, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskStatus` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskAllocations` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::Tasks` (r:0 w:1)
+	/// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(313), added: 2788, mode: `MaxEncodedLen`)
+	/// Storage: `TaskManagement::TaskOwners` (r:0 w:1)
+	/// Proof: `TaskManagement::TaskOwners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// The range of component `s` is `[0, 100]`.
+	fn task_scheduler_no_nzk(_s: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `306`
 		//  Estimated: `6394`

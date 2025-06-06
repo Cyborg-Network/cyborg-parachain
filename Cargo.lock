@@ -6964,6 +6964,8 @@ dependencies = [
  "orml-oracle",
  "orml-traits",
  "pallet-edge-connect",
+ "pallet-payment",
+ "pallet-task-management",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",

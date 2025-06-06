@@ -47,7 +47,8 @@ pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
 	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus, OracleKey, OracleValue},
-	worker::WorkerId,
+	worker::{WorkerId, WorkerType},
+	task::TaskId,
 };
 
 pub use pallet_edge_connect;
@@ -199,19 +200,53 @@ pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
 // on the number of pairs that can be generated.
 #[cfg(feature = "runtime-benchmarks")]
 impl<MaxFeedValues>
-	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
+	orml_oracle::BenchmarkHelper<OracleKey<AccountId>, OracleValue, MaxFeedValues>
 	for BenchmarkHelperImpl<MaxFeedValues>
 where
 	MaxFeedValues: Get<u32>,
 {
 	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
 	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
-	fn get_currency_id_value_pairs(
-	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
-		BenchmarkHelperImpl::status_aggregator_benchmark_data()
+	fn get_currency_id_value_pairs() -> BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> {
+		let mut pairs: BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> =
+			BoundedVec::default();
+
+		let max = MaxFeedValues::get().min(100);
+
+		for seed in 0..max {
+			let account: AccountId = account("oracle", 0, seed);
+			let worker_id: WorkerId = seed as u64;
+
+			// Alternate between Miner and Zk entries
+			if seed % 2 == 0 {
+				// MinerStatus entry
+				let key = OracleKey::Miner(OracleWorkerFormat {
+					id: (account.clone(), worker_id),
+					worker_type: WorkerType::Executable,
+				});
+
+				let value = OracleValue::MinerStatus(ProcessStatus {
+					online: seed % 2 == 0,
+					available: seed % 3 == 0,
+				});
+
+				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+			} else {
+				// ZkProofResult entry
+				let task_id: TaskId = seed as u64;
+
+				let key = OracleKey::NzkProofResult(task_id);
+				let value = OracleValue::ZkProofResult(seed % 3 == 0);
+
+				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+			}
+		}
+
+		pairs
 	}
 }
 
+/*
 #[cfg(feature = "runtime-benchmarks")]
 impl<MaxFeedValues> BenchmarkHelperImpl<MaxFeedValues>
 where
@@ -255,6 +290,7 @@ where
 		pairs
 	}
 }
+*/
 
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -340,7 +376,7 @@ impl pallet_status_aggregator::Config for Runtime {
 
 impl pallet_neuro_zk::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_neuro_zk::SubstrateWeight<Runtime>;
 	type AcceptanceThreshold = ConstU8<75>;
 	type AggregateLength = ConstU32<1>;
 	type NzkTaskInfoHandler = TaskManagement;

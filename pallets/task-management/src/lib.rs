@@ -149,7 +149,13 @@ pub mod pallet {
 		/// Creates a new task and assigns it to a randomly selected worker.
 		/// None -> Assigned
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::task_scheduler(task_location.len() as u32))]
+		#[pallet::weight({
+    		if nzk_info.is_some() {
+        		<T as pallet::Config>::WeightInfo::task_scheduler_nzk(task_location.len() as u32)
+    		} else {
+        		<T as pallet::Config>::WeightInfo::task_scheduler_no_nzk(task_location.len() as u32)
+    		}
+		})]	
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
