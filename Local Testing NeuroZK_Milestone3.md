@@ -60,6 +60,8 @@ This should spawn a local testnetwork that can be inspected via the URL shown by
 
 
 ### Cyborg Miner
+###### Notes
+Because we currently don't have a cloud solution integrated that facilitates transport of the task (archive containing the model, zk public input, zk proving key, zk settings file) we need to manually insert an archive containing these into the repo before building the docker image. The archive will be provided during the setup steps.
 ###### Requirements
 - Docker needs to be installed
 ###### Setup
@@ -69,7 +71,11 @@ git clone https://github.com/Cyborg-Network/Cyborg-miner.git
 cd Cyborg-miner
 git checkout neuro-zk-runtime
 ```
-3. Build the Docker image
+2. Download the archive that contains the task (same archive that is produced during upload)
+- download the model archive from: https://drive.google.com/file/d/1aa6zoFQT053-0OAngesD3SJ5vPllqtAe/view?usp=drive_link
+- copy the model archive to `Cyborg-miner/miner/current_task`
+- navigate back to the root dir of the repository `Cyborg-miner`
+4. Build the Docker image
 ```
 docker build -t cyborg-miner:local .
 ```
@@ -79,7 +85,9 @@ docker run -it --network="host" -e PARACHAIN_URL="<DIFFERENT_EVERY_TIME>" -e CYB
 ```
 After running the docker image we need to wait for the parachain to finalize the registration of the miner.
 If these steps have been completed, the Cyborg Worker Node is now registered on the parachain and listening for inference tasks that have been assigned to it. 
-At this point it is able to perform inference on tract compatible models in the .onnx format that have one definite result.
+At this point it is able to perform inference on tract compatible models in the .onnx format that have one definite result. 
+The archive that we inserted is a mirror image of the archive that the gatekeeper server (which we will set up soon) produces. Since we don't have a cloud solution integrated yet,
+we don't have another way of transport at this point.
 
 ### Cyborg Connect
 ###### Requirements
@@ -192,7 +200,7 @@ The page following service selection shows a world map and asks for the users lo
 ###### Selection of Additional Workers and Purchase of Compute Hours
 The page following the worker selection map allows the user to do two things:
 - Select additional workers: In case the task that the user wants to execute should run on mutliple workers. The worker that the user selected on the map is pre-selected, but additional nearby workers will be recommended. This is disabled for now, as the Cyborg Parachain currently does not accept tasks with assigned to multiple workers yet.
-- Purchase compute hours: To execute tasks, the user will be required to deposit the amount of computational hours that the task in question is expected to consume. Each user has a balance of computational hours of which hours can be allocated towards the execution of a task. The users balance of compute hours can be topped up here. Excess hours that have been allocated toward the execution of a task will be refunded to the users balance.
+- Subscribe to the service: To execute tasks, the user will be required to deposit the amount of computational hours that the task in question is expected to consume. Each user has a balance of computational hours of which hours can be allocated towards the execution of a task. The users balance of compute hours can be topped up here. Excess hours that have been allocated toward the execution of a task will be refunded to the users balance.
 ###### Payment Method
 For now, the only available payment method is the native token used in Cyborg Network, but in the future it will be possible to pay with other cryptocurrencies, or even FIAT. This page also shows the total cost of execution and requires the user to accept the terms of service to continue with task execution. For task execution, there is a testing binary that we uploaded to IPFS that can be used. The CID is: `bafkreicw5qjlocihbchmsctw7zbpabicre2ixq6rfimgw372kch5czh3rq`. To execute the binary on your Worker Node, just paste the CID into the modal prompting for the binary.
 ###### Dashboard
@@ -206,8 +214,7 @@ Once a task has been dispatched for execution, the dashboard is shown, which sho
 - current status in the zk proof cycle
 
 `Note that this can only be done as soon as the block with containing the task assignment has been finalized and the Worker Node has picked up the assignment, as it will then set the user who assigned the task as the task owner, granting the user access. If that has not yet happened, the user will not be able to open the lock. Finalizaton can take a while, but for now, you can check if the log can be opened by checking if the Worker Node has begun execution.`
+
 ## Known issues
-<!-- - If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected due to an 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-, we have not decided on a definitive solution to handle these cases yet -->
-- Sometimes the IPFS gateway will not be responsive in time, in which case the process has to be restarted
+- If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected because of an invalid nonce, we are currently implementing a definitive solution to prevent this issue.
+
