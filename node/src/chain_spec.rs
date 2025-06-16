@@ -92,20 +92,6 @@ pub fn development_config() -> ChainSpec {
 				get_collator_keys_from_seed("Bob"),
 			),
 		],
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			get_account_id_from_seed::<sr25519::Public>("Dave"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		1000.into(),
 	))
@@ -133,32 +119,11 @@ pub fn local_testnet_config() -> ChainSpec {
 	.with_id("local_testnet")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(testnet_genesis(
-		// initial collators.
 		vec![
-			(
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_collator_keys_from_seed("Alice"),
-			),
-			(
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_collator_keys_from_seed("Bob"),
-			),
+			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_collator_keys_from_seed("Alice")),
+			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_collator_keys_from_seed("Bob")),
 		],
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			get_account_id_from_seed::<sr25519::Public>("Dave"),
-			get_account_id_from_seed::<sr25519::Public>("Eve"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		get_account_id_from_seed::<sr25519::Public>("Foundation"),
 		1000.into(),
 	))
 	.with_protocol_id("template-local")
@@ -166,15 +131,63 @@ pub fn local_testnet_config() -> ChainSpec {
 	.build()
 }
 
+pub fn mainnet_config() -> ChainSpec {
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), "BORG".into());
+	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("ss58Format".into(), 42.into());
+
+	ChainSpec::builder(
+		runtime::WASM_BINARY.expect("WASM binary not built"),
+		Extensions {
+			relay_chain: "polkadot".into(),
+			para_id: 1234,
+		},
+	)
+	.with_name("Cyborg Mainnet")
+	.with_id("mainnet")
+	.with_chain_type(ChainType::Live)
+	.with_genesis_config_patch(testnet_genesis(
+		vec![
+			(get_account_id_from_seed::<sr25519::Public>("Foundation"), get_collator_keys_from_seed("Foundation")),
+		],
+		get_account_id_from_seed::<sr25519::Public>("Foundation"),
+		1234.into(),
+	))
+	.with_properties(properties)
+	.build()
+}
+
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
-	endowed_accounts: Vec<AccountId>,
 	root: AccountId,
 	id: ParaId,
 ) -> serde_json::Value {
+
+	let early_contributors = get_account_id_from_seed::<sr25519::Public>("EarlyContributors");
+	let public_sale         = get_account_id_from_seed::<sr25519::Public>("PublicSale");
+	let miners              = get_account_id_from_seed::<sr25519::Public>("Miners");
+	let foundation          = get_account_id_from_seed::<sr25519::Public>("Foundation");
+	let founding_team       = get_account_id_from_seed::<sr25519::Public>("Team");
+	let marketing           = get_account_id_from_seed::<sr25519::Public>("Marketing");
+	let early_backers       = get_account_id_from_seed::<sr25519::Public>("Backers");
+	let presale             = get_account_id_from_seed::<sr25519::Public>("Presale");
+
+	let total_supply: u128 = 20_000_000 * 10u128.pow(12);
+	let balances = vec![
+		(early_contributors.clone(), total_supply * 2  / 100),
+		(public_sale.clone(),        total_supply * 25 / 100),
+		(miners.clone(),             total_supply * 20 / 100),
+		(foundation.clone(),         total_supply * 10 / 100),
+		(founding_team.clone(),      total_supply * 10 / 100),
+		(marketing.clone(),          total_supply * 10 / 100),
+		(early_backers.clone(),      total_supply * 20 / 100),
+		(presale.clone(),            total_supply * 3  / 100),
+	];
+
 	serde_json::json!({
 		"balances": {
-			"balances": endowed_accounts.iter().cloned().map(|k| (k, 1u64 << 60)).collect::<Vec<_>>(),
+    		"balances": balances,
 		},
 		"parachainInfo": {
 			"parachainId": id,
