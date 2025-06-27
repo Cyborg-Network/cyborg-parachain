@@ -215,14 +215,17 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
 		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
 			ensure!(
 				pallet_edge_connect::Pallet::<T>::account_workers(&who).is_some(),
 				Error::<T>::NotRegisteredMiner
 			);
+
 			ensure!(
 				cpu <= 100 && ram <= 100 && storage <= 100,
 				Error::<T>::InvalidUsageInput
 			);
+
 			MinerUsage::<T>::insert(&who, (cpu, ram, storage));
 			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
 			Ok(())
@@ -276,6 +279,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::distribute_rewards())]
 		pub fn distribute_rewards(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
+
 			let provider =
 				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 			for (miner, reward) in MinerPendingRewards::<T>::drain() {

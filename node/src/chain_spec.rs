@@ -120,8 +120,14 @@ pub fn local_testnet_config() -> ChainSpec {
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(testnet_genesis(
 		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Alice"), get_collator_keys_from_seed("Alice")),
-			(get_account_id_from_seed::<sr25519::Public>("Bob"), get_collator_keys_from_seed("Bob")),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_collator_keys_from_seed("Alice"),
+			),
+			(
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_collator_keys_from_seed("Bob"),
+			),
 		],
 		get_account_id_from_seed::<sr25519::Public>("Foundation"),
 		1000.into(),
@@ -145,12 +151,13 @@ pub fn mainnet_config() -> ChainSpec {
 		},
 	)
 	.with_name("Cyborg Mainnet")
-	.with_id("mainnet")
+	.with_id("cyborg_mainnet")
 	.with_chain_type(ChainType::Live)
 	.with_genesis_config_patch(testnet_genesis(
-		vec![
-			(get_account_id_from_seed::<sr25519::Public>("Foundation"), get_collator_keys_from_seed("Foundation")),
-		],
+		vec![(
+			get_account_id_from_seed::<sr25519::Public>("Foundation"),
+			get_collator_keys_from_seed("Foundation"),
+		)],
 		get_account_id_from_seed::<sr25519::Public>("Foundation"),
 		1234.into(),
 	))
@@ -163,38 +170,37 @@ fn testnet_genesis(
 	root: AccountId,
 	id: ParaId,
 ) -> serde_json::Value {
-
 	let early_contributors = get_account_id_from_seed::<sr25519::Public>("EarlyContributors");
-	let public_sale         = get_account_id_from_seed::<sr25519::Public>("PublicSale");
-	let miners              = get_account_id_from_seed::<sr25519::Public>("Miners");
-	let foundation          = get_account_id_from_seed::<sr25519::Public>("Foundation");
-	let founding_team       = get_account_id_from_seed::<sr25519::Public>("Team");
-	let marketing           = get_account_id_from_seed::<sr25519::Public>("Marketing");
-	let early_backers       = get_account_id_from_seed::<sr25519::Public>("Backers");
-	let presale             = get_account_id_from_seed::<sr25519::Public>("Presale");
+	let public_sale = get_account_id_from_seed::<sr25519::Public>("PublicSale");
+	let miners = get_account_id_from_seed::<sr25519::Public>("Miners");
+	let foundation = get_account_id_from_seed::<sr25519::Public>("Foundation");
+	let founding_team = get_account_id_from_seed::<sr25519::Public>("Team");
+	let marketing = get_account_id_from_seed::<sr25519::Public>("Marketing");
+	let early_backers = get_account_id_from_seed::<sr25519::Public>("Backers");
+	let presale = get_account_id_from_seed::<sr25519::Public>("Presale");
 
 	let total_supply: u128 = 20_000_000 * 10u128.pow(12);
 	let balances = vec![
-		(early_contributors.clone(), total_supply * 2  / 100),
-		(public_sale.clone(),        total_supply * 25 / 100),
-		(miners.clone(),             total_supply * 20 / 100),
-		(foundation.clone(),         total_supply * 10 / 100),
-		(founding_team.clone(),      total_supply * 10 / 100),
-		(marketing.clone(),          total_supply * 10 / 100),
-		(early_backers.clone(),      total_supply * 20 / 100),
-		(presale.clone(),            total_supply * 3  / 100),
+		(early_contributors.clone(), total_supply * 2 / 100),
+		(public_sale.clone(), total_supply * 25 / 100),
+		(miners.clone(), total_supply * 20 / 100),
+		(foundation.clone(), total_supply * 10 / 100),
+		(founding_team.clone(), total_supply * 10 / 100),
+		(marketing.clone(), total_supply * 10 / 100),
+		(early_backers.clone(), total_supply * 20 / 100),
+		(presale.clone(), total_supply * 3 / 100),
 	];
 
 	serde_json::json!({
 		"balances": {
-    		"balances": balances,
+				"balances": balances,
 		},
 		"parachainInfo": {
 			"parachainId": id,
 		},
 		"collatorSelection": {
 			"invulnerables": invulnerables.iter().cloned().map(|(acc, _)| acc).collect::<Vec<_>>(),
-			"candidacyBond": EXISTENTIAL_DEPOSIT * 16,
+			"candidacyBond": EXISTENTIAL_DEPOSIT * 16, // 0.001 BORG * 16
 		},
 		"session": {
 			"keys": invulnerables
