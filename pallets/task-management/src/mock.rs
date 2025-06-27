@@ -1,4 +1,5 @@
 pub use crate as pallet_task_management;
+use frame_support::traits::ConstU32;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
@@ -54,6 +55,7 @@ impl pallet_task_management::Config for Test {
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	type MaxKycHashLength = ConstU32<64>;
 }
 
 impl pallet_payment::Config for Test {

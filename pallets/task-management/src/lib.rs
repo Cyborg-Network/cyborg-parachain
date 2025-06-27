@@ -14,12 +14,12 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
-use frame_support::{pallet_prelude::ConstU32, BoundedVec};
-use scale_info::prelude::vec::Vec;
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
+use scale_info::prelude::vec::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -91,13 +91,7 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	pub type ModelHashes<T: Config> = StorageMap<
-		  _, 
-		Blake2_128Concat, 
-		[u8; 32],     
-		T::Hash, 
-		OptionQuery
-	>;
+	pub type ModelHashes<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], T::Hash, OptionQuery>;
 
 	/// Pallets use events to inform users when important changes are made.
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
@@ -115,17 +109,22 @@ pub mod pallet {
 		},
 
 		/// A worker confirmed reception of task data and started execution.
-		TaskReceptionConfirmed { task_id: TaskId, who: T::AccountId },
+		TaskReceptionConfirmed {
+			task_id: TaskId,
+			who: T::AccountId,
+		},
 
 		/// Controller/admin requested to stop a running task.
-		TaskStopRequested { task_id: TaskId },
+		TaskStopRequested {
+			task_id: TaskId,
+		},
 
 		/// Miner confirmed that they have vacated/reset after stopping.
-		MinerVacated { task_id: TaskId },
+		MinerVacated {
+			task_id: TaskId,
+		},
 		ModelHashRegistered(Vec<u8>, T::Hash),
 		ModelHashQueried(Vec<u8>, T::Hash),
-
-
 	}
 
 	/// Errors inform users that something went wrong.
@@ -404,53 +403,51 @@ pub mod pallet {
 			model_id: Vec<u8>,
 			model_hash: T::Hash,
 		) -> DispatchResult {
-		let _sender = ensure_signed(origin)?;
-		let gatekeeper=GatekeeperAccount::<T>::get().ok_or(Error::<T>::NotGatekeeper)?;
-		ensure!(_sender == gatekeeper, Error::<T>::NotGatekeeper);
+			let _sender = ensure_signed(origin)?;
+			let gatekeeper = GatekeeperAccount::<T>::get().ok_or(Error::<T>::NotGatekeeper)?;
+			ensure!(_sender == gatekeeper, Error::<T>::NotGatekeeper);
 
-		// Validate model_id length
-		ensure!(model_id.len() == 32usize, Error::<T>::InvalidModelIdLength);
+			// Validate model_id length
+			ensure!(model_id.len() == 32usize, Error::<T>::InvalidModelIdLength);
 
-		// Convert to [u8; 32]
-		let model_id_fixed: [u8; 32] = model_id
-			.try_into()
-			.map_err(|_| Error::<T>::InvalidModelIdLength)?;
+			// Convert to [u8; 32]
+			let model_id_fixed: [u8; 32] = model_id
+				.try_into()
+				.map_err(|_| Error::<T>::InvalidModelIdLength)?;
 
-		// Ensure it’s not already registered
-		ensure!(
-			!ModelHashes::<T>::contains_key(&model_id_fixed),
-			Error::<T>::ModelAlreadyRegistered
-		);
+			// Ensure it’s not already registered
+			ensure!(
+				!ModelHashes::<T>::contains_key(&model_id_fixed),
+				Error::<T>::ModelAlreadyRegistered
+			);
 
-		// Store it
-		ModelHashes::<T>::insert(&model_id_fixed, model_hash);
+			// Store it
+			ModelHashes::<T>::insert(&model_id_fixed, model_hash);
 
-		// Emit event
-		Self::deposit_event(Event::ModelHashRegistered(model_id_fixed.to_vec(), model_hash));
-		Ok(())
-	}
+			// Emit event
+			Self::deposit_event(Event::ModelHashRegistered(
+				model_id_fixed.to_vec(),
+				model_hash,
+			));
+			Ok(())
+		}
 
-	#[pallet::call_index(8)]
-	#[pallet::weight(<T as pallet::Config>::WeightInfo::get_model_hash())]
-	pub fn get_model_hash(
-		origin: OriginFor<T>,
-		model_id: Vec<u8>,
-	) -> DispatchResult {
-		let _ = ensure_signed(origin)?; // Anyone can call
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_model_hash())]
+		pub fn get_model_hash(origin: OriginFor<T>, model_id: Vec<u8>) -> DispatchResult {
+			let _ = ensure_signed(origin)?; // Anyone can call
 
-		ensure!(model_id.len() == 32, Error::<T>::InvalidModelIdLength);
+			ensure!(model_id.len() == 32, Error::<T>::InvalidModelIdLength);
 
-		let model_id_fixed: [u8; 32] = model_id
-			.try_into()
-			.map_err(|_| Error::<T>::InvalidModelIdLength)?;
+			let model_id_fixed: [u8; 32] = model_id
+				.try_into()
+				.map_err(|_| Error::<T>::InvalidModelIdLength)?;
 
-		let model_hash = ModelHashes::<T>::get(&model_id_fixed)
-			.ok_or(Error::<T>::ModelNotFound)?;
+			let model_hash = ModelHashes::<T>::get(&model_id_fixed).ok_or(Error::<T>::ModelNotFound)?;
 
-		Self::deposit_event(Event::ModelHashQueried(model_id_fixed.to_vec(), model_hash));
-		Ok(())
-	}
-
+			Self::deposit_event(Event::ModelHashQueried(model_id_fixed.to_vec(), model_hash));
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {

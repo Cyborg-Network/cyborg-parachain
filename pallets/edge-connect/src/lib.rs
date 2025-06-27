@@ -464,22 +464,22 @@ pub mod pallet {
 			verification_hash: Vec<u8>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			
+
 			let bounded_hash = BoundedVec::<u8, T::MaxKycHashLength>::try_from(verification_hash)
 				.map_err(|_| Error::<T>::KycHashTooLong)?;
-				
+
 			ensure!(
 				!KycVerifications::<T>::contains_key(&account),
 				Error::<T>::KycAlreadyVerified
 			);
-			
+
 			KycVerifications::<T>::insert(&account, bounded_hash.clone());
-			
+
 			Self::deposit_event(Event::KycVerified {
 				account,
 				verification_hash: bounded_hash,
 			});
-			
+
 			Ok(())
 		}
 	}

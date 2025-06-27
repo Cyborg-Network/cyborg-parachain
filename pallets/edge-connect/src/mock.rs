@@ -1,4 +1,5 @@
 pub use crate as pallet_edge_connect;
+use frame_support::traits::ConstU32;
 use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_timestamp;
@@ -40,6 +41,7 @@ impl frame_system::Config for Test {
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	type MaxKycHashLength = ConstU32<64>;
 }
 
 impl pallet_timestamp::Config for Test {

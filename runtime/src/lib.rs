@@ -307,9 +307,8 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 }
 
 parameter_types! {
-    pub const MaxKycHashLength: u32 = 64;
+		pub const MaxKycHashLength: u32 = 64;
 }
-
 
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
