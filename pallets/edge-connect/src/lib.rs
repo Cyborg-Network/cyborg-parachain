@@ -36,6 +36,10 @@ pub mod pallet {
 
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Maximum length for KYC verification hash
+		#[pallet::constant]
+		type MaxKycHashLength: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -89,6 +93,12 @@ pub mod pallet {
 		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
+
+	// Add new storage item
+	#[pallet::storage]
+	#[pallet::getter(fn kyc_verifications)]
+	pub type KycVerifications<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, T::MaxKycHashLength>, OptionQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -153,6 +163,12 @@ pub mod pallet {
 
 		/// Event emitted when a worker is unsuspended
 		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
+
+		/// Event emitted when a KYC verification is submitted
+		KycVerified {
+			account: T::AccountId,
+			verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		},
 	}
 
 	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -178,6 +194,10 @@ pub mod pallet {
 		WorkerSuspended,
 		/// Worker reputation is too low
 		InsufficientReputation,
+		/// KYC verification hash is too long
+		KycHashTooLong,
+		/// KYC verification already exists for this account
+		KycAlreadyVerified,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -433,6 +453,34 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
+		}
+
+		/// Submit KYC verification hash for an account
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc_verification())]
+		pub fn submit_kyc_verification(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			verification_hash: Vec<u8>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			
+			let bounded_hash = BoundedVec::<u8, T::MaxKycHashLength>::try_from(verification_hash)
+				.map_err(|_| Error::<T>::KycHashTooLong)?;
+				
+			ensure!(
+				!KycVerifications::<T>::contains_key(&account),
+				Error::<T>::KycAlreadyVerified
+			);
+			
+			KycVerifications::<T>::insert(&account, bounded_hash.clone());
+			
+			Self::deposit_event(Event::KycVerified {
+				account,
+				verification_hash: bounded_hash,
+			});
+			
+			Ok(())
 		}
 	}
 

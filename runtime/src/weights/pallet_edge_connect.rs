@@ -36,6 +36,7 @@ pub trait WeightInfo {
 	fn suspend_worker() -> Weight;
     fn ban_worker() -> Weight;
     fn unsuspend_worker() -> Weight;
+	fn submit_kyc_verification() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -100,6 +101,12 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
+
+	fn submit_kyc_verification() -> Weight {
+        Weight::from_parts(10_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
 }
 
 // For backwards compatibility and tests.
@@ -161,6 +168,12 @@ impl WeightInfo for () {
     
     fn unsuspend_worker() -> Weight {
         Weight::from_parts(10_000_000, 3688)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+	fn submit_kyc_verification() -> Weight {
+        Weight::from_parts(10_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
