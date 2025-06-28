@@ -306,14 +306,9 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 	}
 }
 
-parameter_types! {
-		pub const MaxKycHashLength: u32 = 64;
-}
-
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
-	type MaxKycHashLength = MaxKycHashLength;
 }
 
 impl pallet_task_management::Config for Runtime {
@@ -321,10 +316,15 @@ impl pallet_task_management::Config for Runtime {
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxKycHashLength: u32 = 64;
+}
+
 impl pallet_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
+	type MaxKycHashLength = MaxKycHashLength;
 }
 
 parameter_types! {

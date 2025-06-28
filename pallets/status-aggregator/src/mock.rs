@@ -1,5 +1,4 @@
 pub use crate as pallet_status_aggregator;
-// use frame_support::traits::ConstU32;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
@@ -72,7 +71,6 @@ impl pallet_timestamp::Config for Test {
 impl pallet_edge_connect::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type MaxKycHashLength = ConstU32<64>;
 }
 
 // Build genesis storage according to the mock runtime.

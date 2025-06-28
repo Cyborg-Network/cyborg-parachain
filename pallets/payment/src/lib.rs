@@ -27,6 +27,7 @@ pub mod pallet {
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
 		traits::{Currency, ExistenceRequirement},
 	};
+	use scale_info::prelude::vec::Vec;
 
 	use super::*;
 
@@ -67,6 +68,10 @@ pub mod pallet {
 		// The on-chain account ID of the Conductor server, responsible for fiat billing and orchestration.
 		// #[pallet::constant]
 		// type ConductorAccount: Get<Self::AccountId>;
+
+		/// Maximum length for KYC verification hash
+		#[pallet::constant]
+		type MaxKycHashLength: Get<u32>;
 	}
 
 	/// Storage for global per-hour subscription fee.
@@ -104,6 +109,12 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
+	// Add new storage item
+	#[pallet::storage]
+	#[pallet::getter(fn kyc_verifications)]
+	pub type KycVerifications<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, T::MaxKycHashLength>, OptionQuery>;
+
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -120,6 +131,12 @@ pub mod pallet {
 			active: RewardRates<BalanceOf<T>>,
 			idle: RewardRates<BalanceOf<T>>,
 		}, // When admin updates reward rates.
+
+		/// Event emitted when a KYC verification is submitted
+		KycVerified {
+			account: T::AccountId,
+			verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		},
 	}
 
 	/// Custom pallet errors.
@@ -136,6 +153,10 @@ pub mod pallet {
 		AlreadySubscribed,              // User already subscribed.
 		SubscriptionExpired,            // User has no subscription.
 		RewardRateNotSet,               // Reward rate missing for a miner.
+		/// KYC verification hash is too long
+		KycHashTooLong,
+		/// KYC verification already exists for this account
+		KycAlreadyVerified,
 	}
 
 	/// Declare callable extrinsics.
@@ -350,6 +371,34 @@ pub mod pallet {
 			ensure!(new_fee_per_hour > Zero::zero(), Error::<T>::InvalidFee);
 			SubscriptionFee::<T>::put(new_fee_per_hour);
 			Self::deposit_event(Event::SubscriptionFeeSet(new_fee_per_hour));
+			Ok(())
+		}
+
+		/// Submit KYC verification hash for an account
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc_verification())]
+		pub fn submit_kyc_verification(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			verification_hash: Vec<u8>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let bounded_hash = BoundedVec::<u8, T::MaxKycHashLength>::try_from(verification_hash)
+				.map_err(|_| Error::<T>::KycHashTooLong)?;
+
+			ensure!(
+				!KycVerifications::<T>::contains_key(&account),
+				Error::<T>::KycAlreadyVerified
+			);
+
+			KycVerifications::<T>::insert(&account, bounded_hash.clone());
+
+			Self::deposit_event(Event::KycVerified {
+				account,
+				verification_hash: bounded_hash,
+			});
+
 			Ok(())
 		}
 	}
