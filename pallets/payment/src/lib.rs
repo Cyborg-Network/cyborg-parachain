@@ -27,6 +27,7 @@ pub mod pallet {
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
 		traits::{Currency, ExistenceRequirement},
 	};
+	use sp_std::vec::Vec;
 
 	use super::*;
 
@@ -67,7 +68,30 @@ pub mod pallet {
 		// The on-chain account ID of the Conductor server, responsible for fiat billing and orchestration.
 		// #[pallet::constant]
 		// type ConductorAccount: Get<Self::AccountId>;
+
+		/// Maximum length for payment IDs
+		#[pallet::constant]
+		type MaxPaymentIdLength: Get<u32>;
 	}
+
+	/// Storage for mapping Stripe payment IDs to on-chain accounts
+	#[pallet::storage]
+	pub type StripePayments<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BoundedVec<u8, T::MaxPaymentIdLength>,
+		T::AccountId,
+		OptionQuery,
+	>;
+
+	/// Storage for pending FIAT payouts to miners
+	#[pallet::storage]
+	pub type MinerFiatPayouts<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BalanceOf<T>, ValueQuery>;
+
+	/// Storage for conversion rate between compute hours and FIAT
+	#[pallet::storage]
+	pub type FiatConversionRate<T: Config> = StorageValue<_, (u64, BalanceOf<T>), ValueQuery>; // (fiat_cents, native_tokens)
 
 	/// Storage for global per-hour subscription fee.
 	#[pallet::storage]
@@ -120,6 +144,9 @@ pub mod pallet {
 			active: RewardRates<BalanceOf<T>>,
 			idle: RewardRates<BalanceOf<T>>,
 		}, // When admin updates reward rates.
+		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
+		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
+		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
 	}
 
 	/// Custom pallet errors.
@@ -136,11 +163,17 @@ pub mod pallet {
 		AlreadySubscribed,              // User already subscribed.
 		SubscriptionExpired,            // User has no subscription.
 		RewardRateNotSet,               // Reward rate missing for a miner.
+		InvalidStripePaymentId,
+		FiatConversionRateNotSet,
 	}
 
 	/// Declare callable extrinsics.
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
+			From<u64>,
+	{
 		/// Set the account that receives all payments.
 		/// Can only be set by root user
 		#[pallet::call_index(0)]
@@ -350,6 +383,97 @@ pub mod pallet {
 			ensure!(new_fee_per_hour > Zero::zero(), Error::<T>::InvalidFee);
 			SubscriptionFee::<T>::put(new_fee_per_hour);
 			Self::deposit_event(Event::SubscriptionFeeSet(new_fee_per_hour));
+			Ok(())
+		}
+
+		/// Admin sets the conversion rate between FIAT (cents) and native tokens
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_fiat_conversion_rate())]
+		pub fn set_fiat_conversion_rate(
+			origin: OriginFor<T>,
+			fiat_cents: u64,
+			native_tokens: BalanceOf<T>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			ensure!(
+				fiat_cents > 0 && native_tokens > Zero::zero(),
+				Error::<T>::InvalidFee
+			);
+			FiatConversionRate::<T>::put((fiat_cents, native_tokens));
+			Self::deposit_event(Event::FiatConversionRateUpdated(fiat_cents, native_tokens));
+			Ok(())
+		}
+
+		/// Process a FIAT payment and allocate compute hours
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::process_fiat_payment())]
+		pub fn process_fiat_payment(
+			origin: OriginFor<T>,
+			payment_id: Vec<u8>,
+			account: T::AccountId,
+			fiat_amount_cents: u64,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let bounded_payment_id: BoundedVec<u8, T::MaxPaymentIdLength> = payment_id
+				.try_into()
+				.map_err(|_| Error::<T>::InvalidStripePaymentId)?;
+
+			ensure!(
+				!StripePayments::<T>::contains_key(&bounded_payment_id),
+				Error::<T>::InvalidStripePaymentId
+			);
+
+			ensure!(
+				FiatConversionRate::<T>::exists(),
+				Error::<T>::FiatConversionRateNotSet
+			);
+			let (cents_per_token, native_per_token) = FiatConversionRate::<T>::get();
+
+			let compute_hours = fiat_amount_cents / 100;
+
+			let native_value = native_per_token
+				.checked_mul(&BalanceOf::<T>::from(fiat_amount_cents / cents_per_token))
+				.ok_or(ArithmeticError::Overflow)?;
+
+			ComputeHours::<T>::mutate(&account, |hours| *hours += compute_hours as u32);
+			StripePayments::<T>::insert(&bounded_payment_id, account.clone());
+
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
+			T::Currency::transfer(
+				&provider,
+				&account,
+				native_value,
+				ExistenceRequirement::KeepAlive,
+			)?;
+
+			Self::deposit_event(Event::FiatPaymentProcessed(
+				account.clone(),
+				compute_hours as u32,
+			));
+			Self::deposit_event(Event::ConsumerSubscribed(
+				account.clone(),
+				native_value,
+				compute_hours as u32,
+			));
+
+			Ok(())
+		}
+
+		/// Create a FIAT payout request for a miner
+		#[pallet::call_index(11)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_fiat_payout())]
+		pub fn request_fiat_payout(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
+			let miner = ensure_signed(origin)?;
+			ensure!(
+				pallet_edge_connect::Pallet::<T>::is_registered_miner(&miner),
+				Error::<T>::NotRegisteredMiner
+			);
+
+			MinerFiatPayouts::<T>::mutate(&miner, |pending| *pending += amount);
+			Self::deposit_event(Event::MinerFiatPayoutCreated(miner, amount));
+
 			Ok(())
 		}
 	}

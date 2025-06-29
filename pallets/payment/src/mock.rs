@@ -63,6 +63,7 @@ impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();
+	type MaxPaymentIdLength = MaxPaymentIdLength;
 }
 
 impl pallet_edge_connect::Config for Test {
@@ -72,7 +73,8 @@ impl pallet_edge_connect::Config for Test {
 
 // Parameter types for the Balances pallet (defines token properties such as existential deposit)
 parameter_types! {
-	pub const ExistentialDeposit: u128=10;
+	pub const ExistentialDeposit: u128 = 10;
+	pub const MaxPaymentIdLength: u32 = 128;
 }
 
 // Implementation of the Balances pallet's configuration for the Test runtime

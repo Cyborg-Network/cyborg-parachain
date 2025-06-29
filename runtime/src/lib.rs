@@ -316,10 +316,15 @@ impl pallet_task_management::Config for Runtime {
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+		pub const MaxPaymentIdLength: u32 = 128;
+}
+
 impl pallet_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
+	type MaxPaymentIdLength = MaxPaymentIdLength;
 }
 
 parameter_types! {
