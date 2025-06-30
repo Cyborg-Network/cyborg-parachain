@@ -1,7 +1,7 @@
 use crate::{mock::*, Error};
 use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
-use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks,ModelHashes,GatekeeperAccount};
+use crate::{ModelHashes,GatekeeperAccount};
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
