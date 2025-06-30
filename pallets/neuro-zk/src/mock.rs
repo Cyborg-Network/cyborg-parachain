@@ -89,6 +89,7 @@ impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = ();
 	type WeightInfo = ();
+	type MaxKycHashLength = ConstU32<64>;
 }
 
 // Build genesis storage according to the mock runtime.

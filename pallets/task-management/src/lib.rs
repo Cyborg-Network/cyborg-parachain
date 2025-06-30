@@ -19,9 +19,8 @@ use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 
-use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
-use scale_info::prelude::vec::Vec;
 use pallet_edge_connect::ExecutableWorkers;
+use scale_info::prelude::vec::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
