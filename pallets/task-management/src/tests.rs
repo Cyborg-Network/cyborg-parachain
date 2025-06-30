@@ -1,6 +1,7 @@
 use crate::{mock::*, Error};
 use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
-use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
+pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
+use crate::{ModelHashes,GatekeeperAccount};
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
@@ -130,9 +131,18 @@ fn it_works_for_task_scheduler() {
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
 		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
 		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
-		assert_eq!(task_info_2.nzk_data.clone().unwrap().zk_input, nzk_data.clone().unwrap().zk_input);
-		assert_eq!(task_info_2.nzk_data.clone().unwrap().zk_verifying_key, nzk_data.clone().unwrap().zk_verifying_key);
-		assert_eq!(task_info_2.nzk_data.unwrap().zk_settings, nzk_data.unwrap().zk_settings);
+		assert!(task_info_2.nzk_data.is_some());
+		if let Some(nzk_data) = task_info_2.nzk_data {
+			assert_eq!(nzk_data.zk_input, zk_files_cid.as_ref().unwrap().zk_input);
+			assert_eq!(
+				nzk_data.zk_settings,
+				zk_files_cid.as_ref().unwrap().zk_settings
+			);
+			assert_eq!(
+				nzk_data.zk_verifying_key,
+				zk_files_cid.as_ref().unwrap().zk_verifying_key
+			);
+		}
 	});
 }
 
@@ -155,6 +165,7 @@ fn it_fails_when_worker_not_registered() {
 
 		// Create task data and nzk_data
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
+    
 		// nzk_data only required for NeuroZK
 		let nzk_data = Some(
 			NeuroZkTaskSubmissionDetails {
@@ -612,3 +623,67 @@ fn fails_if_task_does_not_exist() {
 		);
 	});
 }
+
+#[test]
+fn test_register_model_hash_works() {
+    new_test_ext().execute_with(|| {
+        use hex_literal::hex;
+		use sp_core::H256;
+
+        let gatekeeper = 1; 
+        GatekeeperAccount::<Test>::put(gatekeeper.clone());
+
+        let origin = RuntimeOrigin::signed(gatekeeper.clone());
+
+        let model_id_hex = hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51");
+        let model_id_vec = model_id_hex.to_vec(); 
+        let model_hash = H256::repeat_byte(0x42); 
+
+        assert_ok!(TaskManagementModule::register_model_hash(origin, model_id_vec.clone(), model_hash));
+
+        let mut fixed_id = [0u8; 32];
+        fixed_id.copy_from_slice(&model_id_vec);
+        assert_eq!(ModelHashes::<Test>::get(fixed_id), Some(model_hash));
+
+        
+    });
+}
+
+#[test]
+fn test_register_and_retrieve_model_hash() {
+    new_test_ext().execute_with(|| {
+        use hex_literal::hex;
+        use base64::Engine;
+        use base64::engine::general_purpose::STANDARD;
+        use sp_core::H256;
+
+        let gatekeeper = 1u64;
+        GatekeeperAccount::<Test>::put(gatekeeper);
+
+        let origin = RuntimeOrigin::signed(gatekeeper);
+
+        let model_id_vec = hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51").to_vec();
+
+        let hash_b64 = "ecO8CXRpai6p79L3vKGf3WMINL0AhvG0ocPbPc47KlE=";
+        let hash_bytes = STANDARD.decode(hash_b64).expect("Valid base64");
+        assert_eq!(hash_bytes.len(), 32, "Hash must be 32 bytes");
+
+        let model_hash = H256::from_slice(&hash_bytes);
+
+        assert_ok!(TaskManagementModule::register_model_hash(
+            origin.clone(),
+            model_id_vec.clone(),
+            model_hash
+        ));
+
+        let mut model_id_fixed = [0u8; 32];
+        model_id_fixed.copy_from_slice(&model_id_vec);
+
+        let stored_hash = ModelHashes::<Test>::get(model_id_fixed);
+        assert_eq!(stored_hash, Some(model_hash));
+
+     
+    });
+}
+
+
