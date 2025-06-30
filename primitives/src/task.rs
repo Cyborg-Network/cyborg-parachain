@@ -42,10 +42,10 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_status: TaskStatusType,             // Current lifecycle status.
 }
 
-pub type ZkInput = BoundedVec<u8, ConstU32<1000000>>;
-pub type ZkSettings = BoundedVec<u8, ConstU32<1000000>>;
-pub type ZkVerifyingKey = BoundedVec<u8, ConstU32<1000000>>;
-pub type ZkProof = BoundedVec<u8, ConstU32<1000000>>;
+pub type ZkInput = BoundedVec<u8, ConstU32<5000>>;
+pub type ZkSettings = BoundedVec<u8, ConstU32<5000>>;
+pub type ZkVerifyingKey = BoundedVec<u8, ConstU32<500000>>;
+pub type ZkProof = BoundedVec<u8, ConstU32<50000>>;
 
 #[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Debug)]
 pub struct NeuroZkTaskSubmissionDetails {
