@@ -19,6 +19,7 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
+
 use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
 
 #[frame_support::pallet]
@@ -155,7 +156,7 @@ pub mod pallet {
     		} else {
         		<T as pallet::Config>::WeightInfo::task_scheduler_no_nzk(task_location.len() as u32)
     		}
-		})]	
+		})]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
@@ -195,7 +196,7 @@ pub mod pallet {
 					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 				TaskKind::OpenInference => {
-					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
+					WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 			};
 			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
@@ -425,21 +426,16 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config + timestamp::Config>
-		NzkTaskInfoHandler<T::AccountId, TaskId, BlockNumberFor<T>> for Pallet<T>
+	impl<T: Config + timestamp::Config> NzkTaskInfoHandler<T::AccountId, TaskId, BlockNumberFor<T>>
+		for Pallet<T>
 	{
 		// Implementation of the NzkTaskInfoHandler trait, which provides methods for accessing NZK task information.
-		fn get_nzk_task(
-			task_key: TaskId,
-		) -> Option<TaskInfo<T::AccountId, BlockNumberFor<T>>> {
+		fn get_nzk_task(task_key: TaskId) -> Option<TaskInfo<T::AccountId, BlockNumberFor<T>>> {
 			Tasks::<T>::get(task_key)
 		}
 
 		// Implementation of the NzkTaskInfoHandler trait, which provides methods for NZK task information.
-		fn update_nzk_task(
-			task_key: TaskId,
-			task: TaskInfo<T::AccountId, BlockNumberFor<T>>,
-		) {
+		fn update_nzk_task(task_key: TaskId, task: TaskInfo<T::AccountId, BlockNumberFor<T>>) {
 			Tasks::<T>::insert(task_key, task);
 		}
 	}

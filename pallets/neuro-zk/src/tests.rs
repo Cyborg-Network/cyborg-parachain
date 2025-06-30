@@ -1,24 +1,21 @@
-use crate::{mock::*, Error, Event};
+use crate::{mock::*, Error};
 use crate::{
-	pallet::Config, RequestedProofs, VerificationResultsPerProof, SubmittedPerProof
+	 RequestedProofs, VerificationResultsPerProof, SubmittedPerProof
 };
 
-use frame_support::{assert_ok, assert_noop, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
+use frame_support::{assert_ok, assert_noop, pallet_prelude::ConstU32,  BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::OnNewData;
 
 use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus},
-	worker::*,
 	task::*,
 	zkml::*,
 };
 
-pub const FEEDER1: AccountId = 1;
-pub const FEEDER2: AccountId = 2;
-pub const FEEDER3: AccountId = 3;
-pub const FEEDER4: AccountId = 4;
-pub const FEEDER5: AccountId = 5;
+// pub const FEEDER1: AccountId = 1;
+// pub const FEEDER2: AccountId = 2;
+// pub const FEEDER3: AccountId = 3;
+// pub const FEEDER4: AccountId = 4;
+// pub const FEEDER5: AccountId = 5;
 
 fn create_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
@@ -35,7 +32,7 @@ fn create_neurozk_task(task_id: TaskId) {
 		last_proof_accepted: None,
 	});
 
-	let taskInfo = TaskInfo {
+	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
 		metadata,
@@ -49,7 +46,7 @@ fn create_neurozk_task(task_id: TaskId) {
 		task_status: TaskStatusType::Assigned, 
 	};
 
-	pallet_task_management::Tasks::<Test>::insert(task_id, taskInfo)
+	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
 }
 
 fn create_non_neurozk_task(task_id: TaskId) {
@@ -67,7 +64,7 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		last_proof_accepted: None,
 	});
 
-	let taskInfo = TaskInfo {
+	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
 		metadata,
@@ -81,7 +78,7 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		task_status: TaskStatusType::Assigned, 
 	};
 
-	pallet_task_management::Tasks::<Test>::insert(task_id, taskInfo)
+	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
 }
 
 fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumberFor<Test>>> {

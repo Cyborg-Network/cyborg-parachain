@@ -16,12 +16,11 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus, TimestampedValue},
+	oracle::{OracleWorkerFormat, ProcessStatus},
 	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType, WorkerType},
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
-use orml_traits::{CombineData, OnNewData};
 use scale_info::TypeInfo;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -56,7 +55,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use scale_info::prelude::vec::Vec;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
