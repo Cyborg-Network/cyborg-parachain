@@ -24,7 +24,7 @@ fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 
 // Helper function to convert task data into a BoundedVec with a maximum length of 128 bytes.
 // This ensures the task data string does not exceed the limit of 128 bytes.
-fn get_taskdata(task_data_str: &str) -> BoundedVec<u8, ConstU32<128>> {
+fn get_taskdata(task_data_str: &str) -> BoundedVec<u8, ConstU32<500>> {
 	BoundedVec::try_from(task_data_str.as_bytes().to_vec())
 		.expect("Task Data string exceeds maximum length")
 }
@@ -73,6 +73,13 @@ fn set_initial_benchmark_data<T: Config>() {
 		// Insert the MAX_WORKER_ID into the AccountWorkers map for the creator
 		pallet_edge_connect::AccountWorkers::<T>::insert(creator.clone(), MAX_WORKER_ID);
 
+		let worker_reputation = WorkerReputation {
+			score: 0,
+			last_updated: None,
+			violations: 0,
+			successful_tasks: 0,
+		};
+
 		// Loop to create multiple workers for the same creator
 		for worker_id in 0..MAX_WORKER_ID {
 			// Get the current block number
@@ -84,7 +91,7 @@ fn set_initial_benchmark_data<T: Config>() {
 				owner: creator.clone(),
 				location: worker_location.clone(),
 				specs: worker_specs.clone(),
-				reputation: 0,
+				reputation: worker_reputation,
 				start_block: blocknumber,
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber,
@@ -104,9 +111,10 @@ fn set_initial_benchmark_data<T: Config>() {
 #[benchmarks]
 mod benchmarks {
 	use super::*;
+	use scale_info::prelude::vec::Vec;
 
 	#[benchmark]
-	fn task_scheduler<T: Config>() -> Result<(), BenchmarkError> {
+	fn task_scheduler_no_nzk<T: Config>() -> Result<(), BenchmarkError> {
 		// Setup initial benchmark data (this function is assumed to prepopulate necessary state)
 		// This function could be used to set up the initial state required for benchmarking.
 		set_initial_benchmark_data::<T>();
@@ -128,12 +136,14 @@ mod benchmarks {
 		{
 			Pallet::<T>::task_scheduler(
 				RawOrigin::Signed(caller.clone()).into(),
+				TaskKind::OpenInference,
 				task_data,
+				None,
 				worker_account,
 				worker_id,
 				Some(10),
 			)
-			.expect("Failed to schedule task")
+			.expect("Failed to schedule task");
 		}
 
 		// Verification code
@@ -154,283 +164,152 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn submit_completed_task<T: Config>() -> Result<(), BenchmarkError> {
-		// Register the executor worker with a domain.
-		// This registers an executor worker account and assigns it to a specific domain.
-		// The executor will later complete a task.mpleting a task.
-		let executor: T::AccountId = account("executor", 0, 0);
-		let worker_id = 0;
-		let latitude: Latitude = 1;
-		let longitude: Longitude = 100;
-		let ram: RamBytes = 5_000_000_000u64;
-		let storage: StorageBytes = 100_000_000_000u64;
-		let cpu: CpuCores = 5u16;
-		let domain = get_domain(WORKER_API_DOMAIN1);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(executor.clone()).into(),
-			domain,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
+	fn task_scheduler_nzk<T: Config>() -> Result<(), BenchmarkError> {
+		// Setup initial benchmark data (this function is assumed to prepopulate necessary state)
+		// This function could be used to set up the initial state required for benchmarking.
+		set_initial_benchmark_data::<T>();
 
-		// Schedule a task for the executor to complete.
-		// A caller schedules the task, which will be handled by the registered executor.
+		// Assign a caller account that will act as the worker's owner.
 		let caller: T::AccountId = whitelisted_caller();
+		// Create task data.
 		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
+
+		let worker_account = account::<T::AccountId>("benchmark_account", 0, 0);
+
+		let worker_id = 0;
+
 		// Initialize Compute Hours for the caller account in the payment pallet.
+		// This ensures the account has sufficient compute hours for task operations during benchmarking.
 		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
 
-		Pallet::<T>::task_scheduler(
-			RawOrigin::Signed(caller.clone()).into(),
-			task_data.clone(),
-			Some(10),
-			executor.clone(),
-			worker_id,
-		)?;
+		let dummy_bytes = vec![1u8; 1_000_000]; // 1MB each
+		let nzk_info = Some(NeuroZkTaskSubmissionDetails {
+			zk_input: BoundedVec::try_from(dummy_bytes.clone()).unwrap(),
+			zk_settings: BoundedVec::try_from(dummy_bytes.clone()).unwrap(),
+			zk_verifying_key: BoundedVec::try_from(dummy_bytes).unwrap(),
+		});
 
-		// Register a verifier worker with a different domain.
-		// The verifier is responsible for validating the results of the task completed by the executor.
-		let verifier: T::AccountId = account("verifier", 0, 0);
-		let domain2 = get_domain(WORKER_API_DOMAIN2);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(verifier.clone()).into(),
-			domain2,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
-
-		// Submit the task completion by the executor.
-		// The executor submits the completed task's result, along with a result hash.
-		let task_id = NextTaskId::<T>::get() - 1;
-		let completed_hash = H256([123; 32]);
-		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 128]).unwrap();
-
-		// The executor submits the completed task.
 		#[block]
 		{
-			Pallet::<T>::submit_completed_task(
-				RawOrigin::Signed(executor.clone()).into(),
-				task_id,
-				completed_hash.clone(),
-				result.clone(),
+			Pallet::<T>::task_scheduler(
+				RawOrigin::Signed(caller.clone()).into(),
+				TaskKind::NeuroZK,
+				task_data,
+				nzk_info,
+				worker_account,
+				worker_id,
+				Some(10),
 			)
-			.expect("Failed to submit completed task")
+			.expect("Failed to schedule task");
 		}
 
 		// Verification code
-		// Verify the task status and ensure it's pending validation.
-		// After submission, the task status should be updated to `PendingValidation`.
-		let task_status = TaskStatus::<T>::get(task_id).unwrap();
-		assert_eq!(task_status, TaskStatusType::PendingValidation);
+		// We will check the worker's details by looking them up in the worker cluster storage map.
+		let task_allocation = TaskAllocations::<T>::iter().collect::<Vec<_>>();
+		assert!(task_allocation.len() > 0, "Failed to schedule task");
 
-		// Verify the task's execution and validation state.
-		// Check if the executor and verifier information is correctly stored.
-		let verifications = Pallet::<T>::get_task_verifications(task_id).unwrap();
-		assert_eq!(verifications.executor.account, executor);
-		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
-		assert_eq!(verifications.verifier.clone().unwrap().account, verifier);
-		assert_eq!(verifications.verifier.clone().unwrap().completed_hash, None);
+		let task_owner = TaskOwners::<T>::iter().collect::<Vec<_>>();
+		assert!(task_owner.len() > 0, "Failed to schedule task");
+
+		let tasks = Tasks::<T>::iter().collect::<Vec<_>>();
+		assert!(tasks.len() > 0, "Failed to schedule task");
+
+		let task_status = TaskStatus::<T>::iter().collect::<Vec<_>>();
+		assert!(task_status.len() > 0, "Failed to schedule task");
 
 		Ok(())
 	}
 
-	#[benchmark]
-	fn verify_completed_task<T: Config>() -> Result<(), BenchmarkError> {
-		// Register the executor worker with a domain.
-		// This registers an executor worker who will complete the task.
-		let executor: T::AccountId = account("executor", 0, 0);
-		let worker_id = 0;
-		let latitude: Latitude = 1;
-		let longitude: Longitude = 100;
-		let ram: RamBytes = 5_000_000_000u64;
-		let storage: StorageBytes = 100_000_000_000u64;
-		let cpu: CpuCores = 5u16;
-		let domain = get_domain(WORKER_API_DOMAIN1);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(executor.clone()).into(),
-			domain,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
-
-		// Schedule a task for the executor to complete.
-		// A caller schedules the task, which will be completed by the executor.
+  #[benchmark]
+    fn stop_task_and_vacate_miner<T: Config>() -> Result<(), BenchmarkError> {
+		set_initial_benchmark_data::<T>();
 		let caller: T::AccountId = whitelisted_caller();
-		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		// Initialize Compute Hours for the caller account in the payment pallet.
-		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
 
-		Pallet::<T>::task_scheduler(
-			RawOrigin::Signed(caller.clone()).into(),
-			task_data.clone(),
-			Some(10),
-			executor.clone(),
-			worker_id,
-		)?;
+        pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
+        let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
+        Pallet::<T>::task_scheduler(
+            RawOrigin::Signed(caller.clone()).into(),
+            TaskKind::OpenInference,
+            task_data.clone(),
+            None,
+            caller.clone(),
+            1,
+            Some(5),
+        )?;
+        let task_id = NextTaskId::<T>::get() - 1;
 
-		// Register a verifier worker with a different domain.
-		// The verifier is responsible for validating the results of the task completed by the executor.
-		let verifier: T::AccountId = account("verifier", 0, 0);
-		let domain2 = get_domain(WORKER_API_DOMAIN2);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(verifier.clone()).into(),
-			domain2,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
+        Pallet::<T>::confirm_task_reception(
+            RawOrigin::Signed(caller.clone()).into(),
+            task_id,
+        )?;
 
-		// Submit the task completion by the executor.
-		// The executor submits the result of the completed task along with a result hash.
-		let task_id = NextTaskId::<T>::get() - 1;
-		let completed_hash = H256([123; 32]);
-		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
-		Pallet::<T>::submit_completed_task(
-			RawOrigin::Signed(executor.clone()).into(),
-			task_id,
-			completed_hash.clone(),
-			result.clone(),
-		)?;
+        #[block]
+        {
+            Pallet::<T>::stop_task_and_vacate_miner(
+                RawOrigin::Signed(caller.clone()).into(),
+                task_id,
+            )?;
+        }
 
-		// Submit the completed task for verification by the verifier.
-		// The verifier validates the task and ensures the result is correct.
-		#[block]
-		{
-			Pallet::<T>::verify_completed_task(
-				RawOrigin::Signed(verifier.clone()).into(),
-				task_id,
-				completed_hash.clone(),
-			)
-			.expect("Failed to verify completed task")
-		}
+        assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Stopped));
+        assert!(ComputeAggregations::<T>::get(task_id).and_then(|(_, e)| e).is_some());
+        Ok(())
+    }
 
-		// Verify the task status is updated and marked as `Completed`.
-		// After verification, the task should have a status of `Completed`.
-		let task_status = TaskStatus::<T>::get(task_id).unwrap();
-		assert_eq!(task_status, TaskStatusType::Completed);
-
-		Ok(())
-	}
-
-	#[benchmark]
-	fn resolve_completed_task<T: Config>() -> Result<(), BenchmarkError> {
-		// Register the executor worker with a domain.
-		// This registers an executor worker who will complete the task.
-		let executor: T::AccountId = account("executor", 0, 0);
-		let worker_id = 0;
-		let latitude: Latitude = 1;
-		let longitude: Longitude = 100;
-		let ram: RamBytes = 5_000_000_000u64;
-		let storage: StorageBytes = 100_000_000_000u64;
-		let cpu: CpuCores = 5u16;
-		let domain = get_domain(WORKER_API_DOMAIN1);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(executor.clone()).into(),
-			domain,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
-
-		// Schedule a task for the executor to complete.
-		// A caller schedules the task, which will be completed by the executor.
+    #[benchmark]
+    fn confirm_miner_vacation<T: Config>() -> Result<(), BenchmarkError> {
+		set_initial_benchmark_data::<T>();
 		let caller: T::AccountId = whitelisted_caller();
-		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-		Pallet::<T>::task_scheduler(RawOrigin::Signed(caller.clone()).into(), task_data.clone())?;
 
-		// Register a verifier worker with a different domain.
-		// The verifier is responsible for validating the results of the task completed by the executor.
-		let verifier: T::AccountId = account("verifier", 0, 0);
-		let domain2 = get_domain(WORKER_API_DOMAIN2);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(verifier.clone()).into(),
-			domain2,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
+        pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
+        let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
+        Pallet::<T>::task_scheduler(
+            RawOrigin::Signed(caller.clone()).into(),
+            TaskKind::OpenInference,
+            task_data.clone(),
+            None,
+            caller.clone(),
+            1,
+            Some(5),
+        )?;
+        let task_id = NextTaskId::<T>::get() - 1;
 
-		// Submit the task completion by the executor.
-		// The executor submits the result of the completed task along with a result hash.
-		let task_id = NextTaskId::<T>::get() - 1;
-		let completed_hash = H256([4; 32]);
-		let result: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(vec![0u8; 10]).unwrap();
-		Pallet::<T>::submit_completed_task(
-			RawOrigin::Signed(executor.clone()).into(),
-			task_id,
-			completed_hash.clone(),
-			result.clone(),
-		)?;
+        Pallet::<T>::confirm_task_reception(
+            RawOrigin::Signed(caller.clone()).into(),
+            task_id,
+        )?;
+        Pallet::<T>::stop_task_and_vacate_miner(
+            RawOrigin::Signed(caller.clone()).into(),
+            task_id,
+        )?;
 
-		// Register the resolver.
-		// The resolver is responsible for resolving the task
-		let resolver: T::AccountId = account("resolver", 0, 0);
-		let domain3 = get_domain(WORKER_API_DOMAIN3);
-		pallet_edge_connect::Pallet::<T>::register_worker(
-			RawOrigin::Signed(resolver.clone()).into(),
-			domain3,
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu,
-		)?;
+        #[block]
+        {
+            Pallet::<T>::confirm_miner_vacation(
+                RawOrigin::Signed(caller.clone()).into(),
+                task_id,
+            )?;
+        }
 
-		// Verify completed task by the verifier
-		// The verifier checks the task result
-		// On the following example, a differing hash to simulate a discrepancy.
-		let completed_differing_hash = H256([123; 32]);
-		Pallet::<T>::verify_completed_task(
-			RawOrigin::Signed(verifier.clone()).into(),
-			task_id,
-			completed_differing_hash.clone(),
-		)?;
+        assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Vacated));
+        Ok(())
+    }
 
-		// Check the task verification details.
-		// Ensure the executor, verifier, and their respective hashes are correctly stored.
-		let verifications = Pallet::<T>::get_task_verifications(task_id).unwrap();
-		assert_eq!(verifications.executor.account, executor);
-		assert_eq!(verifications.executor.completed_hash, Some(completed_hash));
-		assert_eq!(verifications.verifier.clone().unwrap().account, verifier);
-		assert_eq!(
-			verifications.verifier.clone().unwrap().completed_hash,
-			Some(completed_differing_hash)
-		);
+    #[benchmark]
+    fn set_gatekeeper<T: Config>() -> Result<(), BenchmarkError> {
+        let caller: T::AccountId = whitelisted_caller();
 
-		// Resolve the task by the resolver.
-		// The resolver resolves the task, which concludes the task lifecycle.
-		#[block]
-		{
-			Pallet::<T>::resolve_completed_task(
-				RawOrigin::Signed(resolver.clone()).into(),
-				task_id,
-				completed_differing_hash.clone(),
-			)
-			.expect("Failed to resolve task")
-		}
+        #[block]
+        {
+            Pallet::<T>::set_gatekeeper(
+                RawOrigin::Root.into(),
+                caller.clone(),
+            )?;
+        }
 
-		// Verify the task status is updated and marked as `Completed`.
-		// After the resolver finishes, the task should have a status of `Completed`.
-		let task_status = TaskStatus::<T>::get(task_id).unwrap();
-		assert_eq!(task_status, TaskStatusType::Completed);
-
-		Ok(())
-	}
+        assert_eq!(GatekeeperAccount::<T>::get(), Some(caller));
+        Ok(())
+    }	
 
 	// Defines the benchmark test suite, linking it to the pallet and mock runtime
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);

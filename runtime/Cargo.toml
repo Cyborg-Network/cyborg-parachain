@@ -39,6 +39,7 @@ pallet-payment= { workspace = true}
 pallet-status-aggregator = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-zk-verifier = { workspace = true }
+pallet-neuro-zk = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { version = "35.0.0", default-features = false, optional = true }
@@ -186,6 +187,7 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"pallet-zk-verifier/runtime-benchmarks",
+	"pallet-neuro-zk/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",

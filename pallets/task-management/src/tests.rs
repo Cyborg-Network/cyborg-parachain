@@ -1,5 +1,7 @@
 use crate::{mock::*, Error};
-use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks,ModelHashes,GatekeeperAccount};
+use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
+pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
+use crate::{ModelHashes,GatekeeperAccount};
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
@@ -69,9 +71,11 @@ fn it_works_for_task_scheduler() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// zk_files_cid only required for NeuroZK
-		let zk_files_cid = Some(
-			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-		);
+		let zk_files_cid = Some(NeuroZkTaskSubmissionDetails {
+			zk_input: BoundedVec::try_from(b"input".to_vec()).unwrap(),
+			zk_settings: BoundedVec::try_from(b"settings".to_vec()).unwrap(),
+			zk_verifying_key: BoundedVec::try_from(b"verifying_key".to_vec()).unwrap(),
+		});
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Docker Task (valid)
@@ -89,7 +93,7 @@ fn it_works_for_task_scheduler() {
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
 		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
 		assert_eq!(task_info_0.task_kind, TaskKind::OpenInference);
-		assert_eq!(task_info_0.zk_files_cid, None);
+		assert_eq!(task_info_0.nzk_data, None);
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Executable Task (valid)
@@ -125,7 +129,18 @@ fn it_works_for_task_scheduler() {
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
 		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
 		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
-		assert_eq!(task_info_2.zk_files_cid, zk_files_cid);
+		assert!(task_info_2.nzk_data.is_some());
+		if let Some(nzk_data) = task_info_2.nzk_data {
+			assert_eq!(nzk_data.zk_input, zk_files_cid.as_ref().unwrap().zk_input);
+			assert_eq!(
+				nzk_data.zk_settings,
+				zk_files_cid.as_ref().unwrap().zk_settings
+			);
+			assert_eq!(
+				nzk_data.zk_verifying_key,
+				zk_files_cid.as_ref().unwrap().zk_verifying_key
+			);
+		}
 	});
 }
 
@@ -148,8 +163,11 @@ fn it_fails_when_worker_not_registered() {
 
 		// Create task data and zk_files_cid
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-		let zk_files_cid =
-			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		let zk_files_cid = NeuroZkTaskSubmissionDetails {
+			zk_input: BoundedVec::try_from(b"input".to_vec()).unwrap(),
+			zk_settings: BoundedVec::try_from(b"settings".to_vec()).unwrap(),
+			zk_verifying_key: BoundedVec::try_from(b"verifying_key".to_vec()).unwrap(),
+		};
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
