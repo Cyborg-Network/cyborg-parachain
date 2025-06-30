@@ -14,12 +14,13 @@ fn create_neurozk_task<T: Config + pallet_task_management::Config>(task_id: Task
 	let deposit = 10;
 	let data_str = "1";
 	let data_vec = data_str.as_bytes().to_vec();
-	let data: BoundedVec<u8, ConstU32<1000000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+	let data: BoundedVec<u8, ConstU32<5000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+    let vk: BoundedVec<u8, ConstU32<500000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let metadata: BoundedVec<u8, ConstU32<500>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let nzk_data = Some(NzkData {
 		zk_input: data.clone(),
-		zk_settings: data.clone(),
-		zk_verifying_key: data,
+		zk_settings: data,
+		zk_verifying_key: vk,
 		zk_proof: None,
 		last_proof_accepted: None,
 	});
@@ -68,7 +69,7 @@ mod benchmarks {
     fn submit_proof<T: Config + pallet_task_management::Config>() -> Result<(), BenchmarkError> {
         let caller: T::AccountId = whitelisted_caller();
         let task_id = 0;
-        let dummy_bytes = vec![1u8; 1_000_000]; // 1MB each
+        let dummy_bytes = vec![1u8; 50_000]; // 50KB each
 		let dummy_proof = BoundedVec::try_from(dummy_bytes.clone()).unwrap();
 
 
