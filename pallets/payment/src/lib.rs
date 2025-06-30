@@ -147,6 +147,7 @@ pub mod pallet {
 		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
+		RemainingHoursQueried(T::AccountId, u32), 
 	}
 
 	/// Custom pallet errors.
@@ -474,6 +475,15 @@ pub mod pallet {
 			MinerFiatPayouts::<T>::mutate(&miner, |pending| *pending += amount);
 			Self::deposit_event(Event::MinerFiatPayoutCreated(miner, amount));
 
+			Ok(())
+		}
+
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_remaining_hours())]
+		pub fn get_remaining_hours(origin: OriginFor<T>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let hours = ComputeHours::<T>::get(&who);
+			Self::deposit_event(Event::RemainingHoursQueried(who, hours));
 			Ok(())
 		}
 	}

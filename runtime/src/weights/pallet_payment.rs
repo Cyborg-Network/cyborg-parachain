@@ -45,6 +45,7 @@ pub trait WeightInfo {
 	fn set_fiat_conversion_rate() -> Weight;
 	fn process_fiat_payment() -> Weight;
 	fn request_fiat_payout() -> Weight;
+	fn get_remaining_hours() -> Weight;
 }
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
@@ -150,6 +151,11 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
+
+	fn get_remaining_hours() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1_u64))
+    }
 }
 
 // For backwards compatibility and tests.
@@ -231,5 +237,10 @@ impl WeightInfo for () {
         Weight::from_parts(3_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+	fn get_remaining_hours() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
     }
 }
