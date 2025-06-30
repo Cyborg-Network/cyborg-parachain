@@ -19,7 +19,7 @@ use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
-use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
+use pallet_edge_connect::ExecutableWorkers;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -172,13 +172,13 @@ pub mod pallet {
 			// Determine worker type based on task kind
 			let worker_type = match task_kind {
 				TaskKind::NeuroZK => WorkerType::Executable,
-				TaskKind::OpenInference => WorkerType::Docker,
+				TaskKind::OpenInference => WorkerType::Executable,
 			};
 
 			// Check if any workers exist for the task_kind first
 			let any_workers_exist = match task_kind {
 				TaskKind::NeuroZK => ExecutableWorkers::<T>::iter().next().is_some(),
-				TaskKind::OpenInference => WorkerClusters::<T>::iter().next().is_some(),
+				TaskKind::OpenInference => ExecutableWorkers::<T>::iter().next().is_some(),
 			};
 			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
 

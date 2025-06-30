@@ -21,7 +21,7 @@ pub use cyborg_primitives::{
 	oracle::OracleKey,
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
-use frame_support::{traits::Get, LOG_TARGET};
+use frame_support::traits::Get;
 use scale_info::TypeInfo;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]

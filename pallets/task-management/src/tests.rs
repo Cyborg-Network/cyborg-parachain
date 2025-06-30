@@ -1,5 +1,6 @@
 use crate::{mock::*, Error};
 use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
+use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
@@ -41,7 +42,7 @@ fn it_works_for_task_scheduler() {
 		// Register workers first
 		assert_ok!(register_worker(
 			executor,
-			WorkerType::Docker,
+			WorkerType::Executable,
 			"docker.worker"
 		));
 		assert_ok!(register_worker(
@@ -51,7 +52,7 @@ fn it_works_for_task_scheduler() {
 		));
 
 		// Verify workers are registered
-		assert!(pallet_edge_connect::WorkerClusters::<Test>::contains_key((
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((
 			executor, 0
 		)));
 		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
@@ -68,13 +69,17 @@ fn it_works_for_task_scheduler() {
 		// Task metadata (e.g., docker image or model)
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
-		// zk_files_cid only required for NeuroZK
-		let zk_files_cid = Some(
-			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+		// nzk_data only required for NeuroZK
+		let nzk_data = Some(
+			NeuroZkTaskSubmissionDetails {
+				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),	
+			}
 		);
 
 		// --------------------------------------------------
-		// ✅ Schedule OpenInference Docker Task (valid)
+		// ✅ Schedule OpenInference Executable Task (valid)
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -89,7 +94,7 @@ fn it_works_for_task_scheduler() {
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
 		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
 		assert_eq!(task_info_0.task_kind, TaskKind::OpenInference);
-		assert_eq!(task_info_0.zk_files_cid, None);
+		assert_eq!(task_info_0.nzk_data, None);
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Executable Task (valid)
@@ -116,7 +121,7 @@ fn it_works_for_task_scheduler() {
 			RuntimeOrigin::signed(alice),
 			task_kind_neurozk,
 			task_data.clone(),
-			zk_files_cid.clone(),
+			nzk_data.clone(),
 			executor,
 			worker_id_exec,
 			Some(10)
@@ -125,7 +130,9 @@ fn it_works_for_task_scheduler() {
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
 		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
 		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
-		assert_eq!(task_info_2.zk_files_cid, zk_files_cid);
+		assert_eq!(task_info_2.nzk_data.clone().unwrap().zk_input, nzk_data.clone().unwrap().zk_input);
+		assert_eq!(task_info_2.nzk_data.clone().unwrap().zk_verifying_key, nzk_data.clone().unwrap().zk_verifying_key);
+		assert_eq!(task_info_2.nzk_data.unwrap().zk_settings, nzk_data.unwrap().zk_settings);
 	});
 }
 
@@ -146,10 +153,16 @@ fn it_fails_when_worker_not_registered() {
 			"exec.worker"
 		));
 
-		// Create task data and zk_files_cid
+		// Create task data and nzk_data
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-		let zk_files_cid =
-			BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap();
+		// nzk_data only required for NeuroZK
+		let nzk_data = Some(
+			NeuroZkTaskSubmissionDetails {
+				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),	
+			}
+		);
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -160,7 +173,7 @@ fn it_fails_when_worker_not_registered() {
 				RuntimeOrigin::signed(alice),
 				task_kind_neurozk,
 				task_data.clone(),
-				Some(zk_files_cid.clone()),
+				nzk_data.clone(),
 				worker_owner,
 				worker_id,
 				Some(1),
@@ -221,7 +234,7 @@ fn it_fails_when_no_computer_hours_available() {
 		// Register worker first
 		assert_ok!(register_worker(
 			worker_owner,
-			WorkerType::Docker,
+			WorkerType::Executable,
 			"worker.domain"
 		));
 
@@ -256,7 +269,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 		let task_data = BoundedVec::truncate_from(b"model.bin".to_vec());
 
 		// Register worker first
-		assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
+		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
 
@@ -298,7 +311,7 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let worker_id = 0;
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
-		assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
+		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
 
 		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -330,7 +343,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		let worker_id = 0;
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
-		assert_ok!(register_worker(executor, WorkerType::Docker, "exec"));
+		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
 
 		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -372,8 +385,8 @@ fn it_works_for_confirm_miner_vacation() {
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		// Register a Docker worker
-		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		// Register an Executable worker
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -425,7 +438,7 @@ fn fails_if_not_task_owner_for_vacation() {
 		let task_data = BoundedVec::try_from(b"docker-alice-task".to_vec()).unwrap();
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -470,7 +483,7 @@ fn fails_if_task_not_stopped() {
 		let task_data = BoundedVec::try_from(b"docker-alice-not-stopped".to_vec()).unwrap();
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -510,7 +523,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 
 		// Provide compute hours and register worker
 		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
-		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -564,7 +577,7 @@ fn fails_if_task_is_not_running() {
 		let task_data = BoundedVec::try_from(b"some-task-not-running".to_vec()).unwrap();
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
-		assert_ok!(register_worker(alice, WorkerType::Docker, "alice"));
+		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		// Schedule task and don't confirm reception (still Assigned)
 		assert_ok!(TaskManagementModule::task_scheduler(

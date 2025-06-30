@@ -95,6 +95,16 @@ pub mod pallet {
 			domain: Domain,
 		},
 
+		/// Event emitted when a miner tries to re-register itself.
+		///
+		/// - `creator`: The account ID of the miner's creator.
+		/// - `worker`: A tuple containing the account ID of the miner owner and the miner ID.
+		WorkerAlreadyRegistered {
+			creator: T::AccountId,
+			worker: (T::AccountId, WorkerId),
+			domain: Domain,
+		},
+
 		/// Event emitted when a worker is removed from the system.
 		///
 		/// - `creator`: The account ID of the worker's creator.
@@ -191,13 +201,29 @@ pub mod pallet {
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
 							if worker_type == cyborg_primitives::worker::WorkerType::Docker {
 								// Check if the API matches and throw an error if it does
-								ensure!(api != worker.api, Error::<T>::WorkerExists);
+								if api == worker.api {
+									// The event is necessary since the worker still needs it's data if it is already registered
+									Self::deposit_event(Event::WorkerAlreadyRegistered { 
+										creator: creator.clone(),
+										worker: (creator.clone(), worker.id),
+										domain: worker.api.domain,
+									});	
+									return Err(Error::<T>::WorkerExists.into());
+								}
 							}
 						}
 						if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
 							if worker_type == cyborg_primitives::worker::WorkerType::Executable {
 								// Check if the API matches and throw an error if it does
-								ensure!(api != worker.api, Error::<T>::WorkerExists);
+								if api == worker.api {
+									// The event is necessary since the worker still needs it's data if it is already registered
+									Self::deposit_event(Event::WorkerAlreadyRegistered { 
+										creator: creator.clone(),
+										worker: (creator.clone(), worker.id),
+										domain: worker.api.domain,
+									});		
+									return Err(Error::<T>::WorkerExists.into());
+								}
 							}
 						}
 					}

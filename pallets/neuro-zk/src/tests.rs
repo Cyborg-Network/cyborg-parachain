@@ -1,41 +1,33 @@
-use crate::{mock::*, Error, Event};
+use crate::{mock::*, Error};
 use crate::{
-	pallet::Config, RequestedProofs, VerificationResultsPerProof, SubmittedPerProof
+	RequestedProofs, VerificationResultsPerProof, SubmittedPerProof
 };
 
-use frame_support::{assert_ok, assert_noop, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
+use frame_support::{assert_ok, assert_noop, pallet_prelude::ConstU32, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::OnNewData;
 
 use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus},
-	worker::*,
 	task::*,
 	zkml::*,
 };
-
-pub const FEEDER1: AccountId = 1;
-pub const FEEDER2: AccountId = 2;
-pub const FEEDER3: AccountId = 3;
-pub const FEEDER4: AccountId = 4;
-pub const FEEDER5: AccountId = 5;
 
 fn create_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
 	let deposit = 10;
 	let data_str = "1";
 	let data_vec = data_str.as_bytes().to_vec();
-	let data: BoundedVec<u8, ConstU32<1000000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+	let data: BoundedVec<u8, ConstU32<5000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+	let vk: BoundedVec<u8, ConstU32<500000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let metadata: BoundedVec<u8, ConstU32<500>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let nzk_data = Some(NzkData {
 		zk_input: data.clone(),
 		zk_settings: data.clone(),
-		zk_verifying_key: data,
+		zk_verifying_key: vk,
 		zk_proof: None,
 		last_proof_accepted: None,
 	});
 
-	let taskInfo = TaskInfo {
+	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
 		metadata,
@@ -49,7 +41,7 @@ fn create_neurozk_task(task_id: TaskId) {
 		task_status: TaskStatusType::Assigned, 
 	};
 
-	pallet_task_management::Tasks::<Test>::insert(task_id, taskInfo)
+	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
 }
 
 fn create_non_neurozk_task(task_id: TaskId) {
@@ -57,17 +49,18 @@ fn create_non_neurozk_task(task_id: TaskId) {
 	let deposit = 10;
 	let data_str = "1";
 	let data_vec = data_str.as_bytes().to_vec();
-	let data: BoundedVec<u8, ConstU32<1000000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+	let data: BoundedVec<u8, ConstU32<5000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
+	let vk: BoundedVec<u8, ConstU32<500000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let metadata: BoundedVec<u8, ConstU32<500>> = BoundedVec::try_from(data_vec.clone()).unwrap();
 	let nzk_data = Some(NzkData {
 		zk_input: data.clone(),
 		zk_settings: data.clone(),
-		zk_verifying_key: data,
+		zk_verifying_key: vk,
 		zk_proof: None,
 		last_proof_accepted: None,
 	});
 
-	let taskInfo = TaskInfo {
+	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
 		metadata,
@@ -81,7 +74,7 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		task_status: TaskStatusType::Assigned, 
 	};
 
-	pallet_task_management::Tasks::<Test>::insert(task_id, taskInfo)
+	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
 }
 
 fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumberFor<Test>>> {
@@ -171,7 +164,7 @@ fn submit_proof_fails_if_already_submitted() {
 		create_neurozk_task(task_id);
 		let proof_str = "1";
 		let proof_vec = proof_str.as_bytes().to_vec();
-		let proof: BoundedVec<u8, ConstU32<1000000>> = BoundedVec::try_from(proof_vec.clone()).unwrap();
+		let proof: BoundedVec<u8, ConstU32<50000>> = BoundedVec::try_from(proof_vec.clone()).unwrap();
 
 		assert_ok!(NeuroZk::request_proof(RuntimeOrigin::signed(1), task_id));
 		assert_ok!(NeuroZk::submit_proof(RuntimeOrigin::signed(2), task_id, proof.clone()));
@@ -191,7 +184,7 @@ fn submit_proof_fails_for_invalid_task_type() {
 
 		let proof_str = "1";
 		let proof_vec = proof_str.as_bytes().to_vec();
-		let proof: BoundedVec<u8, ConstU32<1000000>> = BoundedVec::try_from(proof_vec.clone()).unwrap();
+		let proof: BoundedVec<u8, ConstU32<50000>> = BoundedVec::try_from(proof_vec.clone()).unwrap();
 
 		assert_noop!(
 			NeuroZk::submit_proof(RuntimeOrigin::signed(2), task_id, proof),
