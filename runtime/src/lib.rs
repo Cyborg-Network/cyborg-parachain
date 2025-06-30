@@ -12,6 +12,8 @@ mod benchmarks;
 
 pub mod configs;
 pub mod weights;
+mod oracle_router;
+use oracle_router::OracleRouter;
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -44,8 +46,9 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus},
-	worker::WorkerId,
+	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus, OracleKey, OracleValue},
+	worker::{WorkerId, WorkerType},
+	task::TaskId,
 };
 
 pub use pallet_edge_connect;
@@ -53,6 +56,7 @@ pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
 pub use pallet_zk_verifier;
+pub use pallet_neuro_zk;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -196,19 +200,53 @@ pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
 // on the number of pairs that can be generated.
 #[cfg(feature = "runtime-benchmarks")]
 impl<MaxFeedValues>
-	orml_oracle::BenchmarkHelper<(AccountId, WorkerId), ProcessStatus, MaxFeedValues>
+	orml_oracle::BenchmarkHelper<OracleKey<AccountId>, OracleValue, MaxFeedValues>
 	for BenchmarkHelperImpl<MaxFeedValues>
 where
 	MaxFeedValues: Get<u32>,
 {
 	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
 	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
-	fn get_currency_id_value_pairs(
-	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
-		BenchmarkHelperImpl::status_aggregator_benchmark_data()
+	fn get_currency_id_value_pairs() -> BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> {
+		let mut pairs: BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> =
+			BoundedVec::default();
+
+		let max = MaxFeedValues::get().min(100);
+
+		for seed in 0..max {
+			let account: AccountId = account("oracle", 0, seed);
+			let worker_id: WorkerId = seed as u64;
+
+			// Alternate between Miner and Zk entries
+			if seed % 2 == 0 {
+				// MinerStatus entry
+				let key = OracleKey::Miner(OracleWorkerFormat {
+					id: (account.clone(), worker_id),
+					worker_type: WorkerType::Executable,
+				});
+
+				let value = OracleValue::MinerStatus(ProcessStatus {
+					online: seed % 2 == 0,
+					available: seed % 3 == 0,
+				});
+
+				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+			} else {
+				// ZkProofResult entry
+				let task_id: TaskId = seed as u64;
+
+				let key = OracleKey::NzkProofResult(task_id);
+				let value = OracleValue::ZkProofResult(seed % 3 == 0);
+
+				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+			}
+		}
+
+		pairs
 	}
 }
 
+/*
 #[cfg(feature = "runtime-benchmarks")]
 impl<MaxFeedValues> BenchmarkHelperImpl<MaxFeedValues>
 where
@@ -252,14 +290,15 @@ where
 		pairs
 	}
 }
+*/
 
 impl orml_oracle::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnNewData = StatusAggregator;
+	type OnNewData = OracleRouter;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = OracleWorkerFormat<AccountId>;
-	type OracleValue = ProcessStatus;
+	type OracleKey = OracleKey<Self::AccountId>;
+	type OracleValue = OracleValue;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Members = OracleMembership;
@@ -338,6 +377,14 @@ impl pallet_status_aggregator::Config for Runtime {
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
 	type WorkerInfoHandler = EdgeConnect;
+}
+
+impl pallet_neuro_zk::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_neuro_zk::SubstrateWeight<Runtime>;
+	type AcceptanceThreshold = ConstU8<75>;
+	type AggregateLength = ConstU32<1>;
+	type NzkTaskInfoHandler = TaskManagement;
 }
 
 parameter_types! {
@@ -509,6 +556,9 @@ mod runtime {
 
 	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
+
+	#[runtime::pallet_index(47)]
+	pub type NeuroZk = pallet_neuro_zk;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
