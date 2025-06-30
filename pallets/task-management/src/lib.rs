@@ -213,7 +213,7 @@ pub mod pallet {
 					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 				TaskKind::OpenInference => {
-					WorkerClusters::<T>::contains_key((worker_owner.clone(), worker_id))
+					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 			};
 			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);

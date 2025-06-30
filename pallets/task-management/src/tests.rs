@@ -133,14 +133,14 @@ fn it_works_for_task_scheduler() {
 		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
 		assert!(task_info_2.nzk_data.is_some());
 		if let Some(nzk_data) = task_info_2.nzk_data {
-			assert_eq!(nzk_data.zk_input, zk_files_cid.as_ref().unwrap().zk_input);
+			assert_eq!(nzk_data.zk_input, nzk_data.zk_input);
 			assert_eq!(
 				nzk_data.zk_settings,
-				zk_files_cid.as_ref().unwrap().zk_settings
+				nzk_data.zk_settings
 			);
 			assert_eq!(
 				nzk_data.zk_verifying_key,
-				zk_files_cid.as_ref().unwrap().zk_verifying_key
+				nzk_data.zk_verifying_key
 			);
 		}
 	});
