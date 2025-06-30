@@ -39,4 +39,5 @@ frame_benchmarking::define_benchmarks!(
 	[pallet_task_management, TaskManagement]
 	[pallet_timestamp, Timestamp]
 	[pallet_zk_verifier, ZKVerifier]
+	[pallet_neuro_zk, NeuroZk]
 );

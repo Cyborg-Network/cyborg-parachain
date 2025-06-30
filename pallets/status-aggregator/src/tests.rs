@@ -7,7 +7,6 @@ use crate::{
 
 use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
-use orml_traits::OnNewData;
 
 use cyborg_primitives::{
 	oracle::{OracleWorkerFormat, ProcessStatus},

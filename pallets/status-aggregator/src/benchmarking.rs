@@ -43,10 +43,12 @@ mod benchmarks {
 			let storage: StorageBytes = 100_000_000_000u64;
 			let cpu: CpuCores = 5u16;
 			let domain = get_domain(WORKER_API_DOMAIN1);
+			let worker_type = WorkerType::Docker;
 
 			// Register the worker by calling `register_worker` from the pallet_edge_connect pallet.
 			pallet_edge_connect::Pallet::<T>::register_worker(
 				RawOrigin::Signed(executor.clone()).into(),
+				worker_type,
 				domain,
 				latitude,
 				longitude,
@@ -74,11 +76,16 @@ mod benchmarks {
 					online: i % 2 == 0,
 					available: i % 3 == 0,
 				};
+				 
+				let miner = OracleWorkerFormat {
+					id: (account_id.clone(), worker_id),
+					worker_type: WorkerType::Docker,
+				};
 
 				// Call the `on_new_data` function of the pallet with the generated data.
 				Pallet::<T>::on_new_data(
 					&account_id.clone(),
-					&(account_id.clone(), worker_id),
+					&miner,
 					&process_status,
 				);
 			}

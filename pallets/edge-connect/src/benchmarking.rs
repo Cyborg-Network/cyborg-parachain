@@ -62,13 +62,20 @@ fn set_initial_benchmark_data<T: Config>() {
 			// Get the current block number
 			let blocknumber = <frame_system::Pallet<T>>::block_number();
 
+			let reputation = WorkerReputation {
+				score: 100,
+				last_updated: Some(blocknumber),
+				violations: 0,
+				successful_tasks: 0,
+			};
+
 			// Create a Worker struct with all the required data
 			let worker = Worker {
 				id: worker_id,
 				owner: creator.clone(),
 				location: worker_location.clone(),
 				specs: worker_specs.clone(),
-				reputation: 0,
+				reputation: reputation,
 				start_block: blocknumber,
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber,
@@ -110,6 +117,7 @@ mod benchmarks {
 		{
 			Pallet::<T>::register_worker(
 				RawOrigin::Signed(caller.clone()).into(),
+				WorkerType::Executable,
 				domain,
 				latitude,
 				longitude,
@@ -126,7 +134,7 @@ mod benchmarks {
 		// Match the result of querying the worker from the worker cluster storage.
 		// The key is (T::AccountId, WorkerId), where `caller` is the account and `worker_id` is the ID.
 		let worker_id = 0;
-		match WorkerClusters::<T>::get((caller.clone(), worker_id)) {
+		match ExecutableWorkers::<T>::get((caller.clone(), worker_id)) {
 			Some(worker) => {
 				let id = worker.id;
 				let owner = worker.owner;
@@ -164,6 +172,7 @@ mod benchmarks {
 		// Register the worker under the specified caller with the above configurations.
 		Pallet::<T>::register_worker(
 			RawOrigin::Signed(caller.clone()).into(),
+			WorkerType::Executable,
 			domain,
 			latitude,
 			longitude,
@@ -177,14 +186,14 @@ mod benchmarks {
 		// Benchmark the execution of removing the worker (block of code to measure).
 		#[block]
 		{
-			Pallet::<T>::remove_worker(RawOrigin::Signed(caller.clone()).into(), worker_id)?;
+			Pallet::<T>::remove_worker(RawOrigin::Signed(caller.clone()).into(), WorkerType::Executable, worker_id)?;
 		}
 
 		// Verification code:
 		// Ensure that the worker has been removed from the storage map.
 		// Key used: (T::AccountId, WorkerId)
 		// Retrieve the worker cluster to check if the worker is still present.
-		let worker_cluster = WorkerClusters::<T>::get((caller.clone(), worker_id));
+		let worker_cluster = ExecutableWorkers::<T>::get((caller.clone(), worker_id));
 
 		// Assert that the worker is no longer in the cluster (i.e., must be `None` after deletion).
 		assert!(worker_cluster.is_none(), "Worker not deleted");
