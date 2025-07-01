@@ -111,9 +111,19 @@ pub mod pallet {
 
 	// Add new storage item
 	#[pallet::storage]
-	#[pallet::getter(fn kyc_verifications)]
-	pub type KycVerifications<T: Config> =
+	#[pallet::getter(fn kyc_submissions)]
+	pub type KycSubmissions<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, T::MaxKycHashLength>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn kyc_verifications)]
+	pub type KycVerifications<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		(BoundedVec<u8, T::MaxKycHashLength>, BlockNumberFor<T>),
+		OptionQuery,
+	>;
 
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
@@ -132,10 +142,21 @@ pub mod pallet {
 			idle: RewardRates<BalanceOf<T>>,
 		}, // When admin updates reward rates.
 
-		/// Event emitted when a KYC verification is submitted
+		/// When a user submits KYC documents
+		KycSubmitted {
+			account: T::AccountId,
+			document_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		},
+		/// When KYC is verified
 		KycVerified {
 			account: T::AccountId,
 			verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
+			verified_at: BlockNumberFor<T>,
+		},
+		/// When KYC is rejected
+		KycRejected {
+			account: T::AccountId,
+			reason: BoundedVec<u8, T::MaxKycHashLength>,
 		},
 	}
 
@@ -157,6 +178,10 @@ pub mod pallet {
 		KycHashTooLong,
 		/// KYC verification already exists for this account
 		KycAlreadyVerified,
+		KycAlreadySubmitted,
+		KycNotSubmitted,
+		KycVerificationPending,
+		KycRejected,
 	}
 
 	/// Declare callable extrinsics.
@@ -374,31 +399,75 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Submit KYC verification hash for an account
+		/// Users submit their KYC documents
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc_verification())]
-		pub fn submit_kyc_verification(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc())]
+		pub fn submit_kyc(
+			origin: OriginFor<T>,
+			document_hash: Vec<u8>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			
+			ensure!(
+				!KycSubmissions::<T>::contains_key(&who) && 
+				!KycVerifications::<T>::contains_key(&who),
+				Error::<T>::KycAlreadySubmitted
+			);
+	
+			let bounded_hash = BoundedVec::try_from(document_hash)
+				.map_err(|_| Error::<T>::KycHashTooLong)?;
+	
+			KycSubmissions::<T>::insert(&who, bounded_hash.clone());
+			
+			Self::deposit_event(Event::KycSubmitted {
+				account: who,
+				document_hash: bounded_hash,
+			});
+	
+			Ok(())
+		}
+
+		/// Admin verifies KYC submission
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::verify_kyc())]
+		pub fn verify_kyc(
 			origin: OriginFor<T>,
 			account: T::AccountId,
-			verification_hash: Vec<u8>,
+			approved: bool,
+			verification_hash: Option<Vec<u8>>,
+			rejection_reason: Option<Vec<u8>>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
-			let bounded_hash = BoundedVec::<u8, T::MaxKycHashLength>::try_from(verification_hash)
-				.map_err(|_| Error::<T>::KycHashTooLong)?;
-
-			ensure!(
-				!KycVerifications::<T>::contains_key(&account),
-				Error::<T>::KycAlreadyVerified
-			);
-
-			KycVerifications::<T>::insert(&account, bounded_hash.clone());
-
-			Self::deposit_event(Event::KycVerified {
-				account,
-				verification_hash: bounded_hash,
-			});
-
+			
+			let submission = KycSubmissions::<T>::take(&account)
+				.ok_or(Error::<T>::KycNotSubmitted)?;
+	
+			if approved {
+				let v_hash = verification_hash.unwrap_or(submission.to_vec());
+				let bounded_hash = BoundedVec::try_from(v_hash)
+					.map_err(|_| Error::<T>::KycHashTooLong)?;
+				
+				KycVerifications::<T>::insert(
+					&account, 
+					(bounded_hash.clone(), frame_system::Pallet::<T>::block_number())
+				);
+				
+				Self::deposit_event(Event::KycVerified {
+					account,
+					verification_hash: bounded_hash,
+					verified_at: frame_system::Pallet::<T>::block_number(),
+				});
+			} else {
+				let reason = rejection_reason.unwrap_or_default();
+				let bounded_reason = BoundedVec::try_from(reason)
+					.map_err(|_| Error::<T>::KycHashTooLong)?;
+				
+				Self::deposit_event(Event::KycRejected {
+					account,
+					reason: bounded_reason,
+				});
+			}
+	
 			Ok(())
 		}
 	}

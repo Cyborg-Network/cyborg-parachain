@@ -46,7 +46,8 @@ pub trait WeightInfo {
 	fn record_usage() -> Weight;
 	fn reward_miner() -> Weight;
 	fn distribute_rewards() -> Weight;
-	fn submit_kyc_verification() -> Weight;
+	fn submit_kyc() -> Weight;
+	fn verify_kyc() -> Weight;
 
 }
 
@@ -138,12 +139,17 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
 	
-	fn submit_kyc_verification() -> Weight {
+	fn submit_kyc() -> Weight {
         Weight::from_parts(10_000, 0)
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(1))
     }
 	
+	fn verify_kyc() -> Weight {
+        Weight::from_parts(15_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2)) 
+    }
 
 }
 
@@ -234,9 +240,15 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 	
-	fn submit_kyc_verification() -> Weight {
+	fn submit_kyc() -> Weight {
         Weight::from_parts(10_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+	fn verify_kyc() -> Weight {
+        Weight::from_parts(15_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
+            .saturating_add(RocksDbWeight::get().writes(2_u64)) 
     }
 }
