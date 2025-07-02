@@ -16,12 +16,12 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 pub use cyborg_primitives::{
-	zkml::*,
-	task::{TaskId, NzkTaskInfoHandler, TaskKind, ZkProof},
 	oracle::OracleKey,
+	task::{NzkTaskInfoHandler, TaskId, TaskKind, ZkProof},
+	zkml::*,
 };
-use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::traits::Get;
+use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -35,11 +35,12 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use frame_support::traits::Currency;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_timestamp::Config + pallet_edge_connect::Config
+		frame_system::Config + pallet_timestamp::Config + pallet_edge_connect::Config + pallet_payment::Config
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -56,11 +57,7 @@ pub mod pallet {
 		type AggregateLength: Get<u32>;
 
 		/// Updates Task Status for Task Management
-		type NzkTaskInfoHandler: NzkTaskInfoHandler<
-			Self::AccountId,
-			TaskId,
-			BlockNumberFor<Self>,
-		>;
+		type NzkTaskInfoHandler: NzkTaskInfoHandler<Self::AccountId, TaskId, BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -68,7 +65,8 @@ pub mod pallet {
 
 	/// Keeps track of if a proof is already being processed, so that the user can't request more
 	#[pallet::storage]
-	pub type RequestedProofs<T: Config> = StorageMap<_, Twox64Concat, TaskId, ProofVerificationStage, OptionQuery>;
+	pub type RequestedProofs<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, ProofVerificationStage, OptionQuery>;
 
 	/// Stores the verification results for each neuro-zk task.
 	/// The result is provided by different oracle feeders, and the data is collected and aggregated to calculate
@@ -134,7 +132,7 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// The proof has already been requested and needs to be verified before a new one can be requested.
-		ProofAlreadyRequested,	
+		ProofAlreadyRequested,
 
 		/// The proof has already been submitted and another one cannot be submitted until a new one is requested.
 		ProofAlreadySubmitted,
@@ -154,7 +152,11 @@ pub mod pallet {
 	// can call to interact with the pallet. Each function has a weight and requires the user
 	// to sign the transaction unless specified otherwise.
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		<<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
+			TryFrom<u64>,
+	{
 		/// Requests a nzk proof from the given task
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_proof())]
@@ -168,7 +170,7 @@ pub mod pallet {
 
 			// Check if a proof has already been requested
 			ensure!(
-				!RequestedProofs::<T>::contains_key(&task_id), 
+				!RequestedProofs::<T>::contains_key(&task_id),
 				Error::<T>::ProofAlreadyRequested
 			);
 
@@ -177,7 +179,7 @@ pub mod pallet {
 				match task.task_kind {
 					TaskKind::NeuroZK => {
 						RequestedProofs::<T>::insert(task_id, ProofVerificationStage::Requested);
-					},
+					}
 					_ => {
 						return Err(Error::<T>::InvalidTaskType.into());
 					}
@@ -227,7 +229,7 @@ pub mod pallet {
 						}
 						// Insert the task_id into the RequestedProofs map
 						RequestedProofs::<T>::insert(task_id, ProofVerificationStage::Pending);
-					},
+					}
 					_ => {
 						return Err(Error::<T>::InvalidTaskType.into());
 					}
@@ -251,11 +253,14 @@ pub mod pallet {
 			let current_block = <frame_system::Pallet<T>>::block_number();
 
 			let verification_results = VerificationResultsPerProof::<T>::get(task_id);
-			let accepted_count = verification_results.iter().filter(|r| r.is_accepted).count();
+			let accepted_count = verification_results
+				.iter()
+				.filter(|r| r.is_accepted)
+				.count();
 			let total = verification_results.len();
 			if total == 0 {
 				log::error!(target: "nzk", "No verification results found for task_id: {:?}, cannot finalize verification", task_id);
-				return
+				return;
 			}
 			let accepted_percentage = (accepted_count * 100 / total) as u8;
 
@@ -306,11 +311,7 @@ pub mod pallet {
 		}
 
 		/// Handles new data received from the oracle feeder
-		pub fn on_new_data(
-			who: &T::AccountId,
-			key: &TaskId,
-			value: &bool,
-		) {
+		pub fn on_new_data(who: &T::AccountId, key: &TaskId, value: &bool) {
 			if T::NzkTaskInfoHandler::get_nzk_task(*key).is_none() {
 				log::error!(
 					target: "nzk",
@@ -332,7 +333,7 @@ pub mod pallet {
 
 			VerificationResultsPerProof::<T>::mutate(*key, |results_vec| {
 				let verification_result = VerificationResult {
-					is_accepted: *value,	
+					is_accepted: *value,
 					block: <frame_system::Pallet<T>>::block_number(),
 				};
 

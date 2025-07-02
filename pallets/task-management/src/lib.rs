@@ -19,9 +19,8 @@ use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 
-use pallet_edge_connect::{ExecutableWorkers, WorkerClusters};
-use scale_info::prelude::vec::Vec;
 use pallet_edge_connect::ExecutableWorkers;
+use scale_info::prelude::vec::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -168,7 +167,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 where
     <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
-        From<u64>, {
+        TryFrom<u64>, {
 		/// Creates a new task and assigns it to a randomly selected worker.
 		/// None -> Assigned
 		#[pallet::call_index(0)]
@@ -264,7 +263,7 @@ where
 
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 
-// Consume compute hours from payment pallet
+            // Consume compute hours from payment pallet
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
 
 			// Generate task ID

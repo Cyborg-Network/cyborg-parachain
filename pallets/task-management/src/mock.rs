@@ -44,12 +44,11 @@ mod test_runtime {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-	type Nonce = u64;
 	type Block = MockBlock<Test>;
+	type Nonce = u64;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
 	type AccountData = pallet_balances::AccountData<u128>;
-
 }
 
 impl pallet_task_management::Config for Test {
@@ -63,9 +62,8 @@ impl pallet_edge_connect::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxPaymentIdLength: u32 = 128;
-	pub const ExistentialDeposit: u128 = 10;
-
+		pub const MaxPaymentIdLength: u32 = 128;
+		pub const ExistentialDeposit: u128 = 10;
 }
 
 impl pallet_payment::Config for Test {
@@ -82,27 +80,25 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
-// Build genesis storage according to the mock runtime.
+impl pallet_balances::Config for Test {
+	type Balance = u128;
+	type DustRemoval = ();
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type MaxLocks = ();
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = ();
+	type WeightInfo = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ConstU32<0>;
+}
+
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	GenesisConfig::<Test>::default()
 		.build_storage()
 		.unwrap()
 		.into()
-}
-
-
-impl pallet_balances::Config for Test {
-    type Balance = u128;  // This should match the Balance type in payment pallet
-    type DustRemoval = ();
-    type RuntimeEvent = RuntimeEvent;
-    type ExistentialDeposit = ExistentialDeposit;
-    type AccountStore = System;
-    type MaxLocks = ();
-    type MaxReserves = ConstU32<50>;
-    type ReserveIdentifier = ();
-    type WeightInfo = ();
-    type RuntimeHoldReason = RuntimeHoldReason;
-    type RuntimeFreezeReason = RuntimeFreezeReason;
-    type FreezeIdentifier = ();
-    type MaxFreezes = ConstU32<0>;
 }

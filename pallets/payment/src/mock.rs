@@ -49,11 +49,11 @@ mod test_runtime {
 // Parameters and implementation for frame_system::Config for the Test runtime
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type Block = MockBlock<Test>;
 	type AccountId = AccountId;
 	type AccountData = pallet_balances::AccountData<Balance>;
 	type Lookup = sp_runtime::traits::IdentityLookup<Self::AccountId>;
 	type Nonce = u64;
-	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
 }
@@ -71,13 +71,11 @@ impl pallet_edge_connect::Config for Test {
 	type WeightInfo = ();
 }
 
-// Parameter types for the Balances pallet (defines token properties such as existential deposit)
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 10;
-	pub const MaxPaymentIdLength: u32 = 128;
+		pub const ExistentialDeposit: u128 = 10;
+		pub const MaxPaymentIdLength: u32 = 128;
 }
 
-// Implementation of the Balances pallet's configuration for the Test runtime
 impl pallet_balances::Config for Test {
 	type Balance = u128;
 	type DustRemoval = ();
@@ -106,6 +104,7 @@ impl pallet_timestamp::Config for Test {
 	type MinimumPeriod = ConstU64<0>;
 	type WeightInfo = ();
 }
+
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut storage = GenesisConfig::<Test>::default().build_storage().unwrap();
 
@@ -113,13 +112,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.assimilate_storage(&mut storage)
 		.unwrap();
 
-	// Initialize the Balances pallet with some default values
 	pallet_balances::GenesisConfig::<Test> {
-		balances: vec![
-			(1, 10_000), // Account 1 starts with 10,000 tokens
-			(2, 50_000), // Account 2 (Admin) starts with 50,000 tokens
-			(3, 50_000),
-		],
+		balances: vec![(1, 10_000), (2, 50_000), (3, 50_000)],
 	}
 	.assimilate_storage(&mut storage)
 	.unwrap();

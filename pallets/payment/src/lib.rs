@@ -147,7 +147,7 @@ pub mod pallet {
 		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
-		RemainingHoursQueried(T::AccountId, u32), 
+		RemainingHoursQueried(T::AccountId, u32),
 	}
 
 	/// Custom pallet errors.
@@ -173,7 +173,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 	where
 		<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
-			From<u64>,
+			TryFrom<u64>,
 	{
 		/// Set the account that receives all payments.
 		/// Can only be set by root user
@@ -434,7 +434,10 @@ pub mod pallet {
 			let compute_hours = fiat_amount_cents / 100;
 
 			let native_value = native_per_token
-				.checked_mul(&BalanceOf::<T>::from(fiat_amount_cents / cents_per_token))
+				.checked_mul(
+					&BalanceOf::<T>::try_from(fiat_amount_cents / cents_per_token)
+						.map_err(|_| ArithmeticError::Overflow)?,
+				)
 				.ok_or(ArithmeticError::Overflow)?;
 
 			ComputeHours::<T>::mutate(&account, |hours| *hours += compute_hours as u32);
