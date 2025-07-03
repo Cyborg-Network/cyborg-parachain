@@ -135,8 +135,16 @@ pub mod pallet {
 	// Add new storage item
 	#[pallet::storage]
 	#[pallet::getter(fn kyc_submissions)]
-	pub type KycSubmissions<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, T::MaxKycHashLength>, OptionQuery>;
+	pub type KycSubmissions<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		(
+			BoundedVec<u8, T::MaxKycHashLength>,
+			BoundedVec<u8, T::MaxKycHashLength>,
+		), // (document_hash, user_id)
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn kyc_verifications)]
@@ -144,7 +152,11 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		T::AccountId,
-		(BoundedVec<u8, T::MaxKycHashLength>, BlockNumberFor<T>),
+		(
+			BoundedVec<u8, T::MaxKycHashLength>,
+			BoundedVec<u8, T::MaxKycHashLength>,
+			BlockNumberFor<T>,
+		), // (document_hash, user_id, verified_at)
 		OptionQuery,
 	>;
 
@@ -168,17 +180,20 @@ pub mod pallet {
 		/// When a user submits KYC documents
 		KycSubmitted {
 			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxKycHashLength>,
 			document_hash: BoundedVec<u8, T::MaxKycHashLength>,
 		},
 		/// When KYC is verified
 		KycVerified {
 			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxKycHashLength>,
 			verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
 			verified_at: BlockNumberFor<T>,
 		},
 		/// When KYC is rejected
 		KycRejected {
 			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxKycHashLength>,
 			reason: BoundedVec<u8, T::MaxKycHashLength>,
 		},
 		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
@@ -437,26 +452,30 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc())]
 		pub fn submit_kyc(
 			origin: OriginFor<T>,
+			user_id: Vec<u8>,
 			document_hash: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			
+
 			ensure!(
-				!KycSubmissions::<T>::contains_key(&who) && 
-				!KycVerifications::<T>::contains_key(&who),
+				!KycSubmissions::<T>::contains_key(&who) && !KycVerifications::<T>::contains_key(&who),
 				Error::<T>::KycAlreadySubmitted
 			);
-	
-			let bounded_hash = BoundedVec::try_from(document_hash)
-				.map_err(|_| Error::<T>::KycHashTooLong)?;
-	
-			KycSubmissions::<T>::insert(&who, bounded_hash.clone());
-			
+
+			let bounded_user_id =
+				BoundedVec::try_from(user_id).map_err(|_| Error::<T>::KycHashTooLong)?;
+
+			let bounded_hash =
+				BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
+
+			KycSubmissions::<T>::insert(&who, (bounded_hash.clone(), bounded_user_id.clone()));
+
 			Self::deposit_event(Event::KycSubmitted {
 				account: who,
+				user_id: bounded_user_id,
 				document_hash: bounded_hash,
 			});
-	
+
 			Ok(())
 		}
 
@@ -471,39 +490,44 @@ pub mod pallet {
 			rejection_reason: Option<Vec<u8>>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			
-			let submission = KycSubmissions::<T>::take(&account)
-				.ok_or(Error::<T>::KycNotSubmitted)?;
-		
+
+			let (submission_hash, user_id) = KycSubmissions::<T>::take(&account)
+			.ok_or(Error::<T>::KycNotSubmitted)?;
+	
 			if approved {
-				let v_hash = verification_hash.unwrap_or(submission.to_vec());
-				let bounded_hash = BoundedVec::try_from(v_hash)
-					.map_err(|_| Error::<T>::KycHashTooLong)?;
-				
+				let v_hash = verification_hash.unwrap_or(submission_hash.to_vec());
+				let bounded_hash = BoundedVec::try_from(v_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
+
 				KycVerifications::<T>::insert(
-					&account, 
-					(bounded_hash.clone(), frame_system::Pallet::<T>::block_number())
+					&account,
+					(
+						bounded_hash.clone(),
+						user_id.clone(),
+						frame_system::Pallet::<T>::block_number(),
+					),
 				);
-				
+
 				Self::deposit_event(Event::KycVerified {
 					account,
+					user_id,
 					verification_hash: bounded_hash,
 					verified_at: frame_system::Pallet::<T>::block_number(),
 				});
 				Ok(())
 			} else {
 				let reason = rejection_reason.unwrap_or_default();
-				let bounded_reason = BoundedVec::try_from(reason)
-					.map_err(|_| Error::<T>::KycHashTooLong)?;
-				
+				let bounded_reason =
+					BoundedVec::try_from(reason).map_err(|_| Error::<T>::KycHashTooLong)?;
+
 				Self::deposit_event(Event::KycRejected {
 					account,
+					user_id,
 					reason: bounded_reason,
 				});
 				Ok(())
 			}
 		}
-	
+
 		/// Admin sets the conversion rate between FIAT (cents) and native tokens
 		#[pallet::call_index(11)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_fiat_conversion_rate())]
