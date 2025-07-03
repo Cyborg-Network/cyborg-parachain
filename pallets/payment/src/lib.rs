@@ -27,7 +27,7 @@ pub mod pallet {
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
 		traits::{Currency, ExistenceRequirement},
 	};
-	use scale_info::prelude::vec::Vec;
+	// use scale_info::prelude::vec::Vec;
 	use sp_std::vec::Vec;
 
 	use super::*;
@@ -474,7 +474,7 @@ pub mod pallet {
 			
 			let submission = KycSubmissions::<T>::take(&account)
 				.ok_or(Error::<T>::KycNotSubmitted)?;
-	
+		
 			if approved {
 				let v_hash = verification_hash.unwrap_or(submission.to_vec());
 				let bounded_hash = BoundedVec::try_from(v_hash)
@@ -490,6 +490,7 @@ pub mod pallet {
 					verification_hash: bounded_hash,
 					verified_at: frame_system::Pallet::<T>::block_number(),
 				});
+				Ok(())
 			} else {
 				let reason = rejection_reason.unwrap_or_default();
 				let bounded_reason = BoundedVec::try_from(reason)
@@ -499,10 +500,12 @@ pub mod pallet {
 					account,
 					reason: bounded_reason,
 				});
+				Ok(())
 			}
+		}
 	
 		/// Admin sets the conversion rate between FIAT (cents) and native tokens
-		#[pallet::call_index(9)]
+		#[pallet::call_index(11)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_fiat_conversion_rate())]
 		pub fn set_fiat_conversion_rate(
 			origin: OriginFor<T>,
@@ -520,7 +523,7 @@ pub mod pallet {
 		}
 
 		/// Process a FIAT payment and allocate compute hours
-		#[pallet::call_index(10)]
+		#[pallet::call_index(12)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::process_fiat_payment())]
 		pub fn process_fiat_payment(
 			origin: OriginFor<T>,
@@ -580,7 +583,7 @@ pub mod pallet {
 		}
 
 		/// Create a FIAT payout request for a miner
-		#[pallet::call_index(11)]
+		#[pallet::call_index(13)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_fiat_payout())]
 		pub fn request_fiat_payout(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let miner = ensure_signed(origin)?;
@@ -595,7 +598,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(12)]
+		#[pallet::call_index(14)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_remaining_hours())]
 		pub fn get_remaining_hours(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;

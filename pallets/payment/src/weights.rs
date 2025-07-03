@@ -153,6 +153,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
         Weight::from_parts(15_000, 0)
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(2)) 
+	}
 	fn set_fiat_conversion_rate() -> Weight {
         Weight::from_parts(2_000_000_000, 0)
             .saturating_add(T::DbWeight::get().writes(1_u64))

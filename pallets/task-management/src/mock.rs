@@ -1,11 +1,9 @@
 pub use crate as pallet_task_management;
 use frame_support::traits::ConstU32;
-use frame_support::{derive_impl, weights::constants::RocksDbWeight};
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
-use sp_core::ConstU32;
 use sp_runtime::{traits::ConstU64, BuildStorage};
 
 // Configure a mock runtime to test the pallet.
