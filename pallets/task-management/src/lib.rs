@@ -26,6 +26,7 @@ use scale_info::prelude::vec::Vec;
 pub mod pallet {
 	use super::*;
 	use frame_support::dispatch::PostDispatchInfo;
+	use frame_support::traits::Currency;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_timestamp as timestamp;
@@ -163,7 +164,10 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+where
+    <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
+        TryFrom<u64>, {
 		/// Creates a new task and assigns it to a randomly selected worker.
 		/// None -> Assigned
 		#[pallet::call_index(0)]
@@ -257,7 +261,9 @@ pub mod pallet {
 				}
 			}
 
-			// Consume compute hours from payment pallet
+			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
+
+            // Consume compute hours from payment pallet
 			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
 
 			// Generate task ID

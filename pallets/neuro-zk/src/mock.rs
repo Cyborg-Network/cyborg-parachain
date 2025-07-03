@@ -2,8 +2,8 @@ pub use crate as pallet_neuro_zk;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
-use pallet_task_management;
 use pallet_payment;
+use pallet_task_management;
 use sp_runtime::{
 	traits::{ConstU32, ConstU64, ConstU8},
 	BuildStorage,
@@ -46,18 +46,18 @@ mod test_runtime {
 }
 
 pub type AccountId = u64;
-pub type BlockNumber = u32;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-	type Nonce = u64;
 	type Block = MockBlock<Test>;
+	type Nonce = u64;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
 }
 
 parameter_types! {
-	pub const MaxBlockRangePeriod: BlockNumber = 5u32;
+		pub const MaxBlockRangePeriod: u32 = 5;
+		pub const MaxPaymentIdLength: u32 = 128;
 }
 
 impl pallet_neuro_zk::Config for Test {
@@ -90,6 +90,7 @@ impl pallet_payment::Config for Test {
 	type Currency = ();
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
+	type MaxPaymentIdLength = MaxPaymentIdLength;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -357,6 +357,7 @@ impl pallet_task_management::Config for Runtime {
 
 parameter_types! {
 	pub const MaxKycHashLength: u32 = 64;
+		pub const MaxPaymentIdLength: u32 = 128;
 }
 
 impl pallet_payment::Config for Runtime {
@@ -364,6 +365,7 @@ impl pallet_payment::Config for Runtime {
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 	type MaxKycHashLength = MaxKycHashLength;
+	type MaxPaymentIdLength = MaxPaymentIdLength;
 }
 
 parameter_types! {

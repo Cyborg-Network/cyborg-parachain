@@ -21,6 +21,7 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 log = { workspace = true }
 pallet-edge-connect = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-payment = {workspace = true}
 pallet-timestamp = { workspace = true }
 scale-info = { workspace = true }

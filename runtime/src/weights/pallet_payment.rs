@@ -44,6 +44,11 @@ pub trait WeightInfo {
 	fn submit_kyc() -> Weight;
 	fn verify_kyc() -> Weight;
 
+
+	fn set_fiat_conversion_rate() -> Weight;
+	fn process_fiat_payment() -> Weight;
+	fn request_fiat_payout() -> Weight;
+	fn get_remaining_hours() -> Weight;
 }
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
@@ -143,6 +148,27 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
         Weight::from_parts(15_000, 0)
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(2)) 
+  }
+	fn set_fiat_conversion_rate() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
+
+    fn process_fiat_payment() -> Weight {
+        Weight::from_parts(6_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(3_u64))
+            .saturating_add(T::DbWeight::get().writes(2_u64))
+    }
+
+    fn request_fiat_payout() -> Weight {
+        Weight::from_parts(3_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1_u64))
+            .saturating_add(T::DbWeight::get().writes(1_u64))
+    }
+
+	fn get_remaining_hours() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1_u64))
     }
 }
 
@@ -212,6 +238,20 @@ impl WeightInfo for () {
 
 	fn submit_kyc() -> Weight {
         Weight::from_parts(10_000, 0)
+  }
+	fn set_fiat_conversion_rate() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().writes(1_u64))
+    }
+
+    fn process_fiat_payment() -> Weight {
+        Weight::from_parts(6_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(3_u64))
+            .saturating_add(RocksDbWeight::get().writes(2_u64))
+    }
+
+    fn request_fiat_payout() -> Weight {
+        Weight::from_parts(3_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
@@ -220,5 +260,9 @@ impl WeightInfo for () {
         Weight::from_parts(15_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(2_u64)) 
+  }
+	fn get_remaining_hours() -> Weight {
+        Weight::from_parts(2_000_000_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
     }
 }
