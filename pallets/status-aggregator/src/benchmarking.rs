@@ -76,18 +76,14 @@ mod benchmarks {
 					online: i % 2 == 0,
 					available: i % 3 == 0,
 				};
-				 
+
 				let miner = OracleWorkerFormat {
 					id: (account_id.clone(), worker_id),
 					worker_type: WorkerType::Docker,
 				};
 
 				// Call the `on_new_data` function of the pallet with the generated data.
-				Pallet::<T>::on_new_data(
-					&account_id.clone(),
-					&miner,
-					&process_status,
-				);
+				Pallet::<T>::on_new_data(&account_id.clone(), &miner, &process_status);
 			}
 		}
 

@@ -220,96 +220,80 @@ mod benchmarks {
 		Ok(())
 	}
 
-  #[benchmark]
-    fn stop_task_and_vacate_miner<T: Config>() -> Result<(), BenchmarkError> {
+	#[benchmark]
+	fn stop_task_and_vacate_miner<T: Config>() -> Result<(), BenchmarkError> {
 		set_initial_benchmark_data::<T>();
 		let caller: T::AccountId = whitelisted_caller();
 
-        pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
-        let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-        Pallet::<T>::task_scheduler(
-            RawOrigin::Signed(caller.clone()).into(),
-            TaskKind::OpenInference,
-            task_data.clone(),
-            None,
-            caller.clone(),
-            1,
-            Some(5),
-        )?;
-        let task_id = NextTaskId::<T>::get() - 1;
+		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
+		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			TaskKind::OpenInference,
+			task_data.clone(),
+			None,
+			caller.clone(),
+			1,
+			Some(5),
+		)?;
+		let task_id = NextTaskId::<T>::get() - 1;
 
-        Pallet::<T>::confirm_task_reception(
-            RawOrigin::Signed(caller.clone()).into(),
-            task_id,
-        )?;
+		Pallet::<T>::confirm_task_reception(RawOrigin::Signed(caller.clone()).into(), task_id)?;
 
-        #[block]
-        {
-            Pallet::<T>::stop_task_and_vacate_miner(
-                RawOrigin::Signed(caller.clone()).into(),
-                task_id,
-            )?;
-        }
+		#[block]
+		{
+			Pallet::<T>::stop_task_and_vacate_miner(RawOrigin::Signed(caller.clone()).into(), task_id)?;
+		}
 
-        assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Stopped));
-        assert!(ComputeAggregations::<T>::get(task_id).and_then(|(_, e)| e).is_some());
-        Ok(())
-    }
+		assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Stopped));
+		assert!(ComputeAggregations::<T>::get(task_id)
+			.and_then(|(_, e)| e)
+			.is_some());
+		Ok(())
+	}
 
-    #[benchmark]
-    fn confirm_miner_vacation<T: Config>() -> Result<(), BenchmarkError> {
+	#[benchmark]
+	fn confirm_miner_vacation<T: Config>() -> Result<(), BenchmarkError> {
 		set_initial_benchmark_data::<T>();
 		let caller: T::AccountId = whitelisted_caller();
 
-        pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
-        let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
-        Pallet::<T>::task_scheduler(
-            RawOrigin::Signed(caller.clone()).into(),
-            TaskKind::OpenInference,
-            task_data.clone(),
-            None,
-            caller.clone(),
-            1,
-            Some(5),
-        )?;
-        let task_id = NextTaskId::<T>::get() - 1;
+		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 100);
+		let task_data = get_taskdata(DOCKER_IMAGE_TESTDATA);
+		Pallet::<T>::task_scheduler(
+			RawOrigin::Signed(caller.clone()).into(),
+			TaskKind::OpenInference,
+			task_data.clone(),
+			None,
+			caller.clone(),
+			1,
+			Some(5),
+		)?;
+		let task_id = NextTaskId::<T>::get() - 1;
 
-        Pallet::<T>::confirm_task_reception(
-            RawOrigin::Signed(caller.clone()).into(),
-            task_id,
-        )?;
-        Pallet::<T>::stop_task_and_vacate_miner(
-            RawOrigin::Signed(caller.clone()).into(),
-            task_id,
-        )?;
+		Pallet::<T>::confirm_task_reception(RawOrigin::Signed(caller.clone()).into(), task_id)?;
+		Pallet::<T>::stop_task_and_vacate_miner(RawOrigin::Signed(caller.clone()).into(), task_id)?;
 
-        #[block]
-        {
-            Pallet::<T>::confirm_miner_vacation(
-                RawOrigin::Signed(caller.clone()).into(),
-                task_id,
-            )?;
-        }
+		#[block]
+		{
+			Pallet::<T>::confirm_miner_vacation(RawOrigin::Signed(caller.clone()).into(), task_id)?;
+		}
 
-        assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Vacated));
-        Ok(())
-    }
+		assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Vacated));
+		Ok(())
+	}
 
-    #[benchmark]
-    fn set_gatekeeper<T: Config>() -> Result<(), BenchmarkError> {
-        let caller: T::AccountId = whitelisted_caller();
+	#[benchmark]
+	fn set_gatekeeper<T: Config>() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
 
-        #[block]
-        {
-            Pallet::<T>::set_gatekeeper(
-                RawOrigin::Root.into(),
-                caller.clone(),
-            )?;
-        }
+		#[block]
+		{
+			Pallet::<T>::set_gatekeeper(RawOrigin::Root.into(), caller.clone())?;
+		}
 
-        assert_eq!(GatekeeperAccount::<T>::get(), Some(caller));
-        Ok(())
-    }	
+		assert_eq!(GatekeeperAccount::<T>::get(), Some(caller));
+		Ok(())
+	}
 
 	// Defines the benchmark test suite, linking it to the pallet and mock runtime
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);

@@ -186,7 +186,11 @@ mod benchmarks {
 		// Benchmark the execution of removing the worker (block of code to measure).
 		#[block]
 		{
-			Pallet::<T>::remove_worker(RawOrigin::Signed(caller.clone()).into(), WorkerType::Executable, worker_id)?;
+			Pallet::<T>::remove_worker(
+				RawOrigin::Signed(caller.clone()).into(),
+				WorkerType::Executable,
+				worker_id,
+			)?;
 		}
 
 		// Verification code:

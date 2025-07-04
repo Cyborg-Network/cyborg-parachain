@@ -27,31 +27,10 @@ pub mod pallet {
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
 		traits::{Currency, ExistenceRequirement},
 	};
-	// use scale_info::prelude::vec::Vec;
 	use sp_std::vec::Vec;
 
 	use super::*;
 
-	// 	#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-	// pub enum KycStatus<BlockNumber> {
-	//     Pending,
-	//     Verified {
-	//         verification_hash: BoundedVec<u8, Self::MaxKycHashLength>,
-	//         verified_at: BlockNumber,
-	//     },
-	//     Rejected {
-	//         reason: BoundedVec<u8, Self::MaxKycHashLength>,
-	//     },
-	// }
-
-	// #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-	// pub struct UserInfo<T: Config> {
-	//     user_id: BoundedVec<u8, T::MaxUserIdLength>,
-	//     document_hash: BoundedVec<u8, T::MaxKycHashLength>,
-	//     status: KycStatus<BlockNumberFor<T>>,
-	// }
-
-	// Add this near the top of the pallet module
 	#[derive(Encode, Decode, RuntimeDebug, PartialEq, TypeInfo, MaxEncodedLen)]
 	pub enum VerificationStatus<BlockNumber> {
 		Pending,
@@ -497,10 +476,11 @@ pub mod pallet {
 			document_hash: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-		
+
 			let bounded_user_id = BoundedVec::try_from(user_id).map_err(|_| Error::<T>::UserIdTooLong)?;
-			let bounded_hash = BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
-		
+			let bounded_hash =
+				BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
+
 			// Check if user already exists
 			if let Some(user_info) = Users::<T>::get(&who) {
 				match user_info.status {
@@ -525,13 +505,13 @@ pub mod pallet {
 				};
 				Users::<T>::insert(&who, user_info);
 			}
-		
+
 			Self::deposit_event(Event::KycSubmitted {
 				account: who,
 				user_id: bounded_user_id,
 				document_hash: bounded_hash,
 			});
-		
+
 			Ok(())
 		}
 
@@ -544,13 +524,13 @@ pub mod pallet {
 			approved: bool,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-		
+
 			let mut user_info = Users::<T>::get(&account).ok_or(Error::<T>::KycNotSubmitted)?;
-			
+
 			if approved {
 				user_info.status = VerificationStatus::Verified(frame_system::Pallet::<T>::block_number());
 				Users::<T>::insert(&account, &user_info);
-				
+
 				Self::deposit_event(Event::KycVerified {
 					account,
 					user_id: user_info.user_id.clone(),
@@ -559,13 +539,13 @@ pub mod pallet {
 			} else {
 				user_info.status = VerificationStatus::Rejected;
 				Users::<T>::insert(&account, &user_info);
-				
+
 				Self::deposit_event(Event::KycRejected {
 					account,
 					user_id: user_info.user_id.clone(),
 				});
 			}
-			
+
 			Ok(())
 		}
 
