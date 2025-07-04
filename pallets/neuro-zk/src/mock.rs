@@ -58,6 +58,7 @@ impl frame_system::Config for Test {
 parameter_types! {
 		pub const MaxBlockRangePeriod: u32 = 5;
 		pub const MaxPaymentIdLength: u32 = 128;
+		pub const MaxUserIdLength: u32 = 128;
 }
 
 impl pallet_neuro_zk::Config for Test {
@@ -91,6 +92,7 @@ impl pallet_payment::Config for Test {
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
+	type MaxUserIdLength = MaxUserIdLength;
 }
 
 // Build genesis storage according to the mock runtime.

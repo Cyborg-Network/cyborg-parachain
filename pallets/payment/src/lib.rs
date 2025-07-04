@@ -32,6 +32,60 @@ pub mod pallet {
 
 	use super::*;
 
+	// 	#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+	// pub enum KycStatus<BlockNumber> {
+	//     Pending,
+	//     Verified {
+	//         verification_hash: BoundedVec<u8, Self::MaxKycHashLength>,
+	//         verified_at: BlockNumber,
+	//     },
+	//     Rejected {
+	//         reason: BoundedVec<u8, Self::MaxKycHashLength>,
+	//     },
+	// }
+
+	// #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+	// pub struct UserInfo<T: Config> {
+	//     user_id: BoundedVec<u8, T::MaxUserIdLength>,
+	//     document_hash: BoundedVec<u8, T::MaxKycHashLength>,
+	//     status: KycStatus<BlockNumberFor<T>>,
+	// }
+
+	// Add this near the top of the pallet module
+	#[derive(Encode, Decode, RuntimeDebug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub enum VerificationStatus<BlockNumber> {
+		Pending,
+		Verified(BlockNumber),
+		Rejected,
+	}
+
+	#[derive(Encode, Decode, RuntimeDebug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct UserInfo<T: Config> {
+		user_id: BoundedVec<u8, T::MaxUserIdLength>,
+		document_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		status: VerificationStatus<BlockNumberFor<T>>,
+	}
+
+	impl<T: Config> Clone for UserInfo<T> {
+		fn clone(&self) -> Self {
+			Self {
+				user_id: self.user_id.clone(),
+				document_hash: self.document_hash.clone(),
+				status: self.status.clone(),
+			}
+		}
+	}
+
+	impl<BlockNumber: Clone> Clone for VerificationStatus<BlockNumber> {
+		fn clone(&self) -> Self {
+			match self {
+				VerificationStatus::Pending => VerificationStatus::Pending,
+				VerificationStatus::Verified(block_num) => VerificationStatus::Verified(block_num.clone()),
+				VerificationStatus::Rejected => VerificationStatus::Rejected,
+			}
+		}
+	}
+
 	/// Type alias to simplify balance-related operations.
 	/// This maps the `Balance` type based on the associated `Currency` in the runtime config.
 	pub type BalanceOf<T> =
@@ -41,7 +95,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
+	pub trait Config:
+		frame_system::Config + pallet_edge_connect::Config + scale_info::TypeInfo
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -73,6 +129,11 @@ pub mod pallet {
 		/// Maximum length for KYC verification hash
 		#[pallet::constant]
 		type MaxKycHashLength: Get<u32>;
+
+		/// Maximum length for user IDs
+		#[pallet::constant]
+		type MaxUserIdLength: Get<u32>;
+
 		/// Maximum length for payment IDs
 		#[pallet::constant]
 		type MaxPaymentIdLength: Get<u32>;
@@ -87,6 +148,12 @@ pub mod pallet {
 		T::AccountId,
 		OptionQuery,
 	>;
+
+	/// Storage for all user KYC information
+	#[pallet::storage]
+	#[pallet::getter(fn users)]
+	pub type Users<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, UserInfo<T>, OptionQuery>;
 
 	/// Storage for pending FIAT payouts to miners
 	#[pallet::storage]
@@ -132,34 +199,6 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
-	// Add new storage item
-	#[pallet::storage]
-	#[pallet::getter(fn kyc_submissions)]
-	pub type KycSubmissions<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		(
-			BoundedVec<u8, T::MaxKycHashLength>,
-			BoundedVec<u8, T::MaxKycHashLength>,
-		), // (document_hash, user_id)
-		OptionQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn kyc_verifications)]
-	pub type KycVerifications<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		(
-			BoundedVec<u8, T::MaxKycHashLength>,
-			BoundedVec<u8, T::MaxKycHashLength>,
-			BlockNumberFor<T>,
-		), // (document_hash, user_id, verified_at)
-		OptionQuery,
-	>;
-
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -180,21 +219,21 @@ pub mod pallet {
 		/// When a user submits KYC documents
 		KycSubmitted {
 			account: T::AccountId,
-			user_id: BoundedVec<u8, T::MaxKycHashLength>,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
 			document_hash: BoundedVec<u8, T::MaxKycHashLength>,
 		},
 		/// When KYC is verified
 		KycVerified {
 			account: T::AccountId,
-			user_id: BoundedVec<u8, T::MaxKycHashLength>,
-			verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
+			// verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
 			verified_at: BlockNumberFor<T>,
 		},
 		/// When KYC is rejected
 		KycRejected {
 			account: T::AccountId,
-			user_id: BoundedVec<u8, T::MaxKycHashLength>,
-			reason: BoundedVec<u8, T::MaxKycHashLength>,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
+			// reason: BoundedVec<u8, T::MaxKycHashLength>,
 		},
 		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
@@ -220,9 +259,11 @@ pub mod pallet {
 		KycHashTooLong,
 		/// KYC verification already exists for this account
 		KycAlreadyVerified,
-		KycAlreadySubmitted,
+		/// User ID is too long
+		UserIdTooLong,
 		KycNotSubmitted,
 		KycVerificationPending,
+		/// Rejection reason is too long
 		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
@@ -456,26 +497,41 @@ pub mod pallet {
 			document_hash: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-
-			ensure!(
-				!KycSubmissions::<T>::contains_key(&who) && !KycVerifications::<T>::contains_key(&who),
-				Error::<T>::KycAlreadySubmitted
-			);
-
-			let bounded_user_id =
-				BoundedVec::try_from(user_id).map_err(|_| Error::<T>::KycHashTooLong)?;
-
-			let bounded_hash =
-				BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
-
-			KycSubmissions::<T>::insert(&who, (bounded_hash.clone(), bounded_user_id.clone()));
-
+		
+			let bounded_user_id = BoundedVec::try_from(user_id).map_err(|_| Error::<T>::UserIdTooLong)?;
+			let bounded_hash = BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
+		
+			// Check if user already exists
+			if let Some(user_info) = Users::<T>::get(&who) {
+				match user_info.status {
+					VerificationStatus::Verified(_) => return Err(Error::<T>::KycAlreadyVerified.into()),
+					VerificationStatus::Pending => return Err(Error::<T>::KycVerificationPending.into()),
+					VerificationStatus::Rejected => {
+						// Allow resubmission if previously rejected
+						let new_user_info = UserInfo {
+							user_id: bounded_user_id.clone(),
+							document_hash: bounded_hash.clone(),
+							status: VerificationStatus::Pending,
+						};
+						Users::<T>::insert(&who, new_user_info);
+					}
+				}
+			} else {
+				// New submission
+				let user_info = UserInfo {
+					user_id: bounded_user_id.clone(),
+					document_hash: bounded_hash.clone(),
+					status: VerificationStatus::Pending,
+				};
+				Users::<T>::insert(&who, user_info);
+			}
+		
 			Self::deposit_event(Event::KycSubmitted {
 				account: who,
 				user_id: bounded_user_id,
 				document_hash: bounded_hash,
 			});
-
+		
 			Ok(())
 		}
 
@@ -486,46 +542,31 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			account: T::AccountId,
 			approved: bool,
-			verification_hash: Option<Vec<u8>>,
-			rejection_reason: Option<Vec<u8>>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
-			let (submission_hash, user_id) = KycSubmissions::<T>::take(&account)
-			.ok_or(Error::<T>::KycNotSubmitted)?;
-	
+		
+			let mut user_info = Users::<T>::get(&account).ok_or(Error::<T>::KycNotSubmitted)?;
+			
 			if approved {
-				let v_hash = verification_hash.unwrap_or(submission_hash.to_vec());
-				let bounded_hash = BoundedVec::try_from(v_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
-
-				KycVerifications::<T>::insert(
-					&account,
-					(
-						bounded_hash.clone(),
-						user_id.clone(),
-						frame_system::Pallet::<T>::block_number(),
-					),
-				);
-
+				user_info.status = VerificationStatus::Verified(frame_system::Pallet::<T>::block_number());
+				Users::<T>::insert(&account, &user_info);
+				
 				Self::deposit_event(Event::KycVerified {
 					account,
-					user_id,
-					verification_hash: bounded_hash,
+					user_id: user_info.user_id.clone(),
 					verified_at: frame_system::Pallet::<T>::block_number(),
 				});
-				Ok(())
 			} else {
-				let reason = rejection_reason.unwrap_or_default();
-				let bounded_reason =
-					BoundedVec::try_from(reason).map_err(|_| Error::<T>::KycHashTooLong)?;
-
+				user_info.status = VerificationStatus::Rejected;
+				Users::<T>::insert(&account, &user_info);
+				
 				Self::deposit_event(Event::KycRejected {
 					account,
-					user_id,
-					reason: bounded_reason,
+					user_id: user_info.user_id.clone(),
 				});
-				Ok(())
 			}
+			
+			Ok(())
 		}
 
 		/// Admin sets the conversion rate between FIAT (cents) and native tokens

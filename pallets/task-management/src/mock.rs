@@ -64,6 +64,7 @@ impl pallet_edge_connect::Config for Test {
 parameter_types! {
 		pub const MaxPaymentIdLength: u32 = 128;
 		pub const ExistentialDeposit: u128 = 10;
+		pub const MaxUserIdLength: u32 = 128;
 }
 
 impl pallet_payment::Config for Test {
@@ -72,6 +73,7 @@ impl pallet_payment::Config for Test {
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
+	type MaxUserIdLength = MaxUserIdLength;
 }
 
 impl pallet_timestamp::Config for Test {
