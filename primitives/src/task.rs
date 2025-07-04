@@ -32,7 +32,7 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_owner: AccountId,                   // Who scheduled the task.
 	pub create_block: BlockNumber,               // Block when created.
 	pub metadata: BoundedVec<u8, ConstU32<500>>, // Could be model link, executable link, etc.
-	pub nzk_data: Option<NzkData<BlockNumber>>, // Optional: NZK data if task is NZK.
+	pub nzk_data: Option<NzkData<BlockNumber>>,  // Optional: NZK data if task is NZK.
 	pub time_elapsed: Option<BlockNumber>,       // Time consumed.
 	pub average_cpu_percentage_use: Option<u8>,  // CPU usage.
 	pub task_kind: TaskKind,                     // New: Logical kind (NeuroZK or OpenInference).
@@ -77,11 +77,6 @@ pub struct NzkData<BlockNumber> {
 // }
 
 pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber> {
-	fn get_nzk_task(
-		task_id: TaskId,
-	) -> Option<TaskInfo<AccountId, BlockNumber>>;
-	fn update_nzk_task(
-		task_id: TaskId,
-		task: TaskInfo<AccountId, BlockNumber>,
-	);
+	fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumber>>;
+	fn update_nzk_task(task_id: TaskId, task: TaskInfo<AccountId, BlockNumber>);
 }

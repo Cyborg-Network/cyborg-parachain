@@ -29,13 +29,13 @@ pub mod pallet_balances;
 pub mod pallet_collator_selection;
 pub mod pallet_edge_connect;
 pub mod pallet_message_queue;
+pub mod pallet_neuro_zk;
 pub mod pallet_payment;
 pub mod pallet_session;
 pub mod pallet_status_aggregator;
 pub mod pallet_sudo;
 pub mod pallet_task_management;
 pub mod pallet_timestamp;
-pub mod pallet_neuro_zk;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;

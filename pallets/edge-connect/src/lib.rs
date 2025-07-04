@@ -229,11 +229,11 @@ pub mod pallet {
 								// Check if the API matches and throw an error if it does
 								if api == worker.api {
 									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered { 
+									Self::deposit_event(Event::WorkerAlreadyRegistered {
 										creator: creator.clone(),
 										worker: (creator.clone(), worker.id),
 										domain: worker.api.domain,
-									});	
+									});
 									return Err(Error::<T>::WorkerExists.into());
 								}
 							}
@@ -243,11 +243,11 @@ pub mod pallet {
 								// Check if the API matches and throw an error if it does
 								if api == worker.api {
 									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered { 
+									Self::deposit_event(Event::WorkerAlreadyRegistered {
 										creator: creator.clone(),
 										worker: (creator.clone(), worker.id),
 										domain: worker.api.domain,
-									});		
+									});
 									return Err(Error::<T>::WorkerExists.into());
 								}
 							}

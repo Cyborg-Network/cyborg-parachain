@@ -11,8 +11,8 @@ pub mod apis;
 mod benchmarks;
 
 pub mod configs;
-pub mod weights;
 mod oracle_router;
+pub mod weights;
 use oracle_router::OracleRouter;
 
 use smallvec::smallvec;
@@ -46,17 +46,17 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, OracleWorkerFormat, ProcessStatus, OracleKey, OracleValue},
-	worker::{WorkerId, WorkerType},
+	oracle::{DummyCombineData, OracleKey, OracleValue, OracleWorkerFormat, ProcessStatus},
 	task::TaskId,
+	worker::{WorkerId, WorkerType},
 };
 
 pub use pallet_edge_connect;
+pub use pallet_neuro_zk;
 pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
 pub use pallet_zk_verifier;
-pub use pallet_neuro_zk;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -199,15 +199,15 @@ pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
 // and the value being ProcessStatus. MaxFeedValues is a type constant that defines the upper limit
 // on the number of pairs that can be generated.
 #[cfg(feature = "runtime-benchmarks")]
-impl<MaxFeedValues>
-	orml_oracle::BenchmarkHelper<OracleKey<AccountId>, OracleValue, MaxFeedValues>
+impl<MaxFeedValues> orml_oracle::BenchmarkHelper<OracleKey<AccountId>, OracleValue, MaxFeedValues>
 	for BenchmarkHelperImpl<MaxFeedValues>
 where
 	MaxFeedValues: Get<u32>,
 {
 	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
 	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
-	fn get_currency_id_value_pairs() -> BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> {
+	fn get_currency_id_value_pairs() -> BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues>
+	{
 		let mut pairs: BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> =
 			BoundedVec::default();
 
@@ -230,7 +230,9 @@ where
 					available: seed % 3 == 0,
 				});
 
-				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+				pairs
+					.try_push((key, value))
+					.expect("Exceeded MaxFeedValues");
 			} else {
 				// ZkProofResult entry
 				let task_id: TaskId = seed as u64;
@@ -238,7 +240,9 @@ where
 				let key = OracleKey::NzkProofResult(task_id);
 				let value = OracleValue::ZkProofResult(seed % 3 == 0);
 
-				pairs.try_push((key, value)).expect("Exceeded MaxFeedValues");
+				pairs
+					.try_push((key, value))
+					.expect("Exceeded MaxFeedValues");
 			}
 		}
 
@@ -356,14 +360,18 @@ impl pallet_task_management::Config for Runtime {
 }
 
 parameter_types! {
-		pub const MaxPaymentIdLength: u32 = 128;
+	pub const MaxKycHashLength: u32 = 64;
+	pub const MaxPaymentIdLength: u32 = 128;
+	pub const MaxUserIdLength: u32 = 128;
 }
 
 impl pallet_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
+	type MaxKycHashLength = MaxKycHashLength;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
+	type MaxUserIdLength = MaxUserIdLength;
 }
 
 parameter_types! {

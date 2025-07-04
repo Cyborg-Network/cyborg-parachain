@@ -52,9 +52,7 @@ fn it_works_for_task_scheduler() {
 		));
 
 		// Verify workers are registered
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((
-			executor, 0
-		)));
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
 		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
 
 		let task_kind_neurozk = TaskKind::NeuroZK;
@@ -70,13 +68,16 @@ fn it_works_for_task_scheduler() {
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
 
 		// nzk_data only required for NeuroZK
-		let nzk_data = Some(
-			NeuroZkTaskSubmissionDetails {
-				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),	
-			}
-		);
+		let nzk_data = Some(NeuroZkTaskSubmissionDetails {
+			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+				.unwrap(),
+			zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+				.unwrap(),
+			zk_verifying_key: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+		});
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Executable Task (valid)
@@ -133,14 +134,8 @@ fn it_works_for_task_scheduler() {
 		assert!(task_info_2.nzk_data.is_some());
 		if let Some(nzk_data) = task_info_2.nzk_data {
 			assert_eq!(nzk_data.zk_input, nzk_data.zk_input);
-			assert_eq!(
-				nzk_data.zk_settings,
-				nzk_data.zk_settings
-			);
-			assert_eq!(
-				nzk_data.zk_verifying_key,
-				nzk_data.zk_verifying_key
-			);
+			assert_eq!(nzk_data.zk_settings, nzk_data.zk_settings);
+			assert_eq!(nzk_data.zk_verifying_key, nzk_data.zk_verifying_key);
 		}
 	});
 }
@@ -164,15 +159,18 @@ fn it_fails_when_worker_not_registered() {
 
 		// Create task data and nzk_data
 		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-    
+
 		// nzk_data only required for NeuroZK
-		let nzk_data = Some(
-			NeuroZkTaskSubmissionDetails {
-				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),	
-			}
-		);
+		let nzk_data = Some(NeuroZkTaskSubmissionDetails {
+			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+				.unwrap(),
+			zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+				.unwrap(),
+			zk_verifying_key: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+		});
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);

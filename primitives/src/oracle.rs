@@ -1,5 +1,5 @@
-use crate::worker::{WorkerId, WorkerType};
 use crate::task::TaskId;
+use crate::worker::{WorkerId, WorkerType};
 use frame_support::{pallet_prelude::*, traits::Time};
 use orml_oracle::Config;
 use orml_traits;
@@ -37,17 +37,21 @@ pub struct ProcessStatus {
 	// TaskResultHash: Option<H256>,
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord)]
+#[derive(
+	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord,
+)]
 pub enum OracleKey<AccountId> {
 	Miner(OracleWorkerFormat<AccountId>),
 	NzkProofResult(TaskId),
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord)]
+#[derive(
+	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord,
+)]
 pub enum OracleValue {
-    MinerStatus(ProcessStatus),
-    ZkProofResult(bool),
-}				
+	MinerStatus(ProcessStatus),
+	ZkProofResult(bool),
+}
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo, PartialOrd, Ord)]
 pub struct OracleWorkerFormat<AccoundId> {
@@ -65,15 +69,12 @@ pub enum ProcessId {
 	Process(u64, MachineId),
 }
 
-pub type TimestampedValue<T, I = ()> = orml_oracle::TimestampedValue<
-	OracleValue,
-	<<T as orml_oracle::Config<I>>::Time as Time>::Moment,
->;
+pub type TimestampedValue<T, I = ()> =
+	orml_oracle::TimestampedValue<OracleValue, <<T as orml_oracle::Config<I>>::Time as Time>::Moment>;
 
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);
-impl<T: Config<I>, I>
-	orml_traits::CombineData<OracleKey<T::AccountId>, TimestampedValue<T, I>>
+impl<T: Config<I>, I> orml_traits::CombineData<OracleKey<T::AccountId>, TimestampedValue<T, I>>
 	for DummyCombineData<T, I>
 where
 	<T as Config<I>>::Time: frame_support::traits::Time,

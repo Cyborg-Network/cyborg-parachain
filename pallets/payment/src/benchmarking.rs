@@ -23,10 +23,12 @@ mod benchmarks {
 			for i in 1u32..500 {
 				// Set the price for compute hours in each iteration.
 				let new_dummy_price = i;
-				Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_dummy_price.into()).unwrap();
+				Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_dummy_price.into())
+					.unwrap();
 			}
 			// Set the final price for compute hours.
-			Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_price.clone()).unwrap();
+			Pallet::<T>::set_subscription_fee_per_hour(RawOrigin::Root.into(), new_price.clone())
+				.unwrap();
 		}
 
 		// Verification code:
@@ -98,8 +100,7 @@ mod benchmarks {
 		{
 			// Loop to simulate multiple compute hour purchase operations.
 			for _i in 1u32..501 {
-				Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 10u32)
-					.unwrap();
+				Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 10u32).unwrap();
 			}
 		}
 
@@ -149,8 +150,7 @@ mod benchmarks {
 		);
 
 		// Set up initial purchase computer hours
-		Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 5_000u32)
-			.unwrap();
+		Pallet::<T>::subscribe(RawOrigin::Signed(caller.clone()).into(), 5_000u32).unwrap();
 		assert_eq!(ComputeHours::<T>::get(&caller), 5_000u32);
 
 		// Start a benchmarking block for purchasing compute hours.

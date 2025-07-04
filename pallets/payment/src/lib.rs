@@ -31,6 +31,40 @@ pub mod pallet {
 
 	use super::*;
 
+	#[derive(Encode, Decode, RuntimeDebug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub enum VerificationStatus<BlockNumber> {
+		Pending,
+		Verified(BlockNumber),
+		Rejected,
+	}
+
+	#[derive(Encode, Decode, RuntimeDebug, PartialEq, TypeInfo, MaxEncodedLen)]
+	pub struct UserInfo<T: Config> {
+		user_id: BoundedVec<u8, T::MaxUserIdLength>,
+		document_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		status: VerificationStatus<BlockNumberFor<T>>,
+	}
+
+	impl<T: Config> Clone for UserInfo<T> {
+		fn clone(&self) -> Self {
+			Self {
+				user_id: self.user_id.clone(),
+				document_hash: self.document_hash.clone(),
+				status: self.status.clone(),
+			}
+		}
+	}
+
+	impl<BlockNumber: Clone> Clone for VerificationStatus<BlockNumber> {
+		fn clone(&self) -> Self {
+			match self {
+				VerificationStatus::Pending => VerificationStatus::Pending,
+				VerificationStatus::Verified(block_num) => VerificationStatus::Verified(block_num.clone()),
+				VerificationStatus::Rejected => VerificationStatus::Rejected,
+			}
+		}
+	}
+
 	/// Type alias to simplify balance-related operations.
 	/// This maps the `Balance` type based on the associated `Currency` in the runtime config.
 	pub type BalanceOf<T> =
@@ -40,7 +74,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_edge_connect::Config {
+	pub trait Config:
+		frame_system::Config + pallet_edge_connect::Config + scale_info::TypeInfo
+	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -69,6 +105,14 @@ pub mod pallet {
 		// #[pallet::constant]
 		// type ConductorAccount: Get<Self::AccountId>;
 
+		/// Maximum length for KYC verification hash
+		#[pallet::constant]
+		type MaxKycHashLength: Get<u32>;
+
+		/// Maximum length for user IDs
+		#[pallet::constant]
+		type MaxUserIdLength: Get<u32>;
+
 		/// Maximum length for payment IDs
 		#[pallet::constant]
 		type MaxPaymentIdLength: Get<u32>;
@@ -83,6 +127,12 @@ pub mod pallet {
 		T::AccountId,
 		OptionQuery,
 	>;
+
+	/// Storage for all user KYC information
+	#[pallet::storage]
+	#[pallet::getter(fn users)]
+	pub type Users<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, UserInfo<T>, OptionQuery>;
 
 	/// Storage for pending FIAT payouts to miners
 	#[pallet::storage]
@@ -144,6 +194,26 @@ pub mod pallet {
 			active: RewardRates<BalanceOf<T>>,
 			idle: RewardRates<BalanceOf<T>>,
 		}, // When admin updates reward rates.
+
+		/// When a user submits KYC documents
+		KycSubmitted {
+			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
+			document_hash: BoundedVec<u8, T::MaxKycHashLength>,
+		},
+		/// When KYC is verified
+		KycVerified {
+			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
+			// verification_hash: BoundedVec<u8, T::MaxKycHashLength>,
+			verified_at: BlockNumberFor<T>,
+		},
+		/// When KYC is rejected
+		KycRejected {
+			account: T::AccountId,
+			user_id: BoundedVec<u8, T::MaxUserIdLength>,
+			// reason: BoundedVec<u8, T::MaxKycHashLength>,
+		},
 		FiatPaymentProcessed(T::AccountId, u32), // Account and compute hours added
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
@@ -164,6 +234,16 @@ pub mod pallet {
 		AlreadySubscribed,              // User already subscribed.
 		SubscriptionExpired,            // User has no subscription.
 		RewardRateNotSet,               // Reward rate missing for a miner.
+		/// KYC verification hash is too long
+		KycHashTooLong,
+		/// KYC verification already exists for this account
+		KycAlreadyVerified,
+		/// User ID is too long
+		UserIdTooLong,
+		KycNotSubmitted,
+		KycVerificationPending,
+		/// Rejection reason is too long
+		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
 	}
@@ -387,8 +467,90 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Admin sets the conversion rate between FIAT (cents) and native tokens
+		/// Users submit their KYC documents
 		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::submit_kyc())]
+		pub fn submit_kyc(
+			origin: OriginFor<T>,
+			user_id: Vec<u8>,
+			document_hash: Vec<u8>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let bounded_user_id = BoundedVec::try_from(user_id).map_err(|_| Error::<T>::UserIdTooLong)?;
+			let bounded_hash =
+				BoundedVec::try_from(document_hash).map_err(|_| Error::<T>::KycHashTooLong)?;
+
+			// Check if user already exists
+			if let Some(user_info) = Users::<T>::get(&who) {
+				match user_info.status {
+					VerificationStatus::Verified(_) => return Err(Error::<T>::KycAlreadyVerified.into()),
+					VerificationStatus::Pending => return Err(Error::<T>::KycVerificationPending.into()),
+					VerificationStatus::Rejected => {
+						// Allow resubmission if previously rejected
+						let new_user_info = UserInfo {
+							user_id: bounded_user_id.clone(),
+							document_hash: bounded_hash.clone(),
+							status: VerificationStatus::Pending,
+						};
+						Users::<T>::insert(&who, new_user_info);
+					}
+				}
+			} else {
+				// New submission
+				let user_info = UserInfo {
+					user_id: bounded_user_id.clone(),
+					document_hash: bounded_hash.clone(),
+					status: VerificationStatus::Pending,
+				};
+				Users::<T>::insert(&who, user_info);
+			}
+
+			Self::deposit_event(Event::KycSubmitted {
+				account: who,
+				user_id: bounded_user_id,
+				document_hash: bounded_hash,
+			});
+
+			Ok(())
+		}
+
+		/// Admin verifies KYC submission
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::verify_kyc())]
+		pub fn verify_kyc(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+			approved: bool,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let mut user_info = Users::<T>::get(&account).ok_or(Error::<T>::KycNotSubmitted)?;
+
+			if approved {
+				user_info.status = VerificationStatus::Verified(frame_system::Pallet::<T>::block_number());
+				Users::<T>::insert(&account, &user_info);
+
+				Self::deposit_event(Event::KycVerified {
+					account,
+					user_id: user_info.user_id.clone(),
+					verified_at: frame_system::Pallet::<T>::block_number(),
+				});
+			} else {
+				user_info.status = VerificationStatus::Rejected;
+				Users::<T>::insert(&account, &user_info);
+
+				Self::deposit_event(Event::KycRejected {
+					account,
+					user_id: user_info.user_id.clone(),
+				});
+			}
+
+			Ok(())
+		}
+
+		/// Admin sets the conversion rate between FIAT (cents) and native tokens
+		#[pallet::call_index(11)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_fiat_conversion_rate())]
 		pub fn set_fiat_conversion_rate(
 			origin: OriginFor<T>,
@@ -406,7 +568,7 @@ pub mod pallet {
 		}
 
 		/// Process a FIAT payment and allocate compute hours
-		#[pallet::call_index(10)]
+		#[pallet::call_index(12)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::process_fiat_payment())]
 		pub fn process_fiat_payment(
 			origin: OriginFor<T>,
@@ -466,7 +628,7 @@ pub mod pallet {
 		}
 
 		/// Create a FIAT payout request for a miner
-		#[pallet::call_index(11)]
+		#[pallet::call_index(13)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_fiat_payout())]
 		pub fn request_fiat_payout(origin: OriginFor<T>, amount: BalanceOf<T>) -> DispatchResult {
 			let miner = ensure_signed(origin)?;
@@ -481,7 +643,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(12)]
+		#[pallet::call_index(14)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_remaining_hours())]
 		pub fn get_remaining_hours(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;

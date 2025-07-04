@@ -46,6 +46,9 @@ pub trait WeightInfo {
 	fn record_usage() -> Weight;
 	fn reward_miner() -> Weight;
 	fn distribute_rewards() -> Weight;
+	fn submit_kyc() -> Weight;
+	fn verify_kyc() -> Weight;
+
 	fn set_fiat_conversion_rate() -> Weight;
 	fn process_fiat_payment() -> Weight;
 	fn request_fiat_payout() -> Weight;
@@ -140,6 +143,17 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
 	
+	fn submit_kyc() -> Weight {
+        Weight::from_parts(10_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(1))
+    }
+	
+	fn verify_kyc() -> Weight {
+        Weight::from_parts(15_000, 0)
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2)) 
+	}
 	fn set_fiat_conversion_rate() -> Weight {
         Weight::from_parts(2_000_000_000, 0)
             .saturating_add(T::DbWeight::get().writes(1_u64))
@@ -251,6 +265,9 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 	
+	fn submit_kyc() -> Weight {
+        Weight::from_parts(10_000, 0)
+  }
 	fn set_fiat_conversion_rate() -> Weight {
         Weight::from_parts(2_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().writes(1_u64))
@@ -268,6 +285,11 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 
+	fn verify_kyc() -> Weight {
+        Weight::from_parts(15_000, 0)
+            .saturating_add(RocksDbWeight::get().reads(1_u64))
+            .saturating_add(RocksDbWeight::get().writes(2_u64)) 
+  }
 	fn get_remaining_hours() -> Weight {
         Weight::from_parts(2_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1_u64))

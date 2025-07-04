@@ -1,15 +1,10 @@
 use crate::{mock::*, Error};
-use crate::{
-	RequestedProofs, VerificationResultsPerProof, SubmittedPerProof
-};
+use crate::{RequestedProofs, SubmittedPerProof, VerificationResultsPerProof};
 
-use frame_support::{assert_ok, assert_noop, pallet_prelude::ConstU32, BoundedVec};
+use frame_support::{assert_noop, assert_ok, pallet_prelude::ConstU32, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 
-use cyborg_primitives::{
-	task::*,
-	zkml::*,
-};
+use cyborg_primitives::{task::*, zkml::*};
 
 fn create_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
@@ -35,10 +30,10 @@ fn create_neurozk_task(task_id: TaskId) {
 		time_elapsed: None,
 		average_cpu_percentage_use: None,
 		task_kind: TaskKind::NeuroZK,
-		result: None, 
+		result: None,
 		compute_hours_deposit: Some(deposit),
 		consume_compute_hours: None,
-		task_status: TaskStatusType::Assigned, 
+		task_status: TaskStatusType::Assigned,
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
@@ -68,10 +63,10 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		time_elapsed: None,
 		average_cpu_percentage_use: None,
 		task_kind: TaskKind::OpenInference,
-		result: None, 
+		result: None,
 		compute_hours_deposit: Some(deposit),
 		consume_compute_hours: None,
-		task_status: TaskStatusType::Assigned, 
+		task_status: TaskStatusType::Assigned,
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
@@ -88,7 +83,10 @@ fn request_proof_works_for_valid_task() {
 		create_neurozk_task(task_id);
 
 		assert_ok!(NeuroZk::request_proof(RuntimeOrigin::signed(1), task_id));
-		assert_eq!(RequestedProofs::<Test>::get(task_id), Some(ProofVerificationStage::Requested));
+		assert_eq!(
+			RequestedProofs::<Test>::get(task_id),
+			Some(ProofVerificationStage::Requested)
+		);
 	});
 }
 
@@ -137,9 +135,16 @@ fn submit_proof_works() {
 		let proof = Default::default();
 
 		assert_ok!(NeuroZk::request_proof(RuntimeOrigin::signed(1), task_id));
-		assert_ok!(NeuroZk::submit_proof(RuntimeOrigin::signed(2), task_id, proof));
+		assert_ok!(NeuroZk::submit_proof(
+			RuntimeOrigin::signed(2),
+			task_id,
+			proof
+		));
 
-		assert_eq!(RequestedProofs::<Test>::get(task_id), Some(ProofVerificationStage::Pending));
+		assert_eq!(
+			RequestedProofs::<Test>::get(task_id),
+			Some(ProofVerificationStage::Pending)
+		);
 	});
 }
 
@@ -167,8 +172,12 @@ fn submit_proof_fails_if_already_submitted() {
 		let proof: BoundedVec<u8, ConstU32<50000>> = BoundedVec::try_from(proof_vec.clone()).unwrap();
 
 		assert_ok!(NeuroZk::request_proof(RuntimeOrigin::signed(1), task_id));
-		assert_ok!(NeuroZk::submit_proof(RuntimeOrigin::signed(2), task_id, proof.clone()));
-		
+		assert_ok!(NeuroZk::submit_proof(
+			RuntimeOrigin::signed(2),
+			task_id,
+			proof.clone()
+		));
+
 		assert_noop!(
 			NeuroZk::submit_proof(RuntimeOrigin::signed(2), task_id, proof),
 			Error::<Test>::ProofAlreadySubmitted
@@ -208,10 +217,7 @@ fn on_new_data_records_and_finalizes_correctly() {
 		let stored_results = VerificationResultsPerProof::<Test>::get(task_id);
 		assert_eq!(stored_results.len(), 2);
 
-		assert_eq!(
-			SubmittedPerProof::<Test>::get((feeder1, task_id)),
-			true
-		);
+		assert_eq!(SubmittedPerProof::<Test>::get((feeder1, task_id)), true);
 	});
 }
 
@@ -252,7 +258,13 @@ fn finalize_verification_rejects_below_threshold() {
 		let task_id = 1;
 		create_neurozk_task(task_id);
 
-		let votes = vec![(10, true), (11, false), (12, false), (13, false), (14, false)];
+		let votes = vec![
+			(10, true),
+			(11, false),
+			(12, false),
+			(13, false),
+			(14, false),
+		];
 		for (acc, vote) in votes {
 			NeuroZk::on_new_data(&acc, &task_id, &vote);
 		}

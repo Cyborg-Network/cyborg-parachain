@@ -326,7 +326,7 @@ pub mod pallet {
 		}
 	}
 
-/* 
+	/*
 	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
 	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus>
 		for Pallet<T>
