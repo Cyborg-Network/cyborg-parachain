@@ -63,6 +63,21 @@ pub struct NzkData<BlockNumber> {
 	pub last_proof_accepted: Option<(bool, BlockNumber)>,
 }
 
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
+pub struct SignedGatekeeperMessage<AccountId> {
+    pub message_nonce: u32,
+	pub signature: Vec<u8>,
+	pub target_account: AccountId,
+	pub action: GatekeeperAction,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
+pub enum GatekeeperAction {
+	ScheduleTask,
+	StopTask,
+	SetModelHash,
+}
+
 // #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 // pub struct VerificationHashes<AccountId> {
 // 	pub account: AccountId,

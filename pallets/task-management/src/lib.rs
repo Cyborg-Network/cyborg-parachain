@@ -24,10 +24,11 @@ use pallet_edge_connect::ExecutableWorkers;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::dispatch::PostDispatchInfo;
+	use frame_support::dispatch::{DispatchResultWithPostInfo, PostDispatchInfo};
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_timestamp as timestamp;
+	use sp_core::ByteArray;
 	// use pallet_edge_connect::AccountWorkers;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -69,7 +70,7 @@ pub mod pallet {
 		StorageMap<_, Identity, TaskId, TaskInfo<T::AccountId, BlockNumberFor<T>>, OptionQuery>;
 
 	#[pallet::storage]
-	pub type GatekeeperAccount<T: Config> = StorageValue<_, T::AccountId, OptionQuery>;
+	pub type GatekeeperAccount<T: Config> = StorageValue<_, sp_core::sr25519::Public, OptionQuery>;
 
 	#[pallet::storage]
 	pub type TaskRateLimits<T: Config> = StorageMap<
@@ -160,6 +161,8 @@ pub mod pallet {
 		WorkerDoesNotExist,
 		ModelAlreadyRegistered,
 		ModelNotFound,
+		/// The signature of the gatekeeper could not be verified
+		InvalidGatekeeperSignature,
 	}
 
 	#[pallet::call]
@@ -176,8 +179,7 @@ pub mod pallet {
 		})]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
-			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
-			// TODO requesting_user: Option<Some data that identifies the user>,
+			gatekeeper_message: Option<SignedGatekeeperMessage<T::AccountId>>,
 			task_kind: TaskKind,
 			task_location: BoundedVec<u8, ConstU32<500>>,
 			nzk_info: Option<NeuroZkTaskSubmissionDetails>,
@@ -218,14 +220,11 @@ pub mod pallet {
 			};
 			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
 
-			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
-				if who == gatekeeper {
-					Pays::No
-				} else {
-					Pays::Yes
-				}
+			let is_gatekeeper_valid = Self::validate_gatekeeper_sig(&gatekeeper_message, &who)?;
+			let pays_fee = if is_gatekeeper_valid {
+    			Pays::No
 			} else {
-				Pays::Yes
+    			Pays::Yes
 			};
 
 			// Validate deposit
@@ -410,7 +409,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_gatekeeper())]
 		pub fn set_gatekeeper(
 			origin: OriginFor<T>,
-			new_gatekeeper: T::AccountId,
+			new_gatekeeper: sp_core::sr25519::Public,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			GatekeeperAccount::<T>::put(new_gatekeeper);
@@ -421,15 +420,18 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_model_hash())]
 		pub fn register_model_hash(
 			origin: OriginFor<T>,
+			gatekeeper_message: Option<SignedGatekeeperMessage<T::AccountId>>,
 			model_id: Vec<u8>,
 			model_hash: T::Hash,
-		) -> DispatchResult {
-		let _sender = ensure_signed(origin)?;
-		let gatekeeper=GatekeeperAccount::<T>::get().ok_or(Error::<T>::NotGatekeeper)?;
-		ensure!(_sender == gatekeeper, Error::<T>::NotGatekeeper);
+		) -> DispatchResultWithPostInfo {
+		let who = ensure_signed(origin)?;
 
-		// Validate model_id length
-		ensure!(model_id.len() == 32usize, Error::<T>::InvalidModelIdLength);
+		let is_gatekeeper_valid = Self::validate_gatekeeper_sig(&gatekeeper_message, &who)?;
+		let pays_fee = if is_gatekeeper_valid {
+    		Pays::No
+		} else {
+			return Err(Error::<T>::InvalidGatekeeperSignature.into());
+		};
 
 		// Convert to [u8; 32]
 		let model_id_fixed: [u8; 32] = model_id
@@ -447,7 +449,11 @@ pub mod pallet {
 
 		// Emit event
 		Self::deposit_event(Event::ModelHashRegistered(model_id_fixed.to_vec(), model_hash));
-		Ok(())
+
+		Ok(PostDispatchInfo {
+			actual_weight: None,
+			pays_fee,
+		})
 	}
 
 	#[pallet::call_index(8)]
@@ -495,6 +501,33 @@ pub mod pallet {
 			} else {
 				Ok(())
 			}
+		}
+
+		fn validate_gatekeeper_sig(maybe_sig: &Option<SignedGatekeeperMessage<T::AccountId>>, who: &T::AccountId) -> Result<bool, DispatchError> {
+			if let Some(signed_message) = maybe_sig {
+				let gatekeeper_key = GatekeeperAccount::<T>::get()
+					.ok_or(Error::<T>::NotGatekeeper)?;
+				let signature = sp_core::sr25519::Signature::from_slice(&signed_message.signature)
+					.map_err(|_| Error::<T>::InvalidGatekeeperSignature)?;
+
+				let is_valid = sp_io::crypto::sr25519_verify(
+					&signature,
+					&signed_message.message_nonce.to_le_bytes(),
+					&gatekeeper_key,
+				);
+
+				ensure!(is_valid, Error::<T>::InvalidGatekeeperSignature);
+
+				let account_info = frame_system::Pallet::<T>::account(who);
+				ensure!(
+					account_info.nonce == signed_message.message_nonce.into(),
+					Error::<T>::InvalidGatekeeperSignature
+				);
+
+				return Ok(true);
+			}
+
+			Ok(false)
 		}
 	}
 
