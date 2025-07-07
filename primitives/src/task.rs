@@ -65,8 +65,8 @@ pub struct NzkData<BlockNumber> {
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
 pub struct SignedGatekeeperMessage<AccountId> {
-    pub message_nonce: u32,
-	pub signature: Vec<u8>,
+    pub message_nonce: u64,
+	pub signature: BoundedVec<u8, ConstU32<64>>,
 	pub target_account: AccountId,
 	pub action: GatekeeperAction,
 }

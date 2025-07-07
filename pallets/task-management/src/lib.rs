@@ -29,6 +29,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_timestamp as timestamp;
 	use sp_core::ByteArray;
+	use frame_support::sp_runtime::SaturatedConversion;
 	// use pallet_edge_connect::AccountWorkers;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -161,8 +162,12 @@ pub mod pallet {
 		WorkerDoesNotExist,
 		ModelAlreadyRegistered,
 		ModelNotFound,
-		/// The signature of the gatekeeper could not be verified
+		/// The signature of the gatekeeper is invalid
 		InvalidGatekeeperSignature,
+		/// The wrong nonce was signed by the gatekeeper
+		GatekeeperSignatureUserNonceMismatch,
+		/// The signature of the gatekeeper has the wrong length
+		InvalidGatekeeperSignatureLength,
 	}
 
 	#[pallet::call]
@@ -508,7 +513,7 @@ pub mod pallet {
 				let gatekeeper_key = GatekeeperAccount::<T>::get()
 					.ok_or(Error::<T>::NotGatekeeper)?;
 				let signature = sp_core::sr25519::Signature::from_slice(&signed_message.signature)
-					.map_err(|_| Error::<T>::InvalidGatekeeperSignature)?;
+					.map_err(|_| Error::<T>::InvalidGatekeeperSignatureLength)?;
 
 				let is_valid = sp_io::crypto::sr25519_verify(
 					&signature,
@@ -518,10 +523,11 @@ pub mod pallet {
 
 				ensure!(is_valid, Error::<T>::InvalidGatekeeperSignature);
 
-				let account_info = frame_system::Pallet::<T>::account(who);
+				let account_nonce = frame_system::Pallet::<T>::account(who).nonce.saturated_into::<u64>();
+
 				ensure!(
-					account_info.nonce == signed_message.message_nonce.into(),
-					Error::<T>::InvalidGatekeeperSignature
+					account_nonce == signed_message.message_nonce,
+					Error::<T>::GatekeeperSignatureUserNonceMismatch
 				);
 
 				return Ok(true);

@@ -1,7 +1,10 @@
-use crate::{mock::*, Error};
+use crate::{mock::*, Error, GatekeeperAccount};
 use crate::{ComputeAggregations, NextTaskId, TaskStatus, Tasks};
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
-use crate::{ModelHashes,GatekeeperAccount};
+use cyborg_primitives::task::{GatekeeperAction, SignedGatekeeperMessage};
+use sp_core::sr25519;
+use sp_core::Pair;
+use crate::ModelHashes;
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
@@ -29,11 +32,17 @@ fn register_worker(
 }
 
 fn setup_gatekeeper() {
-	TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
+	let gatekeeper = sr25519::Pair::from_seed(&[0u8; 32]);
+	TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), gatekeeper.public()).unwrap();
+}
+
+fn get_gatekeeper() -> sr25519::Pair {
+	let gatekeeper = sr25519::Pair::from_seed(&[0u8; 32]);
+	gatekeeper
 }
 
 #[test]
-fn it_works_for_task_scheduler() {
+fn it_works_for_task_scheduler_without_gatekeeper() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		System::set_block_number(1);
@@ -84,6 +93,7 @@ fn it_works_for_task_scheduler() {
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind_infer.clone(),
 			task_data.clone(),
 			None,
@@ -120,6 +130,149 @@ fn it_works_for_task_scheduler() {
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
+			task_kind_neurozk,
+			task_data.clone(),
+			nzk_data.clone(),
+			executor,
+			worker_id_exec,
+			Some(10)
+		));
+
+		let task_id_2 = NextTaskId::<Test>::get() - 1;
+		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
+		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
+		assert!(task_info_2.nzk_data.is_some());
+		if let Some(nzk_data) = task_info_2.nzk_data {
+			assert_eq!(nzk_data.zk_input, nzk_data.zk_input);
+			assert_eq!(
+				nzk_data.zk_settings,
+				nzk_data.zk_settings
+			);
+			assert_eq!(
+				nzk_data.zk_verifying_key,
+				nzk_data.zk_verifying_key
+			);
+		}
+	});
+}
+
+#[test]
+fn it_works_for_task_scheduler_with_gatekeeper() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+
+		let acc_nonce: u64 = frame_system::Pallet::<Test>::account(alice).nonce.try_into().unwrap();
+		let gatekeeper = get_gatekeeper();
+
+		assert_eq!(gatekeeper.public(), GatekeeperAccount::<Test>::get().unwrap());
+
+		let message = acc_nonce;
+
+		let signature = gatekeeper.sign(&message.to_le_bytes());
+
+		let message = SignedGatekeeperMessage {
+			message_nonce: message,
+			signature: BoundedVec::try_from(signature.to_vec()).unwrap(),
+			target_account: alice,
+			action: GatekeeperAction::ScheduleTask,
+		};
+
+		// Register workers first
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"docker.worker"
+		));
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"exec.worker"
+		));
+
+		// Verify workers are registered
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((
+			executor, 0
+		)));
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
+
+		let task_kind_neurozk = TaskKind::NeuroZK;
+		let task_kind_infer = TaskKind::OpenInference;
+
+		let worker_id_docker = 0;
+		let worker_id_exec = 1;
+
+		// Provide initial compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
+
+		// Task metadata (e.g., docker image or model)
+		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
+
+		// nzk_data only required for NeuroZK
+		let nzk_data = Some(
+			NeuroZkTaskSubmissionDetails {
+				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),	
+			}
+		);
+
+		// --------------------------------------------------
+		// ✅ Schedule OpenInference Executable Task (valid)
+		// --------------------------------------------------
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			Some(message),
+			task_kind_infer.clone(),
+			task_data.clone(),
+			None,
+			executor,
+			worker_id_docker,
+			Some(10)
+		));
+
+		let task_id_0 = NextTaskId::<Test>::get() - 1;
+		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
+		assert_eq!(task_info_0.task_kind, TaskKind::OpenInference);
+		assert_eq!(task_info_0.nzk_data, None);
+
+		let acc_nonce = frame_system::Pallet::<Test>::account(alice).nonce;
+		let signature = get_gatekeeper().sign(&acc_nonce.to_le_bytes());
+
+		let message_2 = SignedGatekeeperMessage {
+			message_nonce: acc_nonce.try_into().unwrap(),
+			signature: BoundedVec::try_from(signature.to_vec()).unwrap(),
+			target_account: alice,
+			action: GatekeeperAction::ScheduleTask,
+		};
+
+		// --------------------------------------------------
+		// ✅ Schedule OpenInference Executable Task (valid)
+		// --------------------------------------------------
+		// assert_ok!(TaskManagementModule::task_scheduler(
+		// 	RuntimeOrigin::signed(alice),
+		// 	task_kind_infer.clone(),
+		// 	task_data.clone(),
+		// 	None,
+		// 	executor,
+		// 	worker_id_exec,
+		// 	Some(10)
+		// ));
+
+		// let task_id_1 = NextTaskId::<Test>::get() - 1;
+		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
+		// assert_eq!(task_info_1.task_kind, TaskKind::OpenInference);
+		// assert_eq!(task_info_1.zk_files_cid, None);
+
+		// --------------------------------------------------
+		// ✅ Schedule NeuroZK Executable Task (valid with zk_files)
+		// --------------------------------------------------
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			Some(message_2),
 			task_kind_neurozk,
 			task_data.clone(),
 			nzk_data.clone(),
@@ -182,6 +335,7 @@ fn it_fails_when_worker_not_registered() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
+				None,
 				task_kind_neurozk,
 				task_data.clone(),
 				nzk_data.clone(),
@@ -220,6 +374,7 @@ fn it_fails_when_no_workers_are_available() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
+				None,
 				task_kind_infer,
 				task_data.clone(),
 				None,
@@ -256,6 +411,7 @@ fn it_fails_when_no_computer_hours_available() {
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
+				None,
 				task_kind_infer,
 				task_data.clone(),
 				None,
@@ -286,6 +442,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
+			None,
 			task_kind,
 			task_data.clone(),
 			None,
@@ -327,6 +484,7 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
+			None,
 			TaskKind::OpenInference,
 			task_data.clone(),
 			None,
@@ -359,6 +517,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
+			None,
 			TaskKind::OpenInference,
 			task_data.clone(),
 			None,
@@ -402,6 +561,7 @@ fn it_works_for_confirm_miner_vacation() {
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind.clone(),
 			task_data.clone(),
 			None,
@@ -453,6 +613,7 @@ fn fails_if_not_task_owner_for_vacation() {
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind.clone(),
 			task_data.clone(),
 			None,
@@ -498,6 +659,7 @@ fn fails_if_task_not_stopped() {
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind.clone(),
 			task_data.clone(),
 			None,
@@ -539,6 +701,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind,
 			metadata.clone(),
 			None,
@@ -593,6 +756,7 @@ fn fails_if_task_is_not_running() {
 		// Schedule task and don't confirm reception (still Assigned)
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
+			None,
 			task_kind.clone(),
 			task_data.clone(),
 			None,
@@ -629,23 +793,32 @@ fn test_register_model_hash_works() {
     new_test_ext().execute_with(|| {
         use hex_literal::hex;
 		use sp_core::H256;
+		let alice = 1;
 
-        let gatekeeper = 1; 
-        GatekeeperAccount::<Test>::put(gatekeeper.clone());
+		setup_gatekeeper();
+		let gatekeeper = get_gatekeeper();
 
-        let origin = RuntimeOrigin::signed(gatekeeper.clone());
+        let origin = RuntimeOrigin::signed(alice);
+
+		let acc_nonce = frame_system::Pallet::<Test>::account(alice).nonce;
+		let signature = gatekeeper.sign(&acc_nonce.to_le_bytes());
+
+		let message = SignedGatekeeperMessage {
+			message_nonce: acc_nonce.try_into().unwrap(),
+			signature: BoundedVec::try_from(signature.to_vec()).unwrap(),	
+			target_account: alice,
+			action: GatekeeperAction::SetModelHash,
+		};
 
         let model_id_hex = hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51");
         let model_id_vec = model_id_hex.to_vec(); 
         let model_hash = H256::repeat_byte(0x42); 
 
-        assert_ok!(TaskManagementModule::register_model_hash(origin, model_id_vec.clone(), model_hash));
+        assert_ok!(TaskManagementModule::register_model_hash(origin, Some(message), model_id_vec.clone(), model_hash));
 
         let mut fixed_id = [0u8; 32];
         fixed_id.copy_from_slice(&model_id_vec);
         assert_eq!(ModelHashes::<Test>::get(fixed_id), Some(model_hash));
-
-        
     });
 }
 
@@ -657,10 +830,22 @@ fn test_register_and_retrieve_model_hash() {
         use base64::engine::general_purpose::STANDARD;
         use sp_core::H256;
 
-        let gatekeeper = 1u64;
-        GatekeeperAccount::<Test>::put(gatekeeper);
+		let alice = 1;
 
-        let origin = RuntimeOrigin::signed(gatekeeper);
+		setup_gatekeeper();
+		let gatekeeper = get_gatekeeper();
+
+        let origin = RuntimeOrigin::signed(alice);
+
+		let acc_nonce = frame_system::Pallet::<Test>::account(alice).nonce;
+		let signature = gatekeeper.sign(&acc_nonce.to_le_bytes());
+
+		let message = SignedGatekeeperMessage {
+			message_nonce: acc_nonce.try_into().unwrap(),
+			signature: BoundedVec::try_from(signature.to_vec()).unwrap(),	
+			target_account: alice,
+			action: GatekeeperAction::SetModelHash,
+		};        
 
         let model_id_vec = hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51").to_vec();
 
@@ -672,6 +857,7 @@ fn test_register_and_retrieve_model_hash() {
 
         assert_ok!(TaskManagementModule::register_model_hash(
             origin.clone(),
+			Some(message),
             model_id_vec.clone(),
             model_hash
         ));
@@ -681,8 +867,6 @@ fn test_register_and_retrieve_model_hash() {
 
         let stored_hash = ModelHashes::<Test>::get(model_id_fixed);
         assert_eq!(stored_hash, Some(model_hash));
-
-     
     });
 }
 
