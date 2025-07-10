@@ -73,7 +73,7 @@ cargo test
 
 ### Cyborg Miner
 ###### Notes
-Because we currently don't have a cloud solution integrated that facilitates transport of the task (archive containing the model, zk public input, zk proving key, zk settings file) we need to manually insert an archive containing these into the repo before building the docker image. The archive will be provided during the setup steps.
+Because we currently don't have a cloud solution integrated that facilitates transport of the task (archive containing the model, zk public input, zk proving key, zk settings file) we need to manually insert an archive containing these into the repo before building the docker image. This will be done via a shared volume set up by docker compose.
 ###### Requirements
 - Docker needs to be installed
 ###### Setup
