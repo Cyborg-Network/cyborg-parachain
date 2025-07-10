@@ -77,6 +77,7 @@ fn it_works_for_task_scheduler() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 
 		// --------------------------------------------------
@@ -170,6 +171,7 @@ fn it_fails_when_worker_not_registered() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 
 		// Provide compute hours
