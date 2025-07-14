@@ -1,0 +1,33 @@
+name: Deploy to VPS on v0.1
+
+on:
+  push:
+    branches:
+      - v0.1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_ALPHA_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan 20.234.51.134 >> ~/.ssh/known_hosts
+          export SSH_OPTIONS="-o StrictHostKeyChecking=no"
+
+      - name: Deploy to VPS
+        run: |
+          ssh cyborg@20.234.51.134 << 'EOF'
+            cd /home/cyborg/cyborg-parachain || exit 1
+            git fetch origin v0.1
+            git reset --hard origin/v0.1
+            cargo build --release
+            sudo systemctl restart parachain.service
+          EOF
+
