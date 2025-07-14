@@ -233,7 +233,7 @@ where
 				Pays::Yes
 			};
 
-			// Validate deposit
+			// Validate deposit 
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
 
