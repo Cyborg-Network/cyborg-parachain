@@ -188,6 +188,7 @@ where
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
+			gatekeeper_pub: Option<BoundedVec<u8, ConstU32<32>>>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
@@ -232,7 +233,7 @@ where
 				Pays::Yes
 			};
 
-			// Validate deposit
+			// Validate deposit 
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
 
@@ -242,7 +243,8 @@ where
 				TaskKind::NeuroZK => {
 					// For NeuroZK, zk_info must be present
 					match nzk_info {
-						Some(data) => {
+						Some(mut data) => {
+							data.gatekeeper_pub = gatekeeper_pub;
 							nzk_data = Some(NzkData {
 								zk_input: data.zk_input,
 								zk_settings: data.zk_settings,
@@ -350,7 +352,6 @@ where
 			Ok(())
 		}
 
-		//
 		/// signals the miner to exit task execution and reset itself
 		/// Admin will make status to stopped
 		/// RUnning -> Stopped
