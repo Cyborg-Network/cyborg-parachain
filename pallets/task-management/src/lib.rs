@@ -352,7 +352,6 @@ where
 			Ok(())
 		}
 
-		//
 		/// signals the miner to exit task execution and reset itself
 		/// Admin will make status to stopped
 		/// RUnning -> Stopped
