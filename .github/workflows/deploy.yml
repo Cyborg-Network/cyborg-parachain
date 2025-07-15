@@ -1,31 +1,18 @@
-name: Deploy to VPS on v0.1
-
-on:
-  push:
-    branches:
-      - v0.1
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          cat << 'EOF' > ~/.ssh/id_ed25519
-${{ secrets.VPS_ALPHA_DEPLOY_KEY }}
-EOF
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan 20.234.51.134 >> ~/.ssh/known_hosts
-          export SSH_OPTIONS="-o StrictHostKeyChecking=no"
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_ALPHA_DEPLOY_KEY }}
 
       - name: Deploy to VPS
         run: |
-          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no cyborg@20.234.51.134 << 'EOF'
+          ssh -o StrictHostKeyChecking=no cyborg@20.234.51.134 << EOF
             cd /home/cyborg/cyborg-parachain || exit 1
             git fetch origin v0.1
             git reset --hard origin/v0.1
