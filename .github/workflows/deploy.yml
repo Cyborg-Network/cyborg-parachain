@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Setup SSH agent
-      - uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VPS_ALPHA_DEPLOY_KEY }}
 
