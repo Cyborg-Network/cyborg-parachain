@@ -1,8 +1,16 @@
+name: Deploy to VPS on v0.1
+
+on:
+  push:
+    branches:
+      - v0.1
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
       - uses: actions/checkout@v4
 
       - name: Setup SSH agent
