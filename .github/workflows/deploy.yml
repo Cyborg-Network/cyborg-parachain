@@ -16,7 +16,9 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_ALPHA_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          cat << 'EOF' > ~/.ssh/id_ed25519
+          ${{ secrets.VPS_ALPHA_DEPLOY_KEY }}
+          EOF
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan 20.234.51.134 >> ~/.ssh/known_hosts
           export SSH_OPTIONS="-o StrictHostKeyChecking=no"
