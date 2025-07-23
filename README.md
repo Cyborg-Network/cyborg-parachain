@@ -4,7 +4,7 @@
 
 ![Emblem Green](https://github.com/user-attachments/assets/16067543-6de0-4f62-9a03-d82da38f001a)
 
-<h2> Decentralized Edge Computing </h2>
+<h2> Distributed AI Computing </h2>
 
 <br>
 Official Repository for the Cyborg Network 
