@@ -20,12 +20,23 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Rust compilation prerequisites
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with: 
+          toolchain: 1.87.0
+          override: true
+          rustflags: ""
+          components: rustfmt, clippy, rust-src
+          targets: wasm32-unknown-unknown
+
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            protobuf-compiler
-          rustup target add wasm32-unknown-unknown
-          rustup component add rustfmt clippy rust-src
+          sudo apt install -y protobuf-compiler
+          sudo apt install -y build-essential
+          sudo apt install -y clang libclang-dev
+
+      - name: Install target manually
+        run: rustup target add wasm32-unknown-unknown
 
       # We've run into out-of-disk error when compiling Polkadot in the next step, so we free up some space this way.
       - name: Free Disk Space (Ubuntu)
