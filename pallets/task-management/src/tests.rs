@@ -375,7 +375,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		// Second time (should fail - already running)
 		assert_noop!(
 			TaskManagementModule::confirm_task_reception(RuntimeOrigin::signed(executor), task_id),
-			Error::<Test>::RequireAssignedTask
+			Error::<Test>::TaskReceptionAlreadyConfirmed
 		);
 	});
 }
