@@ -18,6 +18,8 @@ pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use pallet_edge_connect::PenaltyReason;
+use pallet_edge_connect::SuspensionReason;
 
 use pallet_edge_connect::ExecutableWorkers;
 use scale_info::prelude::vec::Vec;
@@ -26,6 +28,7 @@ use scale_info::prelude::vec::Vec;
 pub mod pallet {
 	use super::*;
 	use frame_support::dispatch::PostDispatchInfo;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::traits::Currency;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
@@ -43,6 +46,9 @@ pub mod pallet {
 
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Number of blocks to wait for task confirmation before penalizing miner
+		type TaskConfirmationTimeout: Get<BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -95,6 +101,10 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type ModelHashes<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], T::Hash, OptionQuery>;
+
+	#[pallet::storage]
+	pub type TaskAssignmentBlock<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, BlockNumberFor<T>, OptionQuery>;
 
 	/// Pallets use events to inform users when important changes are made.
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
@@ -161,6 +171,16 @@ pub mod pallet {
 		WorkerDoesNotExist,
 		ModelAlreadyRegistered,
 		ModelNotFound,
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			if let Err(e) = Self::check_task_confirmation_timeouts() {
+				log::error!("Error checking task confirmation timeouts: {:?}", e);
+			}
+			T::DbWeight::get().reads_writes(1, 1)
+		}
 	}
 
 	#[pallet::call]
@@ -290,6 +310,9 @@ where
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
+
+			// Record assignment block
+			TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
 
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_worker: selected_worker,
@@ -499,6 +522,50 @@ where
 			} else {
 				Ok(())
 			}
+		}
+
+		/// Check for expired task confirmations and penalize miners
+		pub fn check_task_confirmation_timeouts() -> DispatchResult {
+			let current_block = <frame_system::Pallet<T>>::block_number();
+			let confirmation_timeout = T::TaskConfirmationTimeout::get();
+
+			for (task_id, assigned_block) in TaskAssignmentBlock::<T>::iter() {
+				// Skip if already confirmed
+				if let Some(status) = TaskStatus::<T>::get(task_id) {
+					if status != TaskStatusType::Assigned {
+						continue;
+					}
+				}
+
+				// Check if timeout exceeded
+				if current_block.saturating_sub(assigned_block) > confirmation_timeout {
+					// Get assigned worker
+					if let Some((worker_account, worker_id)) = TaskAllocations::<T>::get(task_id) {
+						// Suspend and penalize the worker
+						pallet_edge_connect::Pallet::<T>::apply_penalty(
+							&(worker_account.clone(), worker_id),
+							&WorkerType::Executable,
+							20, // Moderate penalty
+							PenaltyReason::LateResponse,
+						)?;
+
+						pallet_edge_connect::Pallet::<T>::suspend_workers(
+							&(worker_account.clone(), worker_id),
+							&WorkerType::Executable,
+							1000u32.into(), // ~1 hour suspension at 6s/block
+							SuspensionReason::TaskConfirmationTimeout,
+						)?;
+
+						// Reset task status so it can be reassigned
+						TaskStatus::<T>::remove(task_id);
+						TaskAssignmentBlock::<T>::remove(task_id);
+
+						// TODO: Emit event for UI to notify user to select another miner
+					}
+				}
+			}
+
+			Ok(())
 		}
 	}
 
