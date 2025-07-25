@@ -49,6 +49,7 @@ pub type AccountId = u64;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Block = MockBlock<Test>;
 	type Nonce = u64;
 	type BlockHashCount = ConstU64<250>;
@@ -62,7 +63,6 @@ parameter_types! {
 }
 
 impl pallet_neuro_zk::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type AcceptanceThreshold = ConstU8<75>;
 	type AggregateLength = ConstU32<5>;
@@ -77,17 +77,14 @@ impl pallet_timestamp::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 impl pallet_task_management::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 impl pallet_payment::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = ();
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;

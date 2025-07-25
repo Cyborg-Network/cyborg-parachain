@@ -30,6 +30,7 @@ pub type StringAPI = String;
 	PartialEq,
 	Eq,
 	TypeInfo,
+	DecodeWithMemTracking
 )]
 pub struct ProcessStatus {
 	pub online: bool,
@@ -38,7 +39,7 @@ pub struct ProcessStatus {
 }
 
 #[derive(
-	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord,
+	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking
 )]
 pub enum OracleKey<AccountId> {
 	Miner(OracleWorkerFormat<AccountId>),
@@ -46,14 +47,14 @@ pub enum OracleKey<AccountId> {
 }
 
 #[derive(
-	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord,
+	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking
 )]
 pub enum OracleValue {
 	MinerStatus(ProcessStatus),
 	ZkProofResult(bool),
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo, PartialOrd, Ord)]
+#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo, PartialOrd, Ord, DecodeWithMemTracking)]
 pub struct OracleWorkerFormat<AccoundId> {
 	pub id: (AccoundId, WorkerId),
 	pub worker_type: WorkerType,

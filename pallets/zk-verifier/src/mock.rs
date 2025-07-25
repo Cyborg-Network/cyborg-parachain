@@ -12,7 +12,6 @@ mod test_runtime {
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
-		RuntimeEvent,
 		RuntimeError,
 		RuntimeOrigin,
 		RuntimeFreezeReason,
@@ -47,7 +46,6 @@ impl crate::Config for Test {
 	type MaxPublicInputsLength = MaxPublicInputsLength;
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

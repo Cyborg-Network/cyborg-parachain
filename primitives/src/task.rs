@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
@@ -20,7 +20,7 @@ pub enum TaskStatusType {
 }
 
 /// Kinds of overall tasks at a logical level (business logic: inference vs zk proof).
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum TaskKind {
 	NeuroZK,       // A Zero-Knowledge Proof Generation task.
 	OpenInference, // An AI Inference Task (normal).
@@ -47,7 +47,7 @@ pub type ZkSettings = BoundedVec<u8, ConstU32<5000>>;
 pub type ZkVerifyingKey = BoundedVec<u8, ConstU32<500000>>;
 pub type ZkProof = BoundedVec<u8, ConstU32<50000>>;
 
-#[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Debug)]
+#[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Debug, DecodeWithMemTracking)]
 pub struct NeuroZkTaskSubmissionDetails {
 	pub zk_input: ZkInput,
 	pub zk_settings: ZkSettings,

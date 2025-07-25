@@ -31,6 +31,7 @@ mod test_runtime {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Nonce = u64;
 	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
@@ -38,7 +39,6 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

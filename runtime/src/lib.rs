@@ -11,13 +11,15 @@ pub mod apis;
 mod benchmarks;
 
 pub mod configs;
-mod oracle_router;
 pub mod weights;
+
+mod oracle_router;
 use oracle_router::OracleRouter;
 
+extern crate alloc;
 use smallvec::smallvec;
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
@@ -94,18 +96,21 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// The SignedExtension to the basic transaction logic.
 #[docify::export(template_signed_extra)]
-pub type SignedExtra = (
-	frame_system::CheckNonZeroSender<Runtime>,
-	frame_system::CheckSpecVersion<Runtime>,
-	frame_system::CheckTxVersion<Runtime>,
-	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckEra<Runtime>,
-	frame_system::CheckNonce<Runtime>,
-	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	cumulus_primitives_storage_weight_reclaim::StorageWeightReclaim<Runtime>,
-	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
-);
+pub type SignedExtra = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
+	Runtime,
+	(
+		frame_system::AuthorizeCall<Runtime>,
+		frame_system::CheckNonZeroSender<Runtime>,
+		frame_system::CheckSpecVersion<Runtime>,
+		frame_system::CheckTxVersion<Runtime>,
+		frame_system::CheckGenesis<Runtime>,
+		frame_system::CheckEra<Runtime>,
+		frame_system::CheckNonce<Runtime>,
+		frame_system::CheckWeight<Runtime>,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+		frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	),
+>;
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
@@ -350,12 +355,10 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 }
 
 impl pallet_edge_connect::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
 }
 
 impl pallet_task_management::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
@@ -366,7 +369,6 @@ parameter_types! {
 }
 
 impl pallet_payment::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 	type MaxKycHashLength = MaxKycHashLength;
@@ -379,7 +381,6 @@ parameter_types! {
 }
 
 impl pallet_status_aggregator::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_status_aggregator::SubstrateWeight<Runtime>;
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
@@ -388,7 +389,6 @@ impl pallet_status_aggregator::Config for Runtime {
 }
 
 impl pallet_neuro_zk::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_neuro_zk::SubstrateWeight<Runtime>;
 	type AcceptanceThreshold = ConstU8<75>;
 	type AggregateLength = ConstU32<1>;
@@ -405,20 +405,19 @@ impl pallet_zk_verifier::Config for Runtime {
 	type MaxPublicInputsLength = MaxPublicInputsLength;
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("cyborg-runtime"),
-	impl_name: create_runtime_str!("cyborg-runtime"),
+	spec_name: alloc::borrow::Cow::Borrowed("cyborg-runtime"),
+	impl_name: alloc::borrow::Cow::Borrowed("cyborg-runtime"),
 	authoring_version: 1,
 	spec_version: 1,
 	impl_version: 0,
 	apis: apis::RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 /// This determines the average expected block time that we are targeting.
