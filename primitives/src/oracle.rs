@@ -30,7 +30,7 @@ pub type StringAPI = String;
 	PartialEq,
 	Eq,
 	TypeInfo,
-	DecodeWithMemTracking
+	DecodeWithMemTracking,
 )]
 pub struct ProcessStatus {
 	pub online: bool,
@@ -39,7 +39,7 @@ pub struct ProcessStatus {
 }
 
 #[derive(
-	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking
+	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking,
 )]
 pub enum OracleKey<AccountId> {
 	Miner(OracleWorkerFormat<AccountId>),

@@ -99,7 +99,6 @@ pub type BlockId = generic::BlockId<Block>;
 pub type SignedExtra = cumulus_pallet_weight_reclaim::StorageWeightReclaim<
 	Runtime,
 	(
-		frame_system::AuthorizeCall<Runtime>,
 		frame_system::CheckNonZeroSender<Runtime>,
 		frame_system::CheckSpecVersion<Runtime>,
 		frame_system::CheckTxVersion<Runtime>,

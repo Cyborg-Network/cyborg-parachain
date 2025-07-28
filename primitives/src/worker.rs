@@ -1,4 +1,4 @@
-use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 

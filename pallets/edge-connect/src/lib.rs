@@ -161,7 +161,14 @@ pub mod pallet {
 		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
 	}
 
-
+	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+	pub enum PenaltyReason {
+		TaskRejection,
+		FalseCompletion,
+		LateResponse,
+		SpamAttempt,
+		Other,
+	}
 
 	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
 	/// These errors will be returned in the `DispatchResult` when a function call fails.
