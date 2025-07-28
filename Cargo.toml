@@ -2,7 +2,7 @@
 authors = ["Cyborg Network <https://github.com/Cyborg-Network>"]
 edition = "2021"
 homepage = "https://cyborgnetwork.io/"
-repository = "https://github.com/Cyborg-Network/cyborg-node/"
+repository = "https://github.com/Cyborg-Network/cyborg-parachain/"
 
 [workspace]
 members = [
@@ -34,35 +34,74 @@ pallet-task-management = { path = "pallets/task-management", default-features = 
 pallet-zk-verifier = { path = "pallets/zk-verifier", default-features = false, version = "0.1.0" }
 pallet-neuro-zk = { path = "pallets/neuro-zk", default-features = false, version = "0.1.0" }
 
-cumulus-pallet-xcm = { version = "0.20.0", default-features = false }
-cumulus-primitives-core = { version = "0.19.0", default-features = false }
-frame-benchmarking = { version = "41.0.0", default-features = false }
-frame-support = { version = "41.0.0", default-features = false }
-frame-system = { version = "41.0.0", default-features = false }
-pallet-balances = { version = "42.0.0", default-features = false }
-pallet-elections-phragmen = { version = "42.0.0", default-features = false }
-pallet-message-queue = { version = "44.0.0", default-features = false }
-pallet-preimage = { version = "41.0.0", default-features = false }
-pallet-root-testing = { version = "17.0.0", default-features = false }
-pallet-scheduler = { version = "42.0.0", default-features = false }
-pallet-sudo = { version = "41.0.0", default-features = false }
-pallet-timestamp = { version = "40.0.0", default-features = false }
-pallet-treasury = { version = "40.0.0", default-features = false }
-pallet-xcm = { version = "20.1.0", default-features = false }
-polkadot-parachain-primitives = { version = "17.0.0", default-features = false }
-polkadot-runtime-common = { version = "20.0.0", default-features = false }
-polkadot-runtime-parachains = { version = "20.0.1", default-features = false }
-sp-api = { version = "37.0.0", default-features = false }
-sp-application-crypto = { version = "41.0.0", default-features = false }
-sp-arithmetic = { version = "27.0.0", default-features = false }
-sp-core = { version = "37.0.0", default-features = false }
-sp-io = { version = "41.0.1", default-features = false }
-sp-runtime = { version = "42.0.0", default-features = false }
-sp-runtime-interface = { version = "30.0.0", default-features = false }
-sp-staking = { version = "39.0.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
-sp-storage = { version = "22.0.0", default-features = false }
+# Substrate / Frame
+frame-benchmarking = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-executive = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-metadata-hash-extension = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-support = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-system = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-system-benchmarking = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+frame-try-runtime = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+
+# FRAME Pallets
+pallet-aura = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-authorship = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-balances = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false } 
+pallet-elections-phragmen = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false } 
+pallet-membership = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-message-queue = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-preimage = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-root-testing = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-scheduler = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-session = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-sudo = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-timestamp = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-transaction-payment = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-treasury = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-xcm = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+
+polkadot-parachain-primitives = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+polkadot-runtime-common = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+polkadot-runtime-parachains = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+
+# Substrate Primitives
+sp-api = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-application-crypto = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-arithmetic = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-block-builder = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-consensus-aura = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-core = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-genesis-builder = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-inherents = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-io = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-offchain = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-runtime = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-runtime-interface = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-session = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-staking = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-std = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-storage = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-transaction-pool = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+sp-version = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+
 xcm = { version = "17.0.0", package = "staging-xcm", default-features = false }
 xcm-builder = { version = "21.0.0", package = "staging-xcm-builder", default-features = false }
 xcm-executor = { version = "20.0.0", package = "staging-xcm-executor", default-features = false }
 xcm-simulator = { version = "21.0.0" }
+
+# Cumulus
+cumulus-pallet-aura-ext = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-pallet-parachain-system = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-pallet-session-benchmarking = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-pallet-xcm = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-primitives-aura = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-primitives-core = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-primitives-utility = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+cumulus-pallet-weight-reclaim = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+pallet-collator-selection = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+parachains-common = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "6fd693e6d9cfa46cd2acbcb41cd5b0451a62d67c", default-features = false }
+parachain-info = { version = "0.21.0", default-features = false, package = "staging-parachain-info" }
+
