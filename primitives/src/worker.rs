@@ -1,4 +1,4 @@
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
@@ -19,13 +19,13 @@ pub type CpuCores = u16;
 /// An enum that is used to differentiate between the different kinds of workers that are
 /// registered on the cyborg parachain. There is no differentiation between the ZK Worker and the
 /// Executable Worker, as the executable worker will be able to execute ZK Tasks
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking)]
 pub enum WorkerType {
 	Docker,
 	Executable,
 }
 
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum WorkerStatusType {
 	Active,
 	Busy,
@@ -107,7 +107,7 @@ pub enum SuspicionLevel {
 	Ban,
 }
 
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum SuspensionReason {
 	RepeatedTaskFailures,
 	SpamBehavior,
