@@ -44,6 +44,7 @@ mod test_runtime {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Block = MockBlock<Test>;
 	type Nonce = u64;
 	type BlockHashCount = ConstU64<250>;
@@ -52,12 +53,10 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_task_management::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 impl pallet_edge_connect::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
@@ -68,7 +67,6 @@ parameter_types! {
 }
 
 impl pallet_payment::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
@@ -97,6 +95,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

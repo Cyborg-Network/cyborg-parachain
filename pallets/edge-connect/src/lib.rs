@@ -30,10 +30,6 @@ pub mod pallet {
 	// requirements.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + timestamp::Config {
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -165,14 +161,7 @@ pub mod pallet {
 		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
 	}
 
-	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-	pub enum PenaltyReason {
-		TaskRejection,
-		FalseCompletion,
-		LateResponse,
-		SpamAttempt,
-		Other,
-	}
+
 
 	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
 	/// These errors will be returned in the `DispatchResult` when a function call fails.

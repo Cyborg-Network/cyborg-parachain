@@ -49,6 +49,7 @@ mod test_runtime {
 // Parameters and implementation for frame_system::Config for the Test runtime
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Block = MockBlock<Test>;
 	type AccountId = AccountId;
 	type AccountData = pallet_balances::AccountData<Balance>;
@@ -60,7 +61,6 @@ impl frame_system::Config for Test {
 
 // Implementation of the Payment pallet's configuration for the Test runtime
 impl pallet_payment::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
@@ -69,7 +69,6 @@ impl pallet_payment::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
@@ -93,6 +92,7 @@ impl pallet_balances::Config for Test {
 	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type FreezeIdentifier = ();
 	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
 }
 
 impl pallet_sudo::Config for Test {
@@ -117,6 +117,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 10_000), (2, 50_000), (3, 50_000)],
+		..Default::default()
 	}
 	.assimilate_storage(&mut storage)
 	.unwrap();

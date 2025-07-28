@@ -5,7 +5,7 @@ use crate::{
 
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, Contains, Everything, Nothing},
+	traits::{ConstU32, Contains, Everything, Nothing, Disabled},
 	weights::Weight,
 };
 use frame_system::EnsureRoot;
@@ -20,7 +20,7 @@ use xcm_builder::{
 	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
-	XcmFeeManagerFromComponents, XcmFeeToAccount,
+	XcmFeeManagerFromComponents, SendXcmFeeToAccount,
 };
 use xcm_executor::XcmExecutor;
 
@@ -132,6 +132,7 @@ pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
+	type XcmEventEmitter = PolkadotXcm;
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
@@ -151,7 +152,7 @@ impl xcm_executor::Config for XcmConfig {
 	type AssetExchanger = ();
 	type FeeManager = XcmFeeManagerFromComponents<
 		(),
-		XcmFeeToAccount<Self::AssetTransactor, AccountId, TreasuryAccount>, // Convert the weight of XCM message into a fee
+		SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>, // Convert the weight of XCM message into a fee
 	>;
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
@@ -205,6 +206,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
 	type RemoteLockConsumerIdentifier = ();
+	type AuthorizedAliasConsideration = Disabled;
 }
 
 impl cumulus_pallet_xcm::Config for Runtime {

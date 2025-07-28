@@ -21,7 +21,7 @@ pub use cyborg_primitives::{
 	zkml::*,
 };
 use frame_support::traits::Get;
-use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -45,9 +45,6 @@ pub mod pallet {
 		+ pallet_edge_connect::Config
 		+ pallet_payment::Config
 	{
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
 
