@@ -35,7 +35,7 @@ We recommend to set the components up in the same order that is outlined in the 
 ```
 git clone https://github.com/Cyborg-Network/cyborg-parachain.git
 cd cyborg-parachain
-git checkout nzk-oracle
+git checkout nzk-grant
 ```
 2. Initialize the oracle submodule
 ```
@@ -73,7 +73,7 @@ cargo test
 
 ### Cyborg Miner
 ###### Notes
-Because we currently don't have a cloud solution integrated that facilitates transport of the task (archive containing the model, zk public input, zk proving key, zk settings file) we need to manually insert an archive containing these into the repo before building the docker image. The archive will be provided during the setup steps.
+Because we currently don't have a cloud solution integrated that facilitates transport of the task (archive containing the model, zk public input, zk proving key, zk settings file) we need to manually insert an archive containing these into the repo before building the docker image. This will be done via a shared volume set up by docker compose.
 ###### Requirements
 - Docker needs to be installed
 ###### Setup
@@ -81,25 +81,24 @@ Because we currently don't have a cloud solution integrated that facilitates tra
 ```
 git clone https://github.com/Cyborg-Network/Cyborg-miner.git
 cd Cyborg-miner
-git checkout neuro-zk-runtime
+git checkout nzk-grant
 ```
-2. Download the archive that contains the task (same archive that is produced during upload)
-- download the model archive from: https://drive.google.com/file/d/1aa6zoFQT053-0OAngesD3SJ5vPllqtAe/view?usp=drive_link
-- copy the model archive to `Cyborg-miner/miner/current_task`
-- navigate back to the root dir of the repository `Cyborg-miner`
-4. Build the Docker image
+2. Build the Docker image
 ```
-docker build -t cyborg-miner:local .
+docker compose build
 ```
-4. Run the docker image
+3. Export Parachain collator endpoint from zombienet as environment variable
 ```
-docker run -it --network="host" -e PARACHAIN_URL="<DIFFERENT_EVERY_TIME>" -e CYBORG_WORKER_NODE_TEST_IP="127.0.0.1" cyborg-miner:local
+export PARACHAIN_URL=<DIFFERENT_EVERY_TIME>
+```
+3. Run the docker image
+```
+docker compose up
 ```
 After running the docker image we need to wait for the parachain to finalize the registration of the miner.
-If these steps have been completed, the Cyborg Worker Node is now registered on the parachain and listening for inference tasks that have been assigned to it. 
+If these steps have been completed, the Cyborg Miner is now registered on the parachain and listening for inference tasks that have been assigned to it. 
 At this point it is able to perform inference on tract compatible models in the .onnx format that have one definite result. 
-The archive that we inserted is a mirror image of the archive that the gatekeeper server (which we will set up soon) produces. Since we don't have a cloud solution integrated yet,
-we don't have another way of transport at this point.
+The docker compose command will also launch the gatekeeper, a trusted server that compiles .onnx models into a zk friendly format, stores the resulting files in an archive for the miner to access and submits the files required for verification to the parachain. Since we don't have a cloud solution integrated yet, we don't have another way of transport at this point.
 
 ### Cyborg Connect
 ###### Requirements
@@ -115,6 +114,7 @@ The setup for Cyborg Connect is fairly straightforward:
 ```
 git clone https://github.com/Cyborg-Network/cyborg-connect.git
 cd cyborg-connect
+git checkout nzk-grant
 ```
 2. Install the dependencies
 ```
@@ -140,24 +140,6 @@ We now have 4 different accounts in the loop, Alice, which is the account adopti
 
 After these steps, cyborg connect is ready for testing and the parachain has been configured properly.
 
-### Gatekeeper
-###### Requirements
-- Docker needs to be installed
-###### Setup
-1. Navigate to the cyborg-connect repository (the gatekeeper binary is stored in the cyborg-connect repository)
-```
-cd cyborg-connect
-```
-3. Build the Docker image
-```
-docker build -t cyborg-gatekeeper:local .
-```
-4. Run the docker image
-```
-docker run -it --network="host" --rm -e PARACHAIN_URL="<DIFFERENT_EVERY_TIME>" cyborg-gatekeeper:local
-```
-After running the docker image the gatekeeper will be ready to take requests from the user to compile .ONNX models into a ZK-friendly format and submit the files required for verification to the parachain.
-
 ### Cyborg Oracle Feeder
 
 ###### Requirements
@@ -167,6 +149,7 @@ After running the docker image the gatekeeper will be ready to take requests fro
 ```
 git clone https://github.com/Cyborg-Network/cyborg-oracle-feeder.git
 cd cyborg-oracle-feeder
+git checkout nzk-grant
 ```
 2. Open the Dockerfile and replace the empty environment variables with the following data
 ```
@@ -254,5 +237,5 @@ The ZK Progress bar will reflect the stage advancements.
 `Note that this can only be done as soon as the block with containing the task assignment has been finalized and the Worker Node has picked up the assignment, as it will then set the user who assigned the task as the task owner, granting the user access. If that has not yet happened, the user will not be able to open the lock. Finalizaton can take a while, but for now, you can check if the log can be opened by checking if the Worker Node has begun execution.`
 
 ## Known issues
-- If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected because of an invalid nonce, we are currently implementing a definitive solution to prevent this issue.
+- If the following applications are all running simultaneuosly and are submitting transactions from the same account it can happen that a transaction gets rejected because of an invalid nonce, we have not yet implemented a definitive solution for this issue. If this happens the transaction needs to be repeated.
 
