@@ -354,10 +354,12 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 }
 
 impl pallet_edge_connect::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
 }
 
 impl pallet_task_management::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
@@ -368,6 +370,7 @@ parameter_types! {
 }
 
 impl pallet_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 	type MaxKycHashLength = MaxKycHashLength;
@@ -380,6 +383,7 @@ parameter_types! {
 }
 
 impl pallet_status_aggregator::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_status_aggregator::SubstrateWeight<Runtime>;
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
@@ -388,6 +392,7 @@ impl pallet_status_aggregator::Config for Runtime {
 }
 
 impl pallet_neuro_zk::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_neuro_zk::SubstrateWeight<Runtime>;
 	type AcceptanceThreshold = ConstU8<75>;
 	type AggregateLength = ConstU32<1>;
@@ -401,6 +406,7 @@ parameter_types! {
 }
 
 impl pallet_zk_verifier::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
 	type MaxPublicInputsLength = MaxPublicInputsLength;
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;

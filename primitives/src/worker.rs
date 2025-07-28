@@ -77,7 +77,7 @@ pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
 	);
 }
 
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, Copy, DecodeWithMemTracking)]
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, Copy)]
 pub struct WorkerReputation<BlockNumber> {
 	pub score: i32,
 	pub last_updated: Option<BlockNumber>,
@@ -100,7 +100,7 @@ impl<BlockNumber> Default for WorkerReputation<BlockNumber> {
 	}
 }
 
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum SuspicionLevel {
 	Review,
 	Suspension,

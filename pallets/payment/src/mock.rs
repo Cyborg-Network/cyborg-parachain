@@ -61,6 +61,7 @@ impl frame_system::Config for Test {
 
 // Implementation of the Payment pallet's configuration for the Test runtime
 impl pallet_payment::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
@@ -69,6 +70,7 @@ impl pallet_payment::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

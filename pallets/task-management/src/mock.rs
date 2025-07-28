@@ -53,10 +53,12 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_task_management::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
 impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 
@@ -67,6 +69,7 @@ parameter_types! {
 }
 
 impl pallet_payment::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;

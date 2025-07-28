@@ -74,6 +74,10 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_edge_connect::Config + scale_info::TypeInfo
 	{
+		/// Because this pallet emits events, it depends on the runtime's definition of an event.
+		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// Abstraction over the chain's currency system, allowing this pallet to interact with balances.
 		type Currency: Currency<Self::AccountId>;
 

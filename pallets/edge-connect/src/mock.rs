@@ -39,6 +39,7 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

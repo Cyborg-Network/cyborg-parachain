@@ -54,6 +54,7 @@ parameter_types! {
 }
 
 impl pallet_status_aggregator::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
@@ -69,6 +70,7 @@ impl pallet_timestamp::Config for Test {
 }
 
 impl pallet_edge_connect::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
 

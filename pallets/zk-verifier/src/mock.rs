@@ -12,6 +12,7 @@ mod test_runtime {
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
+		RuntimeEvent,
 		RuntimeError,
 		RuntimeOrigin,
 		RuntimeFreezeReason,
@@ -30,6 +31,7 @@ mod test_runtime {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type Nonce = u64;
 	type Block = MockBlock<Test>;
 	type BlockHashCount = ConstU64<250>;
@@ -43,6 +45,7 @@ parameter_types! {
 }
 
 impl crate::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type MaxPublicInputsLength = MaxPublicInputsLength;
 	type MaxProofLength = MaxProofLength;
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
