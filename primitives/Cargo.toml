@@ -11,27 +11,23 @@ publish = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
+codec = { workspace = true, features = ["derive"] }
+scale-info = { workspace = true, features = ["derive"] }
 
 orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 
 # frame deps
-frame-benchmarking = { version = "41.0.0", default-features = false, optional = true }
-frame-support = { version = "41.0.0", default-features = false }
-frame-system = { version = "41.0.0", default-features = false }
+frame-benchmarking = { workspace = true, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 
-sp-std = { version = "14.0.0", default-features = false }
-sp-core = { version = "37.0.0", default-features = false }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
 
 [dev-dependencies]
-sp-io = { version = "41.0.1" }
-sp-runtime = { version = "42.0.0" }
+sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [features]
 default = ["std"]
