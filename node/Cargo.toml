@@ -14,63 +14,63 @@ build = "build.rs"
 # name = "cyborg-node"
 
 [dependencies]
-clap = { version = "4.5.3", features = ["derive"] }
+clap = { workspace = true, features = ["derive"], default-features = true }
 log = { workspace = true, default-features = true }
-codec = { package = "parity-scale-codec", version = "3.6.12" }
+codec = { workspace = true, default-features = true }
 serde = { features = ["derive"], workspace = true, default-features = true }
-jsonrpsee = { version = "0.24.9", features = ["server"] }
-futures = "0.3.28"
+jsonrpsee = { workspace = true, features = ["server"], default-features = true }
+futures = { workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
-docify = "0.2.8"
-cyborg-runtime = { version = "0.1.0", path = "../runtime" }
-frame-benchmarking = { version = "40.2.0" }
-frame-benchmarking-cli = { version = "48.0.0" }
-pallet-transaction-payment-rpc = { version = "43.0.0" }
-sc-basic-authorship = { version = "0.49.0" }
-sc-chain-spec = { version = "43.0.0" }
-sc-cli = { version = "0.52.0" }
-sc-client-api = { version = "39.0.0" }
-sc-offchain = { version = "45.0.0" }
-sc-consensus = { version = "0.49.0" }
-sc-executor = { version = "0.42.0" }
-sc-network = { version = "0.50.0" }
-sc-network-sync = { version = "0.49.0" }
-sc-rpc = { version = "45.0.0" }
-sc-service = { version = "0.51.0" }
-sc-sysinfo = { version = "42.0.0" }
-sc-telemetry = { version = "28.1.0" }
-sc-tracing = { version = "39.0.0" }
-sc-transaction-pool = { version = "39.0.0" }
-sc-transaction-pool-api = { version = "39.0.0" }
-sp-api = { version = "36.0.1" }
-sp-block-builder = { version = "36.0.0" }
-sp-blockchain = { version = "39.0.0" }
-sp-consensus-aura = { version = "0.42.0" }
-sp-core = { version = "36.1.0" }
-sp-keystore = { version = "0.42.0" }
-sp-io = { version = "40.0.1" }
-sp-runtime = { version = "41.1.0" }
-sp-timestamp = { version = "36.0.0" }
-substrate-frame-rpc-system = { version = "44.0.0" }
-prometheus-endpoint = { version = "0.17.2", package = "substrate-prometheus-endpoint" }
+docify = { workspace = true, default-features = true }
+cyborg-runtime = { version = "0.1.0", path = "../runtime", default-features = true }
+frame-benchmarking = { workspace = true, default-features = true }
+frame-benchmarking-cli = { workspace = true, default-features = true }
+pallet-transaction-payment-rpc = { workspace = true, default-features = true }
+sc-basic-authorship = { workspace = true, default-features = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-cli = { workspace = true, default-features = true }
+sc-client-api = { workspace = true, default-features = true }
+sc-offchain = { workspace = true, default-features = true }
+sc-consensus = { workspace = true, default-features = true }
+sc-executor = { workspace = true, default-features = true }
+sc-network = { workspace = true, default-features = true }
+sc-network-sync = { workspace = true, default-features = true }
+sc-rpc = { workspace = true, default-features = true }
+sc-service = { workspace = true, default-features = true }
+sc-sysinfo = { workspace = true, default-features = true }
+sc-telemetry = { workspace = true, default-features = true }
+sc-tracing = { workspace = true, default-features = true }
+sc-transaction-pool = { workspace = true, default-features = true }
+sc-transaction-pool-api = { workspace = true, default-features = true }
+sp-api = { workspace = true, default-features = true }
+sp-block-builder = { workspace = true, default-features = true }
+sp-blockchain = { workspace = true, default-features = true }
+sp-consensus-aura = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-keystore = { workspace = true, default-features = true }
+sp-io = { workspace = true, default-features = true }
+sp-runtime = { workspace = true, default-features = true }
+sp-timestamp = { workspace = true, default-features = true }
+substrate-frame-rpc-system = { workspace = true, default-features = true }
+prometheus-endpoint = { workspace = true, default-features = true }
 
 # Polkadot
-polkadot-cli = { version = "24.0.0", features = ["rococo-native"] }
-polkadot-primitives = { version = "18.2.0" }
-xcm = { version = "16.2.0", package = "staging-xcm", default-features = false }
-cumulus-client-cli = { version = "0.23.0" }
-cumulus-client-collator = { version = "0.23.0" }
-cumulus-client-consensus-aura = { version = "0.23.0" }
-cumulus-client-consensus-common = { version = "0.23.0" }
-cumulus-client-consensus-proposer = { version = "0.19.0" }
-cumulus-client-service = { version = "0.24.0" }
-cumulus-primitives-core = { version = "0.18.1" }
-cumulus-primitives-parachain-inherent = { version = "0.18.1" }
-cumulus-relay-chain-interface = { version = "0.23.0" }
-color-print = "0.3.4"
+polkadot-cli = { workspace = true, features = ["rococo-native"], default-features = true }
+polkadot-primitives = { workspace = true, default-features = true }
+xcm = { workspace = true, default-features = true }
+cumulus-client-cli = { workspace = true, default-features = true }
+cumulus-client-collator = { workspace = true, default-features = true }
+cumulus-client-consensus-aura = { workspace = true, default-features = true }
+cumulus-client-consensus-common = { workspace = true, default-features = true }
+cumulus-client-consensus-proposer = { workspace = true, default-features = true }
+cumulus-client-service = { workspace = true, default-features = true }
+cumulus-primitives-core = { workspace = true, default-features = true }
+cumulus-primitives-parachain-inherent = { workspace = true, default-features = true }
+cumulus-relay-chain-interface = { workspace = true, default-features = true }
+color-print = { workspace = true, default-features = true }
 
 [build-dependencies]
-substrate-build-script-utils = { version = "11.0.0" }
+substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
 default = []

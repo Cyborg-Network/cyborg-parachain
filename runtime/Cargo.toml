@@ -13,18 +13,14 @@ publish = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { version = "26.0.1", optional = true }
-docify = "0.2.8"
+substrate-wasm-builder = { version = "27.0.0", optional = true }
+docify = { workspace = true }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false, features = [
-	"derive",
-] }
+codec = { workspace = true, features = ["derive"] }
 hex-literal = { version = "0.4.1", optional = true }
 log = { workspace = true }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
+scale-info = { workspace = true, features = ["derive"] }
 smallvec = "1.11.0"
 docify = "0.2.8"
 
@@ -35,69 +31,69 @@ orml-traits = { workspace = true }
 # Local
 cyborg-primitives = { workspace = true }
 pallet-edge-connect = { workspace = true }
-pallet-payment= { workspace = true}
+pallet-payment= { workspace = true }
 pallet-status-aggregator = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-zk-verifier = { workspace = true }
 pallet-neuro-zk = { workspace = true }
 
 # Substrate / FRAME
-frame-benchmarking = { version = "40.2.0", default-features = false, optional = true }
-frame-executive = { version = "40.0.1", default-features = false }
-frame-metadata-hash-extension = { version = "0.8.0", default-features = false }
-frame-support = { version = "40.1.0", default-features = false }
-frame-system = { version = "40.2.0", default-features = false }
-frame-system-benchmarking = { version = "40.0.1", default-features = false, optional = true }
-frame-system-rpc-runtime-api = { version = "36.0.0", default-features = false }
-frame-try-runtime = { version = "0.46.0", default-features = false, optional = true }
+frame-benchmarking = { workspace = true, optional = true }
+frame-executive = { workspace = true }
+frame-metadata-hash-extension = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+frame-system-benchmarking = { workspace = true, optional = true }
+frame-system-rpc-runtime-api = { workspace = true }
+frame-try-runtime = { workspace = true, optional = true }
 
 # FRAME Pallets
-pallet-aura = { version = "39.0.0", default-features = false }
-pallet-authorship = { version = "40.0.0", default-features = false }
-pallet-balances = { version = "41.1.1", default-features = false }
-pallet-message-queue = { version = "43.1.0", default-features = false }
-pallet-session = { version = "40.0.1", default-features = false }
-pallet-sudo = { version = "40.0.0", default-features = false }
-pallet-timestamp = { version = "39.0.0", default-features = false }
-pallet-transaction-payment = { version = "40.0.0", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { version = "40.0.0", default-features = false }
-pallet-membership = { version = "40.0.0", default-features = false }
+pallet-aura = { workspace = true }
+pallet-authorship = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-message-queue = { workspace = true }
+pallet-session = { workspace = true }
+pallet-sudo = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-membership = { workspace = true }
 
 # Substrate	Primitives
-sp-api = { version = "36.0.1", default-features = false }
-sp-block-builder = { version = "36.0.0", default-features = false }
-sp-consensus-aura = { version = "0.42.0", default-features = false }
-sp-core = { version = "36.1.0", default-features = false }
-sp-genesis-builder = { version = "0.17.0", default-features = false }
-sp-inherents = { version = "36.0.0", default-features = false }
-sp-offchain = { version = "36.0.0", default-features = false }
-sp-runtime = { version = "41.1.0", default-features = false }
-sp-session = { version = "38.1.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
-sp-transaction-pool = { version = "36.0.0", default-features = false }
-sp-version = { version = "39.0.0", default-features = false }
+sp-api = { workspace = true }
+sp-block-builder = { workspace = true }
+sp-consensus-aura = { workspace = true }
+sp-core = { workspace = true }
+sp-genesis-builder = { workspace = true }
+sp-inherents = { workspace = true }
+sp-offchain = { workspace = true }
+sp-runtime = { workspace = true }
+sp-session = { workspace = true }
+sp-std = { workspace = true }
+sp-transaction-pool = { workspace = true }
+sp-version = { workspace = true }
 
 # Polkadot
-pallet-xcm = { version = "19.1.2", default-features = false }
-polkadot-parachain-primitives = { version = "16.1.0", default-features = false }
-polkadot-runtime-common = { version = "19.1.1", default-features = false }
-xcm = { version = "16.2.0", package = "staging-xcm", default-features = false }
-xcm-builder = { version = "20.1.1", package = "staging-xcm-builder", default-features = false }
-xcm-executor = { version = "19.1.2", package = "staging-xcm-executor", default-features = false }
+pallet-xcm = { workspace = true }
+polkadot-parachain-primitives = { workspace = true }
+polkadot-runtime-common = { workspace = true }
+xcm = { workspace = true }
+xcm-builder = { workspace = true }
+xcm-executor = { workspace = true }
 
 # Cumulus
-cumulus-pallet-aura-ext = { version = "0.20.0", default-features = false }
-cumulus-pallet-parachain-system = { version = "0.20.0", default-features = false }
-cumulus-pallet-session-benchmarking = { version = "21.0.0", default-features = false }
-cumulus-pallet-xcm = { version = "0.19.1", default-features = false }
-cumulus-pallet-xcmp-queue = { version = "0.20.0", default-features = false }
-cumulus-primitives-aura = { version = "0.17.0", default-features = false }
-cumulus-primitives-core = { version = "0.18.1", default-features = false }
-cumulus-primitives-utility = { version = "0.20.0", default-features = false }
-cumulus-pallet-weight-reclaim = { version = "0.2.0", default-features = false }
-pallet-collator-selection = { version = "21.0.0", default-features = false }
-parachains-common = { version = "21.0.0", default-features = false }
-parachain-info = { version = "0.20.0", package = "staging-parachain-info", default-features = false }
+cumulus-pallet-aura-ext = { workspace = true }
+cumulus-pallet-parachain-system = { workspace = true }
+cumulus-pallet-session-benchmarking = { workspace = true }
+cumulus-pallet-xcm = { workspace = true }
+cumulus-pallet-xcmp-queue = { workspace = true }
+cumulus-primitives-aura = { workspace = true }
+cumulus-primitives-core = { workspace = true }
+cumulus-primitives-utility = { workspace = true }
+cumulus-pallet-weight-reclaim = { workspace = true }
+pallet-collator-selection = { workspace = true }
+parachains-common = { workspace = true }
+parachain-info = { workspace = true }
 
 [features]
 default = ["std"]
@@ -139,7 +135,7 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-xcm/std",
-  "pallet-zk-verifier/std",
+  	"pallet-zk-verifier/std",
 	"parachain-info/std",
 	"parachains-common/std",
 	"polkadot-parachain-primitives/std",
