@@ -6981,7 +6981,7 @@ dependencies = [
 
 [[package]]
 name = "orml-oracle"
-version = "0.13.0"
+version = "1.4.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -7000,7 +7000,7 @@ dependencies = [
 
 [[package]]
 name = "orml-traits"
-version = "0.13.0"
+version = "1.4.0"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -7019,7 +7019,7 @@ dependencies = [
 
 [[package]]
 name = "orml-utilities"
-version = "0.13.0"
+version = "1.4.0"
 dependencies = [
  "frame-support",
  "frame-system",
