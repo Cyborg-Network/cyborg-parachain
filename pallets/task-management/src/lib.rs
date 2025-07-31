@@ -17,7 +17,6 @@ pub use weights::*;
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
-use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 
 use pallet_edge_connect::ExecutableWorkers;
 use scale_info::prelude::vec::Vec;
@@ -104,10 +103,9 @@ pub mod pallet {
 		/// A new task has been scheduled and assigned to a worker.
 		TaskScheduled {
 			assigned_worker: (T::AccountId, WorkerId),
-			task_kind: TaskKind,
+			task_kind: TaskKind<BlockNumberFor<T>>,
 			task_owner: T::AccountId,
 			task_id: TaskId,
-			task: BoundedVec<u8, ConstU32<500>>,
 		},
 
 		/// A worker confirmed reception of task data and started execution.
@@ -170,21 +168,14 @@ where
         TryFrom<u64>, {
 		/// Creates a new task and assigns it to a randomly selected worker.
 		/// None -> Assigned
+		// TODO calculate actual weight from the length of the inputs 
 		#[pallet::call_index(0)]
-		#[pallet::weight({
-    		if nzk_info.is_some() {
-        		<T as pallet::Config>::WeightInfo::task_scheduler_nzk(task_location.len() as u32)
-    		} else {
-        		<T as pallet::Config>::WeightInfo::task_scheduler_no_nzk(task_location.len() as u32)
-    		}
-		})]
+		#[pallet::weight({<T as pallet::Config>::WeightInfo::task_scheduler_nzk(500)})]
 		pub fn task_scheduler(
 			origin: OriginFor<T>,
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
 			// TODO requesting_user: Option<Some data that identifies the user>,
-			task_kind: TaskKind,
-			task_location: BoundedVec<u8, ConstU32<500>>,
-			nzk_info: Option<NeuroZkTaskSubmissionDetails>,
+			task_kind: TaskSubmissionData,
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
@@ -193,14 +184,16 @@ where
 
 			// Determine worker type based on task kind
 			let worker_type = match task_kind {
-				TaskKind::NeuroZK => WorkerType::Executable,
-				TaskKind::OpenInference => WorkerType::Executable,
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => { 
+					WorkerType::Executable
+				},
 			};
 
 			// Check if any workers exist for the task_kind first
 			let any_workers_exist = match task_kind {
-				TaskKind::NeuroZK => ExecutableWorkers::<T>::iter().next().is_some(),
-				TaskKind::OpenInference => ExecutableWorkers::<T>::iter().next().is_some(),
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => { 
+					ExecutableWorkers::<T>::iter().next().is_some()
+				},
 			};
 			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
 
@@ -208,15 +201,11 @@ where
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
 				&(worker_owner.clone(), worker_id),
 				worker_type,
-			)
-			.map_err(|_| Error::<T>::WorkerDoesNotExist)?;
+			).map_err(|_| Error::<T>::WorkerDoesNotExist)?;
 
 			// Then check if the specific worker exists
 			let worker_exists = match task_kind {
-				TaskKind::NeuroZK => {
-					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
-				}
-				TaskKind::OpenInference => {
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => {
 					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 			};
@@ -236,31 +225,6 @@ where
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
 
-			let mut nzk_data = None;
-
-			match task_kind {
-				TaskKind::NeuroZK => {
-					// For NeuroZK, zk_info must be present
-					match nzk_info {
-						Some(data) => {
-							nzk_data = Some(NzkData {
-								zk_input: data.zk_input,
-								zk_settings: data.zk_settings,
-								zk_verifying_key: data.zk_verifying_key,
-								zk_proof: None,
-								last_proof_accepted: None,
-							});
-						}
-						None => {
-							return Err(Error::<T>::ZkFilesMissing.into());
-						}
-					}
-				}
-				TaskKind::OpenInference => {
-					ensure!(nzk_info.is_none(), Error::<T>::UnexpectedZkFiles);
-				}
-			}
-
 			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
 
             // Consume compute hours from payment pallet
@@ -271,12 +235,11 @@ where
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
 			let selected_worker = (worker_owner, worker_id);
+			let task_kind = TaskKind::from_submission(task_kind);
 
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
 				task_owner: who.clone(),
 				create_block: <frame_system::Pallet<T>>::block_number(),
-				metadata: task_location.clone(),
-				nzk_data,
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
 				task_kind: task_kind.clone(),
@@ -296,7 +259,6 @@ where
 				task_kind,
 				task_owner: who,
 				task_id,
-				task: task_location,
 			});
 
 			Ok(PostDispatchInfo {

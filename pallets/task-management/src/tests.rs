@@ -1,5 +1,6 @@
 use crate::{mock::*, Error};
 use crate::{ComputeAggregations, GatekeeperAccount, ModelHashes, NextTaskId, TaskStatus, Tasks};
+use cyborg_primitives::task::{AzureTask, OnnxTask, OpenInferenceTask, TaskSubmissionData, NzkData};
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
 use frame_support::{assert_noop, assert_ok};
 
@@ -55,20 +56,12 @@ fn it_works_for_task_scheduler() {
 		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
 		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
 
-		let task_kind_neurozk = TaskKind::NeuroZK;
-		let task_kind_infer = TaskKind::OpenInference;
+		let azure_task = AzureTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+		};
 
-		let worker_id_docker = 0;
-		let worker_id_exec = 1;
-
-		// Provide initial compute hours
-		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
-
-		// Task metadata (e.g., docker image or model)
-		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-
-		// nzk_data only required for NeuroZK
-		let nzk_data = Some(NeuroZkTaskSubmissionDetails {
+		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails { 
+			location: azure_task.clone(),
 			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
 				.unwrap(),
 			zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
@@ -78,6 +71,16 @@ fn it_works_for_task_scheduler() {
 			)
 			.unwrap(),
 		});
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
+
+		let worker_id_docker = 0;
+		let worker_id_exec = 1;
+
+		// Provide initial compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Executable Task (valid)
@@ -85,8 +88,6 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
-			task_data.clone(),
-			None,
 			executor,
 			worker_id_docker,
 			Some(10)
@@ -94,8 +95,13 @@ fn it_works_for_task_scheduler() {
 
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
 		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
-		assert_eq!(task_info_0.task_kind, TaskKind::OpenInference);
-		assert_eq!(task_info_0.nzk_data, None);
+		assert_eq!(
+			task_info_0.task_kind, 
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				triton_config: None
+			}))
+		);
 
 		// --------------------------------------------------
 		// ✅ Schedule OpenInference Executable Task (valid)
@@ -121,8 +127,6 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_neurozk,
-			task_data.clone(),
-			nzk_data.clone(),
 			executor,
 			worker_id_exec,
 			Some(10)
@@ -130,13 +134,17 @@ fn it_works_for_task_scheduler() {
 
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
 		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
-		assert_eq!(task_info_2.task_kind, TaskKind::NeuroZK);
-		assert!(task_info_2.nzk_data.is_some());
-		if let Some(nzk_data) = task_info_2.nzk_data {
-			assert_eq!(nzk_data.zk_input, nzk_data.zk_input);
-			assert_eq!(nzk_data.zk_settings, nzk_data.zk_settings);
-			assert_eq!(nzk_data.zk_verifying_key, nzk_data.zk_verifying_key);
-		}
+		assert_eq!(
+			task_info_2.task_kind, 
+			TaskKind::NeuroZK(NzkData {
+				location: azure_task,
+				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_proof: None,
+				last_proof_accepted: None
+			})
+		);
 	});
 }
 
@@ -146,7 +154,6 @@ fn it_fails_when_worker_not_registered() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let task_kind_neurozk = TaskKind::NeuroZK;
 		let worker_owner = 2;
 		let worker_id = 99;
 
@@ -157,11 +164,13 @@ fn it_fails_when_worker_not_registered() {
 			"exec.worker"
 		));
 
-		// Create task data and nzk_data
-		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
+		let azure_task = AzureTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+		};
 
 		// nzk_data only required for NeuroZK
-		let nzk_data = Some(NeuroZkTaskSubmissionDetails {
+		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails { 
+			location: azure_task.clone(),
 			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
 				.unwrap(),
 			zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
@@ -180,8 +189,6 @@ fn it_fails_when_worker_not_registered() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_neurozk,
-				task_data.clone(),
-				nzk_data.clone(),
 				worker_owner,
 				worker_id,
 				Some(1),
@@ -198,7 +205,10 @@ fn it_fails_when_no_workers_are_available() {
 		let alice = 1;
 		let worker_owner = 2;
 		let worker_id = 0;
-		let task_kind_infer = TaskKind::OpenInference;
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
@@ -210,16 +220,11 @@ fn it_fails_when_no_workers_are_available() {
 			.next()
 			.is_none());
 
-		// Create a task data BoundedVec
-		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				task_data.clone(),
-				None,
 				worker_owner,
 				worker_id,
 				Some(10)
@@ -237,7 +242,10 @@ fn it_fails_when_no_computer_hours_available() {
 
 		let worker_owner = 2;
 		let worker_id = 0;
-		let task_kind_infer = TaskKind::OpenInference;
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		// Register worker first
 		assert_ok!(register_worker(
@@ -246,16 +254,11 @@ fn it_fails_when_no_computer_hours_available() {
 			"worker.domain"
 		));
 
-		// Create a task data BoundedVec
-		let task_data = BoundedVec::try_from(b"some-docker-imgv.0".to_vec()).unwrap();
-
 		// Dispatch a signed extrinsic and expect an error because no workers are available
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				task_data.clone(),
-				None,
 				worker_owner,
 				worker_id,
 				None
@@ -273,8 +276,10 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 		let creator = 1;
 		let executor = 2;
 		let worker_id = 0;
-		let task_kind = TaskKind::OpenInference;
-		let task_data = BoundedVec::truncate_from(b"model.bin".to_vec());
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		// Register worker first
 		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
@@ -283,9 +288,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
-			task_kind,
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			executor,
 			worker_id,
 			Some(10)
@@ -317,16 +320,17 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let executor = 2;
 		let intruder = 99;
 		let worker_id = 0;
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
 		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
 
-		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
-			TaskKind::OpenInference,
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			executor,
 			worker_id,
 			Some(10)
@@ -349,16 +353,17 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		let creator = 1;
 		let executor = 2;
 		let worker_id = 0;
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
 		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
 
-		let task_data = BoundedVec::truncate_from(b"task".to_vec());
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
-			TaskKind::OpenInference,
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			executor,
 			worker_id,
 			Some(10)
@@ -386,9 +391,11 @@ fn it_works_for_confirm_miner_vacation() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let task_kind = TaskKind::OpenInference;
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
-		let task_data = BoundedVec::try_from(b"docker-alice-vacation".to_vec()).unwrap();
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -399,9 +406,7 @@ fn it_works_for_confirm_miner_vacation() {
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_kind.clone(),
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			alice,
 			0, // worker_id
 			Some(10),
@@ -441,18 +446,17 @@ fn fails_if_not_task_owner_for_vacation() {
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
-		let task_kind = TaskKind::OpenInference;
-
-		let task_data = BoundedVec::try_from(b"docker-alice-task".to_vec()).unwrap();
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
 		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_kind.clone(),
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			alice,
 			0,
 			Some(5),
@@ -486,18 +490,17 @@ fn fails_if_task_not_stopped() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let task_kind = TaskKind::OpenInference;
-
-		let task_data = BoundedVec::try_from(b"docker-alice-not-stopped".to_vec()).unwrap();
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
 		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_kind.clone(),
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			alice,
 			0,
 			Some(5),
@@ -525,9 +528,10 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-
-		let task_kind = TaskKind::OpenInference;
-		let metadata = BoundedVec::try_from(b"docker-image-task-v1.0".to_vec()).unwrap();
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		// Provide compute hours and register worker
 		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
@@ -536,9 +540,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_kind,
-			metadata.clone(),
-			None,
+			task_kind_infer,
 			alice,
 			0,
 			Some(10),
@@ -581,8 +583,10 @@ fn fails_if_task_is_not_running() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let task_kind = TaskKind::OpenInference;
-		let task_data = BoundedVec::try_from(b"some-task-not-running".to_vec()).unwrap();
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
 		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
@@ -590,9 +594,7 @@ fn fails_if_task_is_not_running() {
 		// Schedule task and don't confirm reception (still Assigned)
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
-			task_kind.clone(),
-			task_data.clone(),
-			None,
+			task_kind_infer,
 			alice,
 			0,
 			Some(15),

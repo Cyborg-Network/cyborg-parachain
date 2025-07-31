@@ -9,27 +9,30 @@ use cyborg_primitives::{task::*, zkml::*};
 fn create_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
 	let deposit = 10;
-	let data_str = "1";
-	let data_vec = data_str.as_bytes().to_vec();
-	let data: BoundedVec<u8, ConstU32<5000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let vk: BoundedVec<u8, ConstU32<500000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let metadata: BoundedVec<u8, ConstU32<500>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let nzk_data = Some(NzkData {
-		zk_input: data.clone(),
-		zk_settings: data.clone(),
-		zk_verifying_key: vk,
+	let azure_task = AzureTask {
+		storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+	};
+	let task_kind_neurozk = TaskKind::NeuroZK(NzkData { 
+		location: azure_task.clone(),
+		zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+			.unwrap(),
+		zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+			.unwrap(),
+		zk_verifying_key: BoundedVec::try_from(
+			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+		)
+			.unwrap(),
 		zk_proof: None,
 		last_proof_accepted: None,
 	});
 
+
 	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
-		metadata,
-		nzk_data,
 		time_elapsed: None,
 		average_cpu_percentage_use: None,
-		task_kind: TaskKind::NeuroZK,
+		task_kind: task_kind_neurozk,
 		result: None,
 		compute_hours_deposit: Some(deposit),
 		consume_compute_hours: None,
@@ -42,27 +45,17 @@ fn create_neurozk_task(task_id: TaskId) {
 fn create_non_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
 	let deposit = 10;
-	let data_str = "1";
-	let data_vec = data_str.as_bytes().to_vec();
-	let data: BoundedVec<u8, ConstU32<5000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let vk: BoundedVec<u8, ConstU32<500000>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let metadata: BoundedVec<u8, ConstU32<500>> = BoundedVec::try_from(data_vec.clone()).unwrap();
-	let nzk_data = Some(NzkData {
-		zk_input: data.clone(),
-		zk_settings: data.clone(),
-		zk_verifying_key: vk,
-		zk_proof: None,
-		last_proof_accepted: None,
-	});
+	let task_kind_infer = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+		storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+		triton_config: None
+	}));
 
 	let task_info = TaskInfo {
 		task_owner: who,
 		create_block: 1,
-		metadata,
-		nzk_data,
 		time_elapsed: None,
 		average_cpu_percentage_use: None,
-		task_kind: TaskKind::OpenInference,
+		task_kind: task_kind_infer,
 		result: None,
 		compute_hours_deposit: Some(deposit),
 		consume_compute_hours: None,
@@ -248,7 +241,11 @@ fn finalize_verification_accepts_on_threshold() {
 		}
 
 		let task = get_nzk_task(task_id).unwrap();
-		assert_eq!(task.nzk_data.unwrap().last_proof_accepted.unwrap().0, true);
+		if let TaskKind::NeuroZK(data) = task.task_kind {
+    		assert_eq!(data.last_proof_accepted.unwrap().0, true);
+		} else {
+    		panic!("Expected TaskKind::NeuroZK");
+		}
 	});
 }
 
@@ -270,6 +267,10 @@ fn finalize_verification_rejects_below_threshold() {
 		}
 
 		let task = get_nzk_task(task_id).unwrap();
-		assert_eq!(task.nzk_data.unwrap().last_proof_accepted.unwrap().0, false);
+		if let TaskKind::NeuroZK(data) = task.task_kind {
+    		assert_eq!(data.last_proof_accepted.unwrap().0, false);
+		} else {
+    		panic!("Expected TaskKind::NeuroZK");
+		}
 	});
 }

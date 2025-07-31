@@ -180,7 +180,7 @@ pub mod pallet {
 			// Check if the task is a NeuroZK task
 			if let Some(task) = T::NzkTaskInfoHandler::get_nzk_task(task_id) {
 				match task.task_kind {
-					TaskKind::NeuroZK => {
+					TaskKind::NeuroZK(_) => {
 						RequestedProofs::<T>::insert(task_id, ProofVerificationStage::Requested);
 					}
 					_ => {
@@ -225,11 +225,9 @@ pub mod pallet {
 			// Check if the task is a NeuroZK task and set the proof
 			if let Some(mut task) = T::NzkTaskInfoHandler::get_nzk_task(task_id) {
 				match task.task_kind {
-					TaskKind::NeuroZK => {
-						if let Some(ref mut nzk_data) = task.nzk_data {
-							nzk_data.zk_proof = Some(proof);
-							T::NzkTaskInfoHandler::update_nzk_task(task_id, task);
-						}
+					TaskKind::NeuroZK(ref mut data) => {
+						data.zk_proof = Some(proof);
+						T::NzkTaskInfoHandler::update_nzk_task(task_id, task);
 						// Insert the task_id into the RequestedProofs map
 						RequestedProofs::<T>::insert(task_id, ProofVerificationStage::Pending);
 					}
@@ -289,24 +287,27 @@ pub mod pallet {
 			last_block_processed: BlockNumberFor<T>,
 		) {
 			if let Some(mut task) = T::NzkTaskInfoHandler::get_nzk_task(task_id) {
-				if let Some(ref mut nzk_data) = task.nzk_data {
-					nzk_data.last_proof_accepted = Some((is_accepted, last_block_processed));
+				match task.task_kind {
+					TaskKind::NeuroZK(ref mut data) => {
+						data.last_proof_accepted = Some((is_accepted, last_block_processed));
 
-					T::NzkTaskInfoHandler::update_nzk_task(task_id, task);
+						T::NzkTaskInfoHandler::update_nzk_task(task_id, task);
 
-					if is_accepted {
-						Self::deposit_event(Event::NzkProofVerified {
-							task_id,
-							last_block_processed,
-						});
-					} else {
-						Self::deposit_event(Event::NzkProofRejected {
-							task_id,
-							last_block_processed,
-						});
+						if is_accepted {
+							Self::deposit_event(Event::NzkProofVerified {
+								task_id,
+								last_block_processed,
+							});
+						} else {
+							Self::deposit_event(Event::NzkProofRejected {
+								task_id,
+								last_block_processed,
+							});
+						}
 					}
-				} else {
-					log::error!(target: "nzk", "Neuro-ZK data is missing in the task");
+					_ => {
+						log::error!(target: "nzk", "Neuro-ZK task is not of type NeuroZK");
+					}
 				}
 			} else {
 				log::error!(target: "nzk", "Neuro-ZK task not found for the given task id");
