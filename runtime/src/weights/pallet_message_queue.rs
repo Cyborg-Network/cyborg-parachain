@@ -128,6 +128,16 @@ impl<T: frame_system::Config> pallet_message_queue::WeightInfo for SubstrateWeig
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	fn set_service_head() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `220`
+		//  Estimated: `3520`
+		// Minimum execution time: 7_678_000 picoseconds.
+		Weight::from_parts(8_082_000, 0)
+			.saturating_add(Weight::from_parts(0, 3520))
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(1))
+	}
 	/// Storage: `MessageQueue::BookStateFor` (r:1 w:1)
 	/// Proof: `MessageQueue::BookStateFor` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `MessageQueue::Pages` (r:1 w:1)
