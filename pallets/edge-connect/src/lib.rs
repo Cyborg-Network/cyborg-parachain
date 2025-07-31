@@ -165,7 +165,7 @@ pub mod pallet {
 		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
 	}
 
-	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
+	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 	pub enum PenaltyReason {
 		TaskRejection,
 		FalseCompletion,

@@ -12,9 +12,7 @@ mod tests;
 pub mod weights;
 use cyborg_primitives::payment::RewardRates;
 use log::info;
-use sp_runtime::traits::CheckedAdd;
 
-use sp_runtime::traits::Zero;
 pub use weights::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
