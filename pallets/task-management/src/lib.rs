@@ -161,6 +161,7 @@ pub mod pallet {
 		WorkerDoesNotExist,
 		ModelAlreadyRegistered,
 		ModelNotFound,
+		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
 	}
 
 	#[pallet::call]
@@ -311,44 +312,43 @@ where
 		/// Changes task state to `Running` and starts aggregation of resource usage.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
-		pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+        pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+            let who = ensure_signed(origin)?;
 
-			// Load task
-			let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            // Load task
+            let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
-			// Check that caller is the assigned worker
-			let assigned_worker =
-				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
-			ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
+            // Check that caller is the assigned worker
+            let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
 
-			// Task must currently be `Assigned`
-			ensure!(
-				task_info.task_status == TaskStatusType::Assigned,
-				Error::<T>::RequireAssignedTask
-			);
+            // If task is already running, return specific error
+            if task_info.task_status == TaskStatusType::Running {
+                return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
+            }
 
-			// Transition task to `Running`
-			task_info.task_status = TaskStatusType::Running;
-			TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+            // Task must currently be `Assigned`
+            ensure!(
+                task_info.task_status == TaskStatusType::Assigned,
+                Error::<T>::RequireAssignedTask
+            );
 
-			// Store back the updated task info
-			Tasks::<T>::insert(task_id, task_info);
+            task_info.task_status = TaskStatusType::Running;
+            TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+            Tasks::<T>::insert(task_id, task_info);
 
-			// Start compute aggregation: record starting block
-			ComputeAggregations::<T>::insert(
-				task_id,
-				(
-					<frame_system::Pallet<T>>::block_number(),
-					None::<BlockNumberFor<T>>,
-				),
-			);
+            ComputeAggregations::<T>::insert(
+                task_id,
+                (
+                    <frame_system::Pallet<T>>::block_number(),
+                    None::<BlockNumberFor<T>>,
+                ),
+            );
 
-			// Emit event (you can define a new event like TaskReceptionConfirmed if needed)
-			Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
+            Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
 
-			Ok(())
-		}
+            Ok(())
+        }
 
 		//
 		/// signals the miner to exit task execution and reset itself

@@ -229,9 +229,8 @@ fn start_consensus(
 		max_pov_percentage: None,
 	};
 
-	let fut = aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(
-		params,
-	);
+	let fut =
+		aura::run::<Block, sp_consensus_aura::sr25519::AuthorityPair, _, _, _, _, _, _, _, _>(params);
 
 	task_manager
 		.spawn_essential_handle()
@@ -299,23 +298,24 @@ pub async fn start_parachain_node(
 	if parachain_config.offchain_worker.enabled {
 		use futures::FutureExt;
 
-		let offchain_workers =
-			sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
-				runtime_api_provider: client.clone(),
-				keystore: Some(params.keystore_container.keystore()),
-				offchain_db: backend.offchain_storage(),
-				transaction_pool: Some(OffchainTransactionPoolFactory::new(
-					transaction_pool.clone(),
-				)),
-				network_provider: Arc::new(network.clone()),
-				is_validator: parachain_config.role.is_authority(),
-				enable_http_requests: false,
-				custom_extensions: move |_| vec![],
-			})?;
+		let offchain_workers = sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
+			runtime_api_provider: client.clone(),
+			keystore: Some(params.keystore_container.keystore()),
+			offchain_db: backend.offchain_storage(),
+			transaction_pool: Some(OffchainTransactionPoolFactory::new(
+				transaction_pool.clone(),
+			)),
+			network_provider: Arc::new(network.clone()),
+			is_validator: parachain_config.role.is_authority(),
+			enable_http_requests: false,
+			custom_extensions: move |_| vec![],
+		})?;
 		task_manager.spawn_handle().spawn(
 			"offchain-workers-runner",
 			"offchain-work",
-			offchain_workers.run(client.clone(), task_manager.spawn_handle()).boxed(),
+			offchain_workers
+				.run(client.clone(), task_manager.spawn_handle())
+				.boxed(),
 		);
 	}
 
@@ -324,11 +324,13 @@ pub async fn start_parachain_node(
 		let transaction_pool = transaction_pool.clone();
 
 		Box::new(move |_| {
-			let deps =
-				crate::rpc::FullDeps { client: client.clone(), pool: transaction_pool.clone() };
+			let deps = crate::rpc::FullDeps {
+				client: client.clone(),
+				pool: transaction_pool.clone(),
+			};
 
 			crate::rpc::create_full(deps).map_err(Into::into)
-		})	
+		})
 	};
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
