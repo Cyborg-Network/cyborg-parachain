@@ -189,6 +189,7 @@ where
 			worker_owner: T::AccountId,
 			worker_id: WorkerId,
 			compute_hours_deposit: Option<u32>,
+			gatekeeper_pub: Option<BoundedVec<u8, ConstU32<32>>>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
@@ -243,7 +244,8 @@ where
 				TaskKind::NeuroZK => {
 					// For NeuroZK, zk_info must be present
 					match nzk_info {
-						Some(data) => {
+						Some(mut data) => {
+							data.gatekeeper_pub = gatekeeper_pub;
 							nzk_data = Some(NzkData {
 								zk_input: data.zk_input,
 								zk_settings: data.zk_settings,
