@@ -5,7 +5,7 @@ use crate::{
 
 use frame_support::{
 	parameter_types,
-	traits::{ConstU32, Contains, Everything, Nothing, Disabled},
+	traits::{ConstU32, Contains, Disabled, Everything, Nothing},
 	weights::Weight,
 };
 use frame_system::EnsureRoot;
@@ -17,10 +17,10 @@ use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
 	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
 	FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
-	XcmFeeManagerFromComponents, SendXcmFeeToAccount,
+	XcmFeeManagerFromComponents,
 };
 use xcm_executor::XcmExecutor;
 
