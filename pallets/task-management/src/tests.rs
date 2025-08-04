@@ -77,6 +77,7 @@ fn it_works_for_task_scheduler() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 
 		// --------------------------------------------------
@@ -89,7 +90,8 @@ fn it_works_for_task_scheduler() {
 			None,
 			executor,
 			worker_id_docker,
-			Some(10)
+			Some(10),
+			None,
 		));
 
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
@@ -125,7 +127,8 @@ fn it_works_for_task_scheduler() {
 			nzk_data.clone(),
 			executor,
 			worker_id_exec,
-			Some(10)
+			Some(10),
+			None,
 		));
 
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
@@ -170,6 +173,7 @@ fn it_fails_when_worker_not_registered() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 
 		// Provide compute hours
@@ -185,6 +189,7 @@ fn it_fails_when_worker_not_registered() {
 				worker_owner,
 				worker_id,
 				Some(1),
+				None,
 			),
 			Error::<Test>::WorkerDoesNotExist
 		);
@@ -222,7 +227,8 @@ fn it_fails_when_no_workers_are_available() {
 				None,
 				worker_owner,
 				worker_id,
-				Some(10)
+				Some(10),
+				None,
 			),
 			Error::<Test>::NoWorkersAvailable
 		);
@@ -258,7 +264,8 @@ fn it_fails_when_no_computer_hours_available() {
 				None,
 				worker_owner,
 				worker_id,
-				None
+				None,
+				None,
 			),
 			Error::<Test>::RequireComputeHoursDeposit
 		);
@@ -288,7 +295,8 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 			None,
 			executor,
 			worker_id,
-			Some(10)
+			Some(10),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -329,7 +337,8 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 			None,
 			executor,
 			worker_id,
-			Some(10)
+			Some(10),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -361,7 +370,8 @@ fn confirm_task_reception_should_fail_if_already_running() {
 			None,
 			executor,
 			worker_id,
-			Some(10)
+			Some(10),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -405,6 +415,7 @@ fn it_works_for_confirm_miner_vacation() {
 			alice,
 			0, // worker_id
 			Some(10),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -456,6 +467,7 @@ fn fails_if_not_task_owner_for_vacation() {
 			alice,
 			0,
 			Some(5),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -501,6 +513,7 @@ fn fails_if_task_not_stopped() {
 			alice,
 			0,
 			Some(5),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -542,6 +555,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 			alice,
 			0,
 			Some(10),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -596,6 +610,7 @@ fn fails_if_task_is_not_running() {
 			alice,
 			0,
 			Some(15),
+			None,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;

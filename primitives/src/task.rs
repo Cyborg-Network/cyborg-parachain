@@ -56,6 +56,7 @@ pub struct NeuroZkTaskSubmissionDetails {
 	pub zk_input: ZkInput,
 	pub zk_settings: ZkSettings,
 	pub zk_verifying_key: ZkVerifyingKey,
+	pub gatekeeper_pub: Option<BoundedVec<u8, ConstU32<32>>>, // x25519 public key
 }
 
 #[derive(Clone, Decode, Encode, TypeInfo, MaxEncodedLen, PartialEq, Eq, Debug)]
