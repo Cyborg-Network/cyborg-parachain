@@ -130,4 +130,5 @@ pub enum SuspensionReason {
 	MaliciousActivity,
 	ReputationThreshold,
 	ManualOverride,
+	TaskConfirmationTimeout,
 }

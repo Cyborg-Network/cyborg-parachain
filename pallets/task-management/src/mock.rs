@@ -54,6 +54,11 @@ impl frame_system::Config for Test {
 impl pallet_task_management::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+	type TaskConfirmationTimeout = TaskConfirmationTimeout;
+}
+
+parameter_types! {
+	pub const TaskConfirmationTimeout: u64 = 75; // ~7.5 minutes at 6s/block
 }
 
 impl pallet_edge_connect::Config for Test {

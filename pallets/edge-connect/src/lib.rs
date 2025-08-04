@@ -497,7 +497,7 @@ pub mod pallet {
 		}
 
 		/// Apply penalty to a worker's reputation
-		fn apply_penalty(
+		pub fn apply_penalty(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 			penalty: i32,
@@ -591,7 +591,7 @@ pub mod pallet {
 		}
 
 		/// Suspend a worker with a specific reason and duration
-		fn suspend_workers(
+		pub fn suspend_workers(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 			blocks: BlockNumberFor<T>,
