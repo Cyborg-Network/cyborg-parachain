@@ -55,7 +55,7 @@ pub enum OpenInferenceTask {
 	Onnx(OnnxTask),
 	//Cess(CessTask),
 	//Azure(AzureTask),
-	//Huggingface(HuggingfaceTask),
+	Huggingface(HuggingfaceTask),
 }
 
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
@@ -75,11 +75,10 @@ pub struct AzureTask {
 	pub storage_location_identifier: BoundedVec<u8, ConstU32<500>>,
 }
 
-/* 
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
 pub struct HuggingfaceTask {
-
+	pub hf_identifier: BoundedVec<u8, ConstU32<500>>,
 }
-*/
 
 ///Detailed information about a specific task.
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
