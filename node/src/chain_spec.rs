@@ -198,6 +198,33 @@ fn testnet_genesis(
 		"polkadotXcm": {
 			"safeXcmVersion": Some(SAFE_XCM_VERSION),
 		},
-		"sudo": { "key": Some(root) }
+		"sudo": { "key": Some(root) },
+		"assetRegistry": {
+            "registeredAssets": [
+                {
+                    "assetId": 1984, // USDT on Asset Hub
+                    "location": {
+                        "parents": 1,
+                        "interior": {
+                            "X2": [
+                                {"Parachain": 1000},
+                                {"GeneralIndex": 1984}
+                            ]
+                        }
+                    },
+                    "decimals": 6
+                }
+            ]
+        },
+        "xcmpQueue": {
+            "hrmpChannels": [
+                {
+                    "sender": id.into(),
+                    "recipient": 1000, // Asset Hub
+                    "maxCapacity": 1000,
+                    "maxMessageSize": 102400
+                }
+            ]
+        }
 	})
 }

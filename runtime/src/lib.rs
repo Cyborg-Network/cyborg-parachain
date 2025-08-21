@@ -36,6 +36,11 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
+use xcm::latest::prelude::*;
+use xcm_builder::{
+    FixedRateOfFungible, 
+    TakeRevenue,
+};
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
@@ -116,11 +121,18 @@ pub type UncheckedExtrinsic =
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
-	Runtime,
-	Block,
-	frame_system::ChainContext<Runtime>,
-	Runtime,
-	AllPalletsWithSystem,
+    Runtime,
+    Block,
+    frame_system::ChainContext<Runtime>,
+    Runtime,
+    AllPalletsWithSystem,
+    (),
+    (),
+    (),
+    (),
+    (),
+    (),
+    (),
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
@@ -180,6 +192,12 @@ impl_opaque_keys! {
 
 parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
+}
+
+// Add XCM fee configuration
+parameter_types! {
+    pub const XcmByteFee: Balance = 10 * MICROUNIT;
+    pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 64 * 1024);
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -360,6 +378,11 @@ impl pallet_edge_connect::Config for Runtime {
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
+}
+
+impl pallet_asset_registry::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
 parameter_types! {
@@ -570,6 +593,9 @@ mod runtime {
 
 	#[runtime::pallet_index(47)]
 	pub type NeuroZk = pallet_neuro_zk;
+
+	#[runtime::pallet_index(48)]
+    pub type AssetRegistry = pallet_asset_registry;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

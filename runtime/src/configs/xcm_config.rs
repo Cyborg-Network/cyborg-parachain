@@ -24,14 +24,24 @@ use xcm_builder::{
 };
 use xcm_executor::XcmExecutor;
 
-
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
 	pub const RelayNetwork: Option<NetworkId> = None;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
 	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
-	pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	// pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+
+	pub UniversalLocation: InteriorLocation = 
+        GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot))
+        .into();
+	
+	pub AssetHubLocation: Location = Location::new(
+        1,
+        [Parachain(1000)]  // Asset Hub parachain ID
+    );
+    
+    pub const AssetHubNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -50,8 +60,11 @@ pub type LocationToAccountId = (
 pub type LocalAssetTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
+	    // Allow both relay chain assets and Asset Hub assets
+		EitherOf<
+			IsConcrete<RelayLocation>,
+			IsConcrete<AssetHubLocation>,
+		>,
 	// Do a simple punn to convert an AccountId32 Location into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -114,6 +127,9 @@ pub type Barrier = TrailingSetTopicAsId<
 				(
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
+					AllowExplicitUnpaidExecutionFrom<(
+                        ParentThen(Parachain(1000)),  // Asset Hub parachain ID
+                    )>,
 					// ^^^ Parent and its exec plurality get free execution
 				),
 				UniversalLocation,
