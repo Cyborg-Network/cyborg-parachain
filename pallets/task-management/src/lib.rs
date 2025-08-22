@@ -184,14 +184,14 @@ where
 
 			// Determine worker type based on task kind
 			let worker_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => { 
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { 
 					WorkerType::Executable
 				},
 			};
 
 			// Check if any workers exist for the task_kind first
 			let any_workers_exist = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => { 
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { 
 					ExecutableWorkers::<T>::iter().next().is_some()
 				},
 			};
@@ -205,7 +205,7 @@ where
 
 			// Then check if the specific worker exists
 			let worker_exists = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) => {
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => {
 					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
 				}
 			};

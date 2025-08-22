@@ -23,6 +23,7 @@ pub enum TaskStatusType {
 pub enum TaskSubmissionData {
 	NeuroZK(NeuroZkTaskSubmissionDetails),       // A Zero-Knowledge Proof Generation task.
 	OpenInference(OpenInferenceTask), // An AI Inference Task (normal).
+	FlashInfer(FlashInferTask),
 }
 
 /// Kinds of overall tasks at a logical level (business logic: inference vs zk proof).
@@ -30,6 +31,7 @@ pub enum TaskSubmissionData {
 pub enum TaskKind<BlockNumber> {
 	NeuroZK(NzkData<BlockNumber>),       // A Zero-Knowledge Proof Generation task.
 	OpenInference(OpenInferenceTask), // An AI Inference Task (normal).
+	FlashInferInfer(FlashInferTask)
 }
 
 impl<BlockNumber> TaskKind<BlockNumber> {
@@ -46,6 +48,7 @@ impl<BlockNumber> TaskKind<BlockNumber> {
 				})
 			},
 			TaskSubmissionData::OpenInference(task) => TaskKind::OpenInference(task),
+			TaskSubmissionData::FlashInfer(task) => TaskKind::FlashInferInfer(task),
 		}
 	}
 }
@@ -55,6 +58,11 @@ pub enum OpenInferenceTask {
 	Onnx(OnnxTask),
 	//Cess(CessTask),
 	//Azure(AzureTask),
+	//Huggingface(HuggingfaceTask),
+}
+
+#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
+pub enum FlashInferTask {
 	Huggingface(HuggingfaceTask),
 }
 
