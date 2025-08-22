@@ -117,4 +117,18 @@ pub mod pallet {
             Ok(())
         }
     }
+
+        impl<T: Config> Pallet<T> {
+            /// Check if an asset is registered
+            pub fn is_asset_registered(asset_id: AssetId) -> bool {
+                RegisteredAssets::<T>::contains_key(asset_id)
+            }
+    
+            /// Get all registered assets
+            pub fn get_all_assets() -> Vec<(AssetId, Location, Option<u128>)> {
+                RegisteredAssets::<T>::iter()
+                    .map(|(asset_id, (location, decimals))| (asset_id, location, decimals))
+                    .collect()
+            }
+        }
 }
