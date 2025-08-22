@@ -36,11 +36,14 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
-use xcm::latest::prelude::*;
-use xcm_builder::{
-    FixedRateOfFungible, 
-    TakeRevenue,
-};
+// use xcm::latest::prelude::*;
+// use xcm_builder::{
+//     FixedRateOfFungible, 
+//     TakeRevenue,
+// };
+use crate::configs::XcmConfig;
+use xcm_executor::XcmExecutor;
+
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
@@ -126,13 +129,6 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (),
-    (),
-    (),
-    (),
-    (),
-    (),
-    (),
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
@@ -383,6 +379,7 @@ impl pallet_task_management::Config for Runtime {
 impl pallet_asset_registry::Config for Runtime {
     type RuntimeEvent = RuntimeEvent;
     type XcmExecutor = XcmExecutor<XcmConfig>;
+	type WeightInfo = weights::pallet_asset_registry::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {

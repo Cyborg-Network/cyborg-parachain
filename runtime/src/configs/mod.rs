@@ -52,6 +52,10 @@ use sp_runtime::Perbill;
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
+pub use xcm_config::XcmConfig;
+
+// use sp_std::vec;
+// use frame_system::DefaultConfig;
 
 // Local module imports
 use super::{
@@ -273,30 +277,29 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 }
 
 // HRMP channel configuration
-#[frame_support::register_default_impls]
-impl DefaultConfig for Runtime {
-    fn hrmp_config() -> cumulus_pallet_parachain_system::HrmpConfig {
-        cumulus_pallet_parachain_system::HrmpConfig {
-            // Open HRMP channel to Asset Hub
-            open_channels: vec![
-                cumulus_pallet_parachain_system::HrmpChannelConfig {
-                    sender: ParachainInfo::parachain_id().into(),
-                    recipient: AssetHubParaId::get().into(),
-                    max_capacity: 1000,
-                    max_message_size: 102400,
-                },
-            ],
-            accepted_channels: vec![
-                cumulus_pallet_parachain_system::HrmpChannelConfig {
-                    sender: AssetHubParaId::get().into(),
-                    recipient: ParachainInfo::parachain_id().into(),
-                    max_capacity: 1000,
-                    max_message_size: 102400,
-                },
-            ],
-        }
-    }
-}
+// impl DefaultConfig for Runtime {
+//     fn hrmp_config() -> cumulus_pallet_parachain_system::HrmpConfig {
+//         cumulus_pallet_parachain_system::HrmpConfig {
+//             // Open HRMP channel to Asset Hub
+//             open_channels: vec![
+//                 cumulus_pallet_parachain_system::HrmpChannelConfig {
+//                     sender: ParachainInfo::parachain_id().into(),
+//                     recipient: AssetHubParaId::get().into(),
+//                     max_capacity: 1000,
+//                     max_message_size: 102400,
+//                 },
+//             ],
+//             accepted_channels: vec![
+//                 cumulus_pallet_parachain_system::HrmpChannelConfig {
+//                     sender: AssetHubParaId::get().into(),
+//                     recipient: ParachainInfo::parachain_id().into(),
+//                     max_capacity: 1000,
+//                     max_message_size: 102400,
+//                 },
+//             ],
+//         }
+//     }
+// }
 
 parameter_types! {
 	pub const Period: u32 = 6 * HOURS;

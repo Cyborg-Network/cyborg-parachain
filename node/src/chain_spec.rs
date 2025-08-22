@@ -219,7 +219,7 @@ fn testnet_genesis(
         "xcmpQueue": {
             "hrmpChannels": [
                 {
-                    "sender": id.into(),
+                    "sender": u32::from(id),
                     "recipient": 1000, // Asset Hub
                     "maxCapacity": 1000,
                     "maxMessageSize": 102400

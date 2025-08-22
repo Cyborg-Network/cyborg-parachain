@@ -1,5 +1,5 @@
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime,
+	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm, Runtime,
 	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
@@ -16,12 +16,13 @@ use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
 	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-	FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
+	FrameTransactionalProcessor, FungibleAdapter, NativeAsset, ParentIsPreset,
 	RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
 	XcmFeeManagerFromComponents,
 };
+use xcm_executor::traits::MatchesFungible;
 use xcm_executor::XcmExecutor;
 
 parameter_types! {
@@ -32,16 +33,16 @@ parameter_types! {
 	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
 	// pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 
-	pub UniversalLocation: InteriorLocation = 
-        GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot))
-        .into();
-	
+	pub UniversalLocation: InteriorLocation =
+				GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot))
+				.into();
+
 	pub AssetHubLocation: Location = Location::new(
-        1,
-        [Parachain(1000)]  // Asset Hub parachain ID
-    );
-    
-    pub const AssetHubNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
+				1,
+				[Parachain(1000)]  // Asset Hub parachain ID
+		);
+
+		pub const AssetHubNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -56,15 +57,25 @@ pub type LocationToAccountId = (
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
 
+pub struct RelayOrAssetHubFungible;
+impl MatchesFungible<u128> for RelayOrAssetHubFungible {
+    fn matches_fungible(a: &Asset) -> Option<u128> {
+        match a {
+            Asset { id: AssetId(relay_location), fun: Fungible(amount) } 
+                if relay_location == &RelayLocation::get() => Some(*amount),
+            Asset { id: AssetId(asset_hub_location), fun: Fungible(amount) } 
+                if asset_hub_location == &AssetHubLocation::get() => Some(*amount),
+            _ => None,
+        }
+    }
+}
+
 /// Means for transacting assets on this chain.
 pub type LocalAssetTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
-	    // Allow both relay chain assets and Asset Hub assets
-		EitherOf<
-			IsConcrete<RelayLocation>,
-			IsConcrete<AssetHubLocation>,
-		>,
+	// Allow both relay chain assets and Asset Hub assets
+	RelayOrAssetHubFungible,
 	// Do a simple punn to convert an AccountId32 Location into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -101,6 +112,20 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
+parameter_types! {
+    pub AssetHubFreeExecution: Location = ParentThen(Parachain(1000).into()).into();
+}
+
+impl Contains<Location> for AssetHubFreeExecution {
+    fn contains(location: &Location) -> bool {
+        // Allow execution from Asset Hub parachain
+        matches!(
+            location.unpack(),
+            (1, [Parachain(1000)]) // Asset Hub parachain ID
+        )
+    }
+}
+
 pub struct ParentOrParentsExecutivePlurality;
 impl Contains<Location> for ParentOrParentsExecutivePlurality {
 	fn contains(location: &Location) -> bool {
@@ -127,9 +152,7 @@ pub type Barrier = TrailingSetTopicAsId<
 				(
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-					AllowExplicitUnpaidExecutionFrom<(
-                        ParentThen(Parachain(1000)),  // Asset Hub parachain ID
-                    )>,
+					AllowExplicitUnpaidExecutionFrom<AssetHubFreeExecution>,
 					// ^^^ Parent and its exec plurality get free execution
 				),
 				UniversalLocation,

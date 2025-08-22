@@ -25,6 +25,7 @@ pub mod rocksdb_weights;
 pub mod cumulus_pallet_parachain_system;
 pub mod cumulus_pallet_xcmp_queue;
 pub mod orml_oracle;
+pub mod pallet_asset_registry;
 pub mod pallet_balances;
 pub mod pallet_collator_selection;
 pub mod pallet_edge_connect;
