@@ -1,6 +1,6 @@
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm, Runtime,
-	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
 use frame_support::{
@@ -16,8 +16,8 @@ use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
 	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-	FrameTransactionalProcessor, FungibleAdapter, NativeAsset, ParentIsPreset,
-	RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	FrameTransactionalProcessor, FungibleAdapter, NativeAsset, ParentIsPreset, RelayChainAsNative,
+	SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
 	XcmFeeManagerFromComponents,
@@ -37,12 +37,10 @@ parameter_types! {
 				GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot))
 				.into();
 
-	pub AssetHubLocation: Location = Location::new(
-				1,
+		pub AssetHubLocation: Location = Location::new(
+				1, // parent: Polkadot relay chain
 				[Parachain(1000)]  // Asset Hub parachain ID
 		);
-
-		pub const AssetHubNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -68,6 +66,11 @@ impl MatchesFungible<u128> for RelayOrAssetHubFungible {
             _ => None,
         }
     }
+}
+
+parameter_types! {
+    pub AssetHubFeePerSecond: (AssetId, u128) = 
+        (AssetId(AssetHubLocation::get()), 1_000_000); // 0.000001 DOT per second
 }
 
 /// Means for transacting assets on this chain.
@@ -113,17 +116,17 @@ parameter_types! {
 }
 
 parameter_types! {
-    pub AssetHubFreeExecution: Location = ParentThen(Parachain(1000).into()).into();
+		pub AssetHubFreeExecution: Location = ParentThen(Parachain(1000).into()).into();
 }
 
 impl Contains<Location> for AssetHubFreeExecution {
-    fn contains(location: &Location) -> bool {
-        // Allow execution from Asset Hub parachain
-        matches!(
-            location.unpack(),
-            (1, [Parachain(1000)]) // Asset Hub parachain ID
-        )
-    }
+	fn contains(location: &Location) -> bool {
+		// Allow execution from Asset Hub parachain
+		matches!(
+			location.unpack(),
+			(1, [Parachain(1000)]) // Asset Hub parachain ID
+		)
+	}
 }
 
 pub struct ParentOrParentsExecutivePlurality;

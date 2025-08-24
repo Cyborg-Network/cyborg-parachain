@@ -1,187 +1,132 @@
-// #![cfg(test)]
+pub use crate as pallet_asset_registry;
+use frame_support::{
+	derive_impl, parameter_types, traits::ConstU32, weights::constants::RocksDbWeight,
+};
+use frame_system::{mocking::MockBlock, GenesisConfig};
+use sp_core::H256;
+use sp_runtime::{traits::IdentityLookup, BuildStorage};
+use xcm::latest::prelude::*;
 
-// use super::*;
-// use frame_support::{
-//     assert_noop, assert_ok, construct_runtime, parameter_types, traits::{ConstU32, ConstU64}, weights::Weight
-// };
-// use sp_core::H256;
-// use sp_runtime::{
-//     testing::Header,
-//     traits::{BlakeTwo256, IdentityLookup},
-// };
-// use xcm::latest::prelude::*;
-// use xcm_executor::Config as XcmConfig;
+// Configure a mock runtime to test the pallet.
+#[frame_support::runtime]
+mod test_runtime {
+	#[runtime::runtime]
+	#[runtime::derive(
+		RuntimeCall,
+		RuntimeEvent,
+		RuntimeError,
+		RuntimeOrigin,
+		RuntimeFreezeReason,
+		RuntimeHoldReason,
+		RuntimeSlashReason,
+		RuntimeLockId,
+		RuntimeTask
+	)]
+	pub struct Test;
 
-// type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-// type Block = frame_system::mocking::MockBlock<Test>;
+	#[runtime::pallet_index(0)]
+	pub type System = frame_system;
+	#[runtime::pallet_index(1)]
+	pub type Balances = pallet_balances;
+	#[runtime::pallet_index(2)]
+	pub type AssetRegistry = pallet_asset_registry;
+}
 
-// construct_runtime!(
-//     pub enum Test where
-//         Block = Block,
-//         NodeBlock = Block,
-//         UncheckedExtrinsic = UncheckedExtrinsic,
-//     {
-//         System: frame_system,
-//         AssetRegistry: pallet_asset_registry,
-//     }
-// );
+parameter_types! {
+		pub const BlockHashCount: u64 = 250;
+		pub const SS58Prefix: u8 = 42;
+}
 
-// parameter_types! {
-//     pub const BlockHashCount: u64 = 250;
-//     pub const SS58Prefix: u8 = 42;
-// }
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
+impl frame_system::Config for Test {
+	type Block = MockBlock<Test>;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Nonce = u64;
+	type Hash = H256;
+	type BlockHashCount = BlockHashCount;
+	type DbWeight = RocksDbWeight;
+	type SS58Prefix = SS58Prefix;
+	type AccountData = pallet_balances::AccountData<u128>;
+}
 
-// impl frame_system::Config for Test {
-//     type BaseCallFilter = frame_support::traits::Everything;
-//     type BlockWeights = ();
-//     type BlockLength = ();
-//     type RuntimeOrigin = RuntimeOrigin;
-//     type RuntimeCall = RuntimeCall;
-//     type Nonce = u64;
-//     type Hash = H256;
-//     type Hashing = BlakeTwo256;
-//     type AccountId = u64;
-//     type Lookup = IdentityLookup<Self::AccountId>;
-//     type Block = Block;
-//     type RuntimeEvent = RuntimeEvent;
-//     type BlockHashCount = BlockHashCount;
-//     type DbWeight = ();
-//     type Version = ();
-//     type PalletInfo = PalletInfo;
-//     type AccountData = ();
-//     type OnNewAccount = ();
-//     type OnKilledAccount = ();
-//     type SystemWeightInfo = ();
-//     type SS58Prefix = SS58Prefix;
-//     type OnSetCode = ();
-//     type MaxConsumers = ConstU32<16>;
-// }
+parameter_types! {
+		pub const ExistentialDeposit: u128 = 1;
+}
 
-// parameter_types! {
-//     pub const UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
-//     pub const MaxInstructions: u32 = 100;
-// }
+impl pallet_balances::Config for Test {
+	type Balance = u128;
+	type DustRemoval = ();
+	type RuntimeEvent = RuntimeEvent;
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = ();
+	type MaxLocks = ConstU32<50>;
+	type MaxReserves = ConstU32<50>;
+	type ReserveIdentifier = [u8; 8];
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type FreezeIdentifier = ();
+	type MaxFreezes = ConstU32<0>;
+	type DoneSlashHandler = ();
+}
 
-// pub struct TestXcmConfig;
-// impl XcmConfig for TestXcmConfig {
-//     type RuntimeCall = RuntimeCall;
-//     type XcmSender = ();
-//     type XcmEventEmitter = ();
-//     type AssetTransactor = ();
-//     type OriginConverter = ();
-//     type IsReserve = ();
-//     type IsTeleporter = ();
-//     type UniversalLocation = ();
-//     type Barrier = ();
-//     type Weigher = ();
-//     type Trader = ();
-//     type ResponseHandler = ();
-//     type AssetTrap = ();
-//     type AssetClaims = ();
-//     type SubscriptionService = ();
-//     type PalletInstancesInfo = ();
-//     type MaxAssetsIntoHolding = ConstU32<64>;
-//     type AssetLocker = ();
-//     type AssetExchanger = ();
-//     type FeeManager = ();
-//     type MessageExporter = ();
-//     type UniversalAliases = ();
-//     type CallDispatcher = RuntimeCall;
-//     type SafeCallFilter = ();
-//     type Aliasers = ();
-//     type TransactionalProcessor = ();
-//     type HrmpNewChannelOpenRequestHandler = ();
-//     type HrmpChannelAcceptedHandler = ();
-//     type HrmpChannelClosingHandler = ();
-//     type XcmRecorder = ();
-// }
+#[derive(Clone)]
+pub struct MockWeightless(pub xcm::latest::Xcm<RuntimeCall>);
 
-// impl Config for Test {
-//     type RuntimeEvent = RuntimeEvent;
-//     type XcmExecutor = TestXcmConfig;
-// }
+// Implement PreparedMessage trait for MockWeightless
+impl xcm::v5::PreparedMessage for MockWeightless {
+	fn weight_of(&self) -> xcm::latest::Weight {
+		// Return a minimal weight for testing
+		xcm::latest::Weight::from_parts(1_000_000, 0)
+	}
+}
 
-// pub fn new_test_ext() -> sp_io::TestExternalities {
-//     let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-//     t.into()
-// }
 
-// #[test]
-// fn test_register_asset() {
-//     new_test_ext().execute_with(|| {
-//         let asset_id = 1984;
-//         let location = Location::new(1, [Parachain(1000), GeneralIndex(1984)]);
-        
-//         // Only root can register assets
-//         assert_noop!(
-//             AssetRegistry::register_asset(
-//                 RuntimeOrigin::signed(1),
-//                 asset_id,
-//                 location.clone(),
-//                 Some(6)
-//             ),
-//             DispatchError::BadOrigin
-//         );
-        
-//         // Root can register
-//         assert_ok!(AssetRegistry::register_asset(
-//             RuntimeOrigin::root(),
-//             asset_id,
-//             location.clone(),
-//             Some(6)
-//         ));
-        
-//         // Check storage
-//         assert_eq!(
-//             AssetRegistry::registered_assets(asset_id),
-//             Some((location, Some(6)))
-//         );
-        
-//         // Cannot register same asset twice
-//         assert_noop!(
-//             AssetRegistry::register_asset(
-//                 RuntimeOrigin::root(),
-//                 asset_id,
-//                 location,
-//                 Some(6)
-//             ),
-//             Error::<Test>::AssetAlreadyRegistered
-//         );
-//     });
-// }
+// Mock XCM executor - Use Weightless as Prepared type
+pub struct MockXcmExecutor;
 
-// #[test]
-// fn test_transfer_to_asset_hub() {
-//     new_test_ext().execute_with(|| {
-//         let asset_id = 1984;
-//         let location = Location::new(1, [Parachain(1000), GeneralIndex(1984)]);
-//         let beneficiary = [1u8; 32];
-        
-//         // Register asset first
-//         assert_ok!(AssetRegistry::register_asset(
-//             RuntimeOrigin::root(),
-//             asset_id,
-//             location,
-//             Some(6)
-//         ));
-        
-//         // Test transfer (note: XCM execution will fail in mock, but we test the flow)
-//         assert_ok!(AssetRegistry::transfer_to_asset_hub(
-//             RuntimeOrigin::signed(1),
-//             asset_id,
-//             1000000,
-//             beneficiary
-//         ));
-        
-//         // Test with non-existent asset
-//         assert_noop!(
-//             AssetRegistry::transfer_to_asset_hub(
-//                 RuntimeOrigin::signed(1),
-//                 9999,
-//                 1000000,
-//                 beneficiary
-//             ),
-//             Error::<Test>::AssetNotFound
-//         );
-//     });
-// }
+impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
+	type Prepared = MockWeightless;
+
+	fn prepare(
+		message: xcm::latest::Xcm<RuntimeCall>,
+	) -> Result<Self::Prepared, xcm::latest::Xcm<RuntimeCall>> {
+		Ok(MockWeightless(message))
+	}
+
+	fn execute(
+		_origin: impl Into<xcm::latest::Location>,
+		pre: Self::Prepared,
+		_id: &mut xcm::latest::XcmHash,
+		_weight_credit: xcm::latest::Weight,
+	) -> xcm::latest::Outcome {
+		// For testing purposes, we'll just return success
+		// You can add logic here to inspect the message if needed
+		let _message = pre.0; // Extract the original message
+		xcm::latest::Outcome::Complete {
+			used: xcm::latest::Weight::from_parts(1_000_000, 0),
+		}
+	}
+
+	fn charge_fees(
+		_location: impl Into<xcm::latest::Location>,
+		_fees: xcm::latest::Assets,
+	) -> Result<(), xcm::latest::Error> {
+		Ok(())
+	}
+}
+
+impl pallet_asset_registry::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type XcmExecutor = MockXcmExecutor;
+	type WeightInfo = ();
+}
+
+// Build genesis storage according to the mock runtime.
+pub fn new_test_ext() -> sp_io::TestExternalities {
+	GenesisConfig::<Test>::default()
+		.build_storage()
+		.unwrap()
+		.into()
+}

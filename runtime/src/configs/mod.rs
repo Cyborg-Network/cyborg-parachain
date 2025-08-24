@@ -51,8 +51,8 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::Perbill;
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
-use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 pub use xcm_config::XcmConfig;
+use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 // use sp_std::vec;
 // use frame_system::DefaultConfig;
@@ -71,7 +71,7 @@ parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 
 	pub const AssetHubParaId: u32 = 1000;
-    pub const AssetHubUsdtAssetId: u128 = 1984;
+		pub const AssetHubUsdtAssetId: u128 = 1984;
 
 	// This part is copied from Substrate's `bin/node/runtime/src/lib.rs`.
 	//  The `RuntimeBlockLength` and `RuntimeBlockWeights` exist here because the
@@ -275,31 +275,6 @@ impl cumulus_pallet_xcmp_queue::Config for Runtime {
 	type WeightInfo = super::weights::cumulus_pallet_xcmp_queue::SubstrateWeight<Runtime>;
 	type PriceForSiblingDelivery = PriceForSiblingParachainDelivery;
 }
-
-// HRMP channel configuration
-// impl DefaultConfig for Runtime {
-//     fn hrmp_config() -> cumulus_pallet_parachain_system::HrmpConfig {
-//         cumulus_pallet_parachain_system::HrmpConfig {
-//             // Open HRMP channel to Asset Hub
-//             open_channels: vec![
-//                 cumulus_pallet_parachain_system::HrmpChannelConfig {
-//                     sender: ParachainInfo::parachain_id().into(),
-//                     recipient: AssetHubParaId::get().into(),
-//                     max_capacity: 1000,
-//                     max_message_size: 102400,
-//                 },
-//             ],
-//             accepted_channels: vec![
-//                 cumulus_pallet_parachain_system::HrmpChannelConfig {
-//                     sender: AssetHubParaId::get().into(),
-//                     recipient: ParachainInfo::parachain_id().into(),
-//                     max_capacity: 1000,
-//                     max_message_size: 102400,
-//                 },
-//             ],
-//         }
-//     }
-// }
 
 parameter_types! {
 	pub const Period: u32 = 6 * HOURS;

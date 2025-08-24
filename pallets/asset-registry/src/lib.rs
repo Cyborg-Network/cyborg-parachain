@@ -2,10 +2,10 @@
 
 pub use pallet::*;
 
-// #[cfg(test)]
-// mod mock;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
@@ -21,7 +21,7 @@ pub mod pallet {
     use sp_std::vec;
     use sp_std::vec::Vec;
     use xcm::latest::prelude::*;
-    use xcm::v5::Outcome; // Add this import
+    use xcm::v5::Outcome; 
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -155,7 +155,7 @@ pub mod pallet {
             // Create a mutable buffer for the XCM hash
             let mut hash_buf = [0u8; 32];
             
-            // Execute XCM message using the executor trait - UPDATED METHOD
+            // Execute XCM message using the executor trait 
             let outcome = T::XcmExecutor::execute(
                 Location::new(1, [Parachain(1000)]),
                 prepared,
