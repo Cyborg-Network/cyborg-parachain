@@ -2,7 +2,7 @@ pub use crate as pallet_asset_registry;
 use frame_support::{
 	derive_impl, parameter_types, traits::ConstU32, weights::constants::RocksDbWeight,
 };
-use frame_system::{mocking::MockBlock, GenesisConfig};
+use frame_system::mocking::MockBlock;
 use sp_core::H256;
 use sp_runtime::{traits::IdentityLookup, BuildStorage};
 use xcm::latest::prelude::*;
@@ -82,7 +82,6 @@ impl xcm::v5::PreparedMessage for MockWeightless {
 	}
 }
 
-
 // Mock XCM executor - Use Weightless as Prepared type
 pub struct MockXcmExecutor;
 
@@ -125,8 +124,19 @@ impl pallet_asset_registry::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	GenesisConfig::<Test>::default()
+	let mut t = frame_system::GenesisConfig::<Test>::default()
 		.build_storage()
-		.unwrap()
-		.into()
+		.unwrap();
+
+	// Initialize the system to block 1 so events work
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(1, 1000000000000), (2, 1000000000000)],
+		..Default::default()
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
