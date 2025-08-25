@@ -54,8 +54,6 @@ use xcm::latest::prelude::BodyId;
 pub use xcm_config::XcmConfig;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
-// use sp_std::vec;
-// use frame_system::DefaultConfig;
 
 // Local module imports
 use super::{

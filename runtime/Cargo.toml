@@ -37,6 +37,7 @@ pallet-task-management = { workspace = true }
 pallet-zk-verifier = { workspace = true }
 pallet-neuro-zk = { workspace = true }
 pallet-asset-registry = { workspace = true }
+pallet-treasury = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { workspace = true, optional = true }
@@ -134,6 +135,7 @@ std = [
 	"pallet-task-management/std",
 	"pallet-asset-registry/std",
 	"pallet-timestamp/std",
+	"pallet-treasury/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-xcm/std",
@@ -184,6 +186,7 @@ runtime-benchmarks = [
 	"pallet-task-management/runtime-benchmarks",
 	"pallet-asset-registry/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"pallet-zk-verifier/runtime-benchmarks",
 	"pallet-neuro-zk/runtime-benchmarks",
@@ -218,6 +221,7 @@ try-runtime = [
 	"pallet-asset-registry/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-treasury/try-runtime",
 	"pallet-xcm/try-runtime",
 	"parachain-info/try-runtime",
 	"polkadot-runtime-common/try-runtime",

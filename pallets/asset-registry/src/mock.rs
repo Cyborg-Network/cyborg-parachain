@@ -101,7 +101,6 @@ impl ExecuteXcm<RuntimeCall> for MockXcmExecutor {
 		_weight_credit: xcm::latest::Weight,
 	) -> xcm::latest::Outcome {
 		// For testing purposes, we'll just return success
-		// You can add logic here to inspect the message if needed
 		let _message = pre.0; // Extract the original message
 		xcm::latest::Outcome::Complete {
 			used: xcm::latest::Weight::from_parts(1_000_000, 0),

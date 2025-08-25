@@ -1,6 +1,6 @@
 use crate::{
 	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm,
-	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue, 
 };
 
 use frame_support::{
@@ -27,7 +27,7 @@ use xcm_executor::XcmExecutor;
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
-	pub const RelayNetwork: Option<NetworkId> = None;
+	pub const RelayNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
 	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
@@ -167,8 +167,8 @@ pub type Barrier = TrailingSetTopicAsId<
 
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId = AccountId::from(AccountId::new([1u8; 32])); // FIX ME: get account from treasury pallet
-	//pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub TreasuryAccount: AccountId = 
+        pallet_treasury::Pallet::<Runtime>::account_id();
 }
 
 pub struct XcmConfig;

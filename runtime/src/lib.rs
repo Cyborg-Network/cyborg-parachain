@@ -16,12 +16,16 @@ pub mod weights;
 use oracle_router::OracleRouter;
 
 extern crate alloc;
+use frame_support::traits::tokens::pay::{Pay, PaymentStatus};
 use smallvec::smallvec;
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
+use frame_support::traits::tokens::ConversionFromAssetBalance;
+
+// use pallet_treasury::DefaultPaymaster;
 
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -36,14 +40,11 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
-// use xcm::latest::prelude::*;
-// use xcm_builder::{
-//     FixedRateOfFungible, 
-//     TakeRevenue,
-// };
+
 use crate::configs::XcmConfig;
 use xcm_executor::XcmExecutor;
 
+use frame_support::PalletId;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
@@ -124,11 +125,11 @@ pub type UncheckedExtrinsic =
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
-    Runtime,
-    Block,
-    frame_system::ChainContext<Runtime>,
-    Runtime,
-    AllPalletsWithSystem,
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPalletsWithSystem,
 >;
 
 /// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
@@ -192,8 +193,8 @@ parameter_types! {
 
 // Add XCM fee configuration
 parameter_types! {
-    pub const XcmByteFee: Balance = 10 * MICROUNIT;
-    pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 64 * 1024);
+		pub const XcmByteFee: Balance = 10 * MICROUNIT;
+		pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 64 * 1024);
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -377,8 +378,8 @@ impl pallet_task_management::Config for Runtime {
 }
 
 impl pallet_asset_registry::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type XcmExecutor = XcmExecutor<XcmConfig>;
+	type RuntimeEvent = RuntimeEvent;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type WeightInfo = weights::pallet_asset_registry::SubstrateWeight<Runtime>;
 }
 
@@ -430,6 +431,68 @@ impl pallet_zk_verifier::Config for Runtime {
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+}
+
+// Simple paymaster implementation
+pub struct TreasuryPaymaster;
+impl Pay for TreasuryPaymaster {
+	type Beneficiary = AccountId;
+	type AssetKind = ();
+	type Balance = Balance;
+	type Id = u32;
+	type Error = ();
+
+	fn pay(
+		_who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		_amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		// You need to create a spend proposal first, then pay it out
+		// For now, return a dummy ID
+		Ok(0)
+	}
+
+	fn check_payment(_id: Self::Id) -> PaymentStatus {
+		// Simple implementation - assume payment is always successful
+		PaymentStatus::Success
+	}
+}
+
+pub struct UnityBalanceConverter;
+impl ConversionFromAssetBalance<Balance, (), Balance> for UnityBalanceConverter {
+    type Error = sp_runtime::DispatchError; 
+    
+    fn from_asset_balance(balance: Balance, _asset_id: ()) -> Result<Balance, Self::Error> {
+        Ok(balance)
+    }
+}
+
+parameter_types! {
+		pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+		pub const SpendPeriod: BlockNumber = 1 * DAYS;
+		pub const Burn: Permill = Permill::from_percent(1);
+		pub const MaxApprovals: u32 = 100;
+}
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type SpendOrigin = frame_system::EnsureRoot<AccountId>;
+	type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = sp_runtime::traits::AccountIdLookup<AccountId, ()>;
+	type SpendFunds = ();
+	type WeightInfo = weights::pallet_treasury::SubstrateWeight<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type MaxApprovals = ConstU32<100>;
+	type SpendPeriod = ConstU32<{ 1 * DAYS }>;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type Paymaster = TreasuryPaymaster;
+	type BalanceConverter = UnityBalanceConverter;
+	type PayoutPeriod = ConstU32<0>;
+	type BlockNumberProvider = System;
 }
 
 #[sp_version::runtime_version]
@@ -592,7 +655,10 @@ mod runtime {
 	pub type NeuroZk = pallet_neuro_zk;
 
 	#[runtime::pallet_index(48)]
-    pub type AssetRegistry = pallet_asset_registry;
+	pub type AssetRegistry = pallet_asset_registry;
+
+	#[runtime::pallet_index(49)]
+	pub type Treasury = pallet_treasury;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
