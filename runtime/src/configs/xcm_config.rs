@@ -1,6 +1,6 @@
 use crate::{
 	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm,
-	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue, 
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
 use frame_support::{
@@ -60,17 +60,17 @@ impl MatchesFungible<u128> for RelayOrAssetHubFungible {
     fn matches_fungible(a: &Asset) -> Option<u128> {
         match a {
             Asset { id: AssetId(relay_location), fun: Fungible(amount) } 
-                if relay_location == &RelayLocation::get() => Some(*amount),
+                if *relay_location == RelayLocation::get() => Some(*amount),
             Asset { id: AssetId(asset_hub_location), fun: Fungible(amount) } 
-                if asset_hub_location == &AssetHubLocation::get() => Some(*amount),
+                if *asset_hub_location == AssetHubLocation::get() => Some(*amount),
             _ => None,
         }
     }
 }
 
 parameter_types! {
-    pub AssetHubFeePerSecond: (AssetId, u128) = 
-        (AssetId(AssetHubLocation::get()), 1_000_000); // 0.000001 DOT per second
+		pub AssetHubFeePerSecond: (AssetId, u128) =
+				(AssetId(AssetHubLocation::get()), 1_000_000); // 0.000001 DOT per second
 }
 
 /// Means for transacting assets on this chain.
@@ -116,16 +116,13 @@ parameter_types! {
 }
 
 parameter_types! {
-		pub AssetHubFreeExecution: Location = ParentThen(Parachain(1000).into()).into();
+		pub AssetHubFreeExecution: Location = Location::new(1, [Parachain(1000)]);
 }
 
 impl Contains<Location> for AssetHubFreeExecution {
 	fn contains(location: &Location) -> bool {
 		// Allow execution from Asset Hub parachain
-		matches!(
-			location.unpack(),
-			(1, [Parachain(1000)]) // Asset Hub parachain ID
-		)
+		*location == AssetHubLocation::get()
 	}
 }
 
@@ -167,9 +164,10 @@ pub type Barrier = TrailingSetTopicAsId<
 
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId = 
-        pallet_treasury::Pallet::<Runtime>::account_id();
+	pub TreasuryAccount: AccountId =
+				pallet_treasury::Pallet::<Runtime>::account_id();
 }
+
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -197,6 +195,10 @@ impl xcm_executor::Config for XcmConfig {
 		(),
 		SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>, // Convert the weight of XCM message into a fee
 	>;
+	// type FeeManager = XcmFeeManagerFromComponents<
+    //     SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>,
+    //     RelayOrAssetHubFungible,
+    // >;
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;

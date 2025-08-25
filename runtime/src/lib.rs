@@ -431,7 +431,6 @@ impl pallet_zk_verifier::Config for Runtime {
 	type WeightInfo = ();
 }
 
-// Simple paymaster implementation
 pub struct TreasuryPaymaster;
 impl Pay for TreasuryPaymaster {
 	type Beneficiary = AccountId;
@@ -445,7 +444,7 @@ impl Pay for TreasuryPaymaster {
 		_asset_kind: Self::AssetKind,
 		_amount: Self::Balance,
 	) -> Result<Self::Id, Self::Error> {
-		// You need to create a spend proposal first, then pay it out
+		// We need to create a spend proposal first, then pay it out
 		// For now, return a dummy ID
 		Ok(0)
 	}

@@ -222,9 +222,21 @@ fn testnet_genesis(
                     "sender": u32::from(id),
                     "recipient": 1000, // Asset Hub
                     "maxCapacity": 1000,
-                    "maxMessageSize": 102400
+                    "maxMessageSize": 102400,
+					"maxTotalSize": 102400,
+                    "maxMessageNum": 1000
                 }
             ]
-        }
+        },
+		"hrmp": {
+            "preopenHrmpChannels": [
+                {
+                    "sender": u32::from(id),
+                    "recipient": 1000,
+                    "maxCapacity": 1000,
+                    "maxMessageSize": 102400
+                }
+        ]
+      }
 	})
 }
