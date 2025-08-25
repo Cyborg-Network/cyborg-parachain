@@ -2755,6 +2755,7 @@ dependencies = [
  "log",
  "orml-oracle",
  "orml-traits",
+ "pallet-asset-registry",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -2771,6 +2772,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
  "pallet-xcm",
  "pallet-zk-verifier",
  "parachains-common",
@@ -7078,6 +7080,26 @@ dependencies = [
  "scale-info",
  "sp-core 36.1.0",
  "sp-runtime 41.1.0",
+]
+
+[[package]]
+name = "pallet-asset-registry"
+version = "0.1.0"
+dependencies = [
+ "cyborg-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 36.1.0",
+ "sp-io 40.0.1",
+ "sp-runtime 41.1.0",
+ "sp-std 14.0.0 (git+https://github.com/Cyborg-Network/polkadot-sdk?rev=1530a8826416514c3326597338b3511a55040663)",
+ "staging-xcm",
+ "staging-xcm-executor",
 ]
 
 [[package]]

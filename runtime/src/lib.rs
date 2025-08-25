@@ -16,13 +16,15 @@ pub mod weights;
 use oracle_router::OracleRouter;
 
 extern crate alloc;
+use frame_support::traits::tokens::pay::{Pay, PaymentStatus};
+use frame_support::traits::tokens::ConversionFromAssetBalance;
 use smallvec::smallvec;
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
-
+use frame_support::traits::ConstU128;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -36,6 +38,11 @@ use frame_support::{
 		WeightToFeePolynomial,
 	},
 };
+
+use crate::configs::XcmConfig;
+use xcm_executor::XcmExecutor;
+
+use frame_support::PalletId;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
@@ -180,6 +187,12 @@ impl_opaque_keys! {
 
 parameter_types! {
 	pub RootOperatorAccountId: AccountId = AccountId::from([0xffu8; 32]);
+}
+
+// Add XCM fee configuration
+parameter_types! {
+		pub const XcmByteFee: Balance = 10 * MICROUNIT;
+		pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 64 * 1024);
 }
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -362,6 +375,12 @@ impl pallet_task_management::Config for Runtime {
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
 }
 
+impl pallet_asset_registry::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type WeightInfo = weights::pallet_asset_registry::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const MaxKycHashLength: u32 = 64;
 	pub const MaxPaymentIdLength: u32 = 128;
@@ -410,6 +429,72 @@ impl pallet_zk_verifier::Config for Runtime {
 	type MaxVerificationKeyLength = MaxVerificationKeyLength;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+}
+
+pub struct TreasuryPaymaster;
+impl Pay for TreasuryPaymaster {
+	type Beneficiary = AccountId;
+	type AssetKind = ();
+	type Balance = Balance;
+	type Id = u32;
+	type Error = ();
+
+	fn pay(
+		_who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		_amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		// We need to create a spend proposal first, then pay it out
+		// For now, return a dummy ID
+		Ok(0)
+	}
+
+	fn check_payment(_id: Self::Id) -> PaymentStatus {
+		// Simple implementation - assume payment is always successful
+		PaymentStatus::Success
+	}
+}
+
+pub struct UnityBalanceConverter;
+impl ConversionFromAssetBalance<Balance, (), Balance> for UnityBalanceConverter {
+	type Error = sp_runtime::DispatchError;
+
+	fn from_asset_balance(balance: Balance, _asset_id: ()) -> Result<Balance, Self::Error> {
+		Ok(balance)
+	}
+}
+
+parameter_types! {
+		pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+		pub const SpendPeriod: BlockNumber = 1 * DAYS;
+		pub const Burn: Permill = Permill::from_percent(1);
+		pub const MaxApprovals: u32 = 100;
+}
+
+parameter_types! {
+    pub const MaxSpendAmount: Balance = 1_000_000 * UNIT; 
+}
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type SpendOrigin = frame_system::EnsureRootWithSuccess<AccountId, ConstU128<{ MaxSpendAmount::get() }>>;
+
+	type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = sp_runtime::traits::AccountIdLookup<AccountId, ()>;
+	type SpendFunds = ();
+	type WeightInfo = weights::pallet_treasury::SubstrateWeight<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type MaxApprovals = ConstU32<100>;
+	type SpendPeriod = ConstU32<{ 1 * DAYS }>;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type Paymaster = TreasuryPaymaster;
+	type BalanceConverter = UnityBalanceConverter;
+	type PayoutPeriod = ConstU32<0>;
+	type BlockNumberProvider = System;
 }
 
 #[sp_version::runtime_version]
@@ -570,6 +655,12 @@ mod runtime {
 
 	#[runtime::pallet_index(47)]
 	pub type NeuroZk = pallet_neuro_zk;
+
+	#[runtime::pallet_index(48)]
+	pub type AssetRegistry = pallet_asset_registry;
+
+	#[runtime::pallet_index(49)]
+	pub type Treasury = pallet_treasury;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

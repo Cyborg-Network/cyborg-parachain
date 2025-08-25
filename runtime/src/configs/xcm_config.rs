@@ -1,6 +1,6 @@
 use crate::{
-	AccountId, AllPalletsWithSystem, Balances, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime,
-	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
+	AccountId, AllPalletsWithSystem, Balances, /*ParachainInfo */ ParachainSystem, PolkadotXcm,
+	Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
 use frame_support::{
@@ -16,21 +16,31 @@ use xcm::latest::prelude::*;
 use xcm_builder::{
 	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
 	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-	FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
-	RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	FrameTransactionalProcessor, FungibleAdapter, NativeAsset, ParentIsPreset, RelayChainAsNative,
+	SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
 	XcmFeeManagerFromComponents,
 };
+use xcm_executor::traits::MatchesFungible;
 use xcm_executor::XcmExecutor;
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
-	pub const RelayNetwork: Option<NetworkId> = None;
+	pub const RelayNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
 	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
-	pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	// pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+
+	pub UniversalLocation: InteriorLocation =
+				GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot))
+				.into();
+
+		pub AssetHubLocation: Location = Location::new(
+				1, // parent: Polkadot relay chain
+				[Parachain(1000)]  // Asset Hub parachain ID
+		);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -45,12 +55,30 @@ pub type LocationToAccountId = (
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
 
+pub struct RelayOrAssetHubFungible;
+impl MatchesFungible<u128> for RelayOrAssetHubFungible {
+    fn matches_fungible(a: &Asset) -> Option<u128> {
+        match a {
+            Asset { id: AssetId(relay_location), fun: Fungible(amount) } 
+                if *relay_location == RelayLocation::get() => Some(*amount),
+            Asset { id: AssetId(asset_hub_location), fun: Fungible(amount) } 
+                if *asset_hub_location == AssetHubLocation::get() => Some(*amount),
+            _ => None,
+        }
+    }
+}
+
+parameter_types! {
+		pub AssetHubFeePerSecond: (AssetId, u128) =
+				(AssetId(AssetHubLocation::get()), 1_000_000); // 0.000001 DOT per second
+}
+
 /// Means for transacting assets on this chain.
 pub type LocalAssetTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
+	// Allow both relay chain assets and Asset Hub assets
+	RelayOrAssetHubFungible,
 	// Do a simple punn to convert an AccountId32 Location into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -87,6 +115,17 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
+parameter_types! {
+		pub AssetHubFreeExecution: Location = Location::new(1, [Parachain(1000)]);
+}
+
+impl Contains<Location> for AssetHubFreeExecution {
+	fn contains(location: &Location) -> bool {
+		// Allow execution from Asset Hub parachain
+		*location == AssetHubLocation::get()
+	}
+}
+
 pub struct ParentOrParentsExecutivePlurality;
 impl Contains<Location> for ParentOrParentsExecutivePlurality {
 	fn contains(location: &Location) -> bool {
@@ -113,6 +152,7 @@ pub type Barrier = TrailingSetTopicAsId<
 				(
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
+					AllowExplicitUnpaidExecutionFrom<AssetHubFreeExecution>,
 					// ^^^ Parent and its exec plurality get free execution
 				),
 				UniversalLocation,
@@ -124,9 +164,10 @@ pub type Barrier = TrailingSetTopicAsId<
 
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId = AccountId::from(AccountId::new([1u8; 32])); // FIX ME: get account from treasury pallet
-	//pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub TreasuryAccount: AccountId =
+				pallet_treasury::Pallet::<Runtime>::account_id();
 }
+
 
 pub struct XcmConfig;
 impl xcm_executor::Config for XcmConfig {
@@ -154,6 +195,10 @@ impl xcm_executor::Config for XcmConfig {
 		(),
 		SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>, // Convert the weight of XCM message into a fee
 	>;
+	// type FeeManager = XcmFeeManagerFromComponents<
+    //     SendXcmFeeToAccount<Self::AssetTransactor, TreasuryAccount>,
+    //     RelayOrAssetHubFungible,
+    // >;
 	type MessageExporter = ();
 	type UniversalAliases = Nothing;
 	type CallDispatcher = RuntimeCall;

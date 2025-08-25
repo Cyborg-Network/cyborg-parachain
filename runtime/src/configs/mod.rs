@@ -51,7 +51,9 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::Perbill;
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
+pub use xcm_config::XcmConfig;
 use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
+
 
 // Local module imports
 use super::{
@@ -65,6 +67,9 @@ use super::{
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
+
+	pub const AssetHubParaId: u32 = 1000;
+		pub const AssetHubUsdtAssetId: u128 = 1984;
 
 	// This part is copied from Substrate's `bin/node/runtime/src/lib.rs`.
 	//  The `RuntimeBlockLength` and `RuntimeBlockWeights` exist here because the

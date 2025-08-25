@@ -25,6 +25,7 @@ pub mod rocksdb_weights;
 pub mod cumulus_pallet_parachain_system;
 pub mod cumulus_pallet_xcmp_queue;
 pub mod orml_oracle;
+pub mod pallet_asset_registry;
 pub mod pallet_balances;
 pub mod pallet_collator_selection;
 pub mod pallet_edge_connect;
@@ -36,6 +37,7 @@ pub mod pallet_status_aggregator;
 pub mod pallet_sudo;
 pub mod pallet_task_management;
 pub mod pallet_timestamp;
+pub mod pallet_treasury;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
