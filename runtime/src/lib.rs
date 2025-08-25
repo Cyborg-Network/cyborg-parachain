@@ -17,16 +17,14 @@ use oracle_router::OracleRouter;
 
 extern crate alloc;
 use frame_support::traits::tokens::pay::{Pay, PaymentStatus};
+use frame_support::traits::tokens::ConversionFromAssetBalance;
 use smallvec::smallvec;
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
-use frame_support::traits::tokens::ConversionFromAssetBalance;
-
-// use pallet_treasury::DefaultPaymaster;
-
+use frame_support::traits::ConstU128;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -460,11 +458,11 @@ impl Pay for TreasuryPaymaster {
 
 pub struct UnityBalanceConverter;
 impl ConversionFromAssetBalance<Balance, (), Balance> for UnityBalanceConverter {
-    type Error = sp_runtime::DispatchError; 
-    
-    fn from_asset_balance(balance: Balance, _asset_id: ()) -> Result<Balance, Self::Error> {
-        Ok(balance)
-    }
+	type Error = sp_runtime::DispatchError;
+
+	fn from_asset_balance(balance: Balance, _asset_id: ()) -> Result<Balance, Self::Error> {
+		Ok(balance)
+	}
 }
 
 parameter_types! {
@@ -474,10 +472,15 @@ parameter_types! {
 		pub const MaxApprovals: u32 = 100;
 }
 
+parameter_types! {
+    pub const MaxSpendAmount: Balance = 1_000_000 * UNIT; 
+}
+
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type SpendOrigin = frame_system::EnsureRoot<AccountId>;
+	type SpendOrigin = frame_system::EnsureRootWithSuccess<AccountId, ConstU128<{ MaxSpendAmount::get() }>>;
+
 	type AssetKind = ();
 	type Beneficiary = AccountId;
 	type BeneficiaryLookup = sp_runtime::traits::AccountIdLookup<AccountId, ()>;
