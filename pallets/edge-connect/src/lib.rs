@@ -188,6 +188,10 @@ pub mod pallet {
 		WorkerSuspended,
 		/// Worker reputation is too low
 		InsufficientReputation,
+		/// Miner is busy
+		MinerIsBusy,
+		/// Miner is inactive
+		MinerIsInactive,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -546,37 +550,71 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Check if worker can perform actions
-		pub fn check_worker_status(
+		pub fn get_miner(
 			worker_key: &(T::AccountId, WorkerId),
-			worker_type: WorkerType,
-		) -> DispatchResult {
-			let worker = match worker_type {
+			worker_type: &WorkerType,
+		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			let miner = match worker_type {
 				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
 				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
-			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			};
+
+			miner
+		}
+
+		/// Check if worker can perform actions
+		pub fn check_worker_status(
+			miner_key: &(T::AccountId, WorkerId),
+			miner_type: &WorkerType,
+		) -> DispatchResult {
+			let miner = Self::get_miner(miner_key, miner_type)	
+				.ok_or(Error::<T>::WorkerDoesNotExist)?;
 
 			// Check if suspended
-			if worker.status == WorkerStatusType::Suspended {
-				if <frame_system::Pallet<T>>::block_number() < worker.status_last_updated {
-					return Err(Error::<T>::WorkerSuspended.into());
-				} else {
-					// Auto-unsuspend if suspension period is over
-					let mut worker = worker.clone();
-					worker.status = WorkerStatusType::Inactive;
-					match worker_type {
-						WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-						WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			match miner.status {
+				WorkerStatusType::Suspended => {
+					if <frame_system::Pallet<T>>::block_number() < miner.status_last_updated {
+						return Err(Error::<T>::WorkerSuspended.into());
+					} else {
+						// Auto-unsuspend if suspension period is over
+						let mut miner = miner.clone();
+						miner.status = WorkerStatusType::Inactive;
+						match miner_type {
+							WorkerType::Docker => WorkerClusters::<T>::insert(miner_key, miner),
+							WorkerType::Executable => ExecutableWorkers::<T>::insert(miner_key, miner),
+						}
 					}
-				}
+				},
+				WorkerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
+				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
+				//WorkerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
+				_ => (),
 			}
 
 			// Check reputation
-			if worker.reputation.score < 50 {
+			if miner.reputation.score < 50 {
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
 
+			Ok(())
+		}
+		
+		pub fn update_miner_status(
+			miner: &(T::AccountId, WorkerId),
+			miner_type: WorkerType,
+			new_status: WorkerStatusType
+		) -> DispatchResult {
+			let mut worker = match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(miner),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(miner),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			worker.status = new_status;
+			match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
+			}
 			Ok(())
 		}
 

@@ -149,6 +149,95 @@ fn it_works_for_task_scheduler() {
 }
 
 #[test]
+fn it_works_for_miner_status_updates() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+
+		assert_ok!(register_worker(
+			executor,
+			WorkerType::Executable,
+			"exec.worker"
+		));
+
+		// Verify workers are registered
+		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
+
+		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			triton_config: None
+		}));
+
+		let worker_id_exec = 0;
+
+		// Provide initial compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
+
+		// --------------------------------------------------
+		// ✅ Schedule OpenInference Executable Task (valid)
+		// --------------------------------------------------
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind_infer.clone(),
+			executor,
+			worker_id_exec,
+			Some(10)
+		));
+
+		let task_id_0 = NextTaskId::<Test>::get() - 1;
+		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
+		assert_eq!(
+			task_info_0.task_kind, 
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				triton_config: None
+			}))
+		);
+
+		// Make sure that task cannot be scheduled while miner is busy
+		assert_noop!(
+			TaskManagementModule::task_scheduler(
+				RuntimeOrigin::signed(alice),
+				task_kind_infer.clone(),
+				executor,
+				worker_id_exec,
+				Some(10)
+			),
+			pallet_edge_connect::Error::<Test>::MinerIsBusy
+		);
+
+		// Confirm task reception
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(executor),	
+			0
+		));
+
+		// Stop task and request miner vacation
+		assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
+			RuntimeOrigin::signed(alice),
+			0
+		));
+
+		// Confirm miner has vacated
+		assert_ok!(TaskManagementModule::confirm_miner_vacation(
+			RuntimeOrigin::signed(executor),			
+			0
+		));
+
+		// Schedule another task to the now free miner
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),	
+			task_kind_infer.clone(),
+			executor,
+			worker_id_exec,
+			Some(10)
+		));
+	});
+}
+
+#[test]
 fn it_fails_when_worker_not_registered() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
@@ -193,7 +282,7 @@ fn it_fails_when_worker_not_registered() {
 				worker_id,
 				Some(1),
 			),
-			Error::<Test>::WorkerDoesNotExist
+			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
 		);
 	});
 }
@@ -229,7 +318,7 @@ fn it_fails_when_no_workers_are_available() {
 				worker_id,
 				Some(10)
 			),
-			Error::<Test>::NoWorkersAvailable
+			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
 		);
 	});
 }
@@ -440,7 +529,7 @@ fn it_works_for_confirm_miner_vacation() {
 }
 
 #[test]
-fn fails_if_not_task_owner_for_vacation() {
+fn fails_if_not_assigned_miner_for_vacation() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		System::set_block_number(1);
@@ -476,10 +565,10 @@ fn fails_if_not_task_owner_for_vacation() {
 		});
 		TaskStatus::<Test>::insert(task_id, TaskStatusType::Stopped);
 
-		// ❌ Bob is not the task owner
+		// ❌ Bob is the task owner, but NOT the assigned miner
 		assert_noop!(
 			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(bob), task_id),
-			Error::<Test>::NotTaskOwner
+			Error::<Test>::NotAssignedMiner
 		);
 	});
 }

@@ -15,10 +15,8 @@ pub mod weights;
 pub use weights::*;
 
 pub use cyborg_primitives::task::*;
-use cyborg_primitives::worker::WorkerId;
-use cyborg_primitives::worker::WorkerType;
+use cyborg_primitives::worker::{WorkerId, WorkerStatusType, WorkerType};
 
-use pallet_edge_connect::ExecutableWorkers;
 use scale_info::prelude::vec::Vec;
 
 #[frame_support::pallet]
@@ -138,10 +136,10 @@ pub mod pallet {
 		NotGatekeeper,
 		TaskNotFound,
 		InvalidModelId,
+		NotAssignedMiner,
 		// Scheduling errors
 		RequireComputeHoursDeposit, // A compute hour deposit is required to schedule or proceed with the task.
 		ZkFilesMissing, // The user submitted a ZK task, but has not provided the required files for proof generation
-		NoWorkersAvailable, // No workers are available for the task.
 
 		// General task errors
 		UnassignedTaskId,         // The provided task ID does not exist.
@@ -156,7 +154,6 @@ pub mod pallet {
 
 		/// Account has exceeded task submission rate limit
 		RateLimitExceeded,
-		WorkerDoesNotExist,
 		ModelAlreadyRegistered,
 		ModelNotFound,
 	}
@@ -189,27 +186,11 @@ where
 				},
 			};
 
-			// Check if any workers exist for the task_kind first
-			let any_workers_exist = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { 
-					ExecutableWorkers::<T>::iter().next().is_some()
-				},
-			};
-			ensure!(any_workers_exist, Error::<T>::NoWorkersAvailable);
-
-			// Check worker status and reputation
+			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
 				&(worker_owner.clone(), worker_id),
-				worker_type,
-			).map_err(|_| Error::<T>::WorkerDoesNotExist)?;
-
-			// Then check if the specific worker exists
-			let worker_exists = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => {
-					ExecutableWorkers::<T>::contains_key((worker_owner.clone(), worker_id))
-				}
-			};
-			ensure!(worker_exists, Error::<T>::WorkerDoesNotExist);
+				&worker_type,
+			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
 				if who == gatekeeper {
@@ -253,6 +234,12 @@ where
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
+
+			pallet_edge_connect::Pallet::<T>::update_miner_status(
+				&selected_worker,
+				worker_type,
+				WorkerStatusType::Busy,
+			)?;
 
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_worker: selected_worker,
@@ -354,9 +341,10 @@ where
 			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+			let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-			// Ensure task owner is confirming.
-			ensure!(task.task_owner == who, Error::<T>::NotTaskOwner);
+			// Ensure the caller is the miner who was assigned the task
+			ensure!(assigned_worker.0 == who, Error::<T>::NotAssignedMiner);
 
 			// Ensure task is stopped.
 			ensure!(
@@ -367,6 +355,14 @@ where
 			// Move to Vacated state.
 			task.task_status = TaskStatusType::Vacated;
 			Tasks::<T>::insert(task_id, task);
+
+			// Update the miner status back to active
+			pallet_edge_connect::Pallet::<T>::update_miner_status(
+				&assigned_worker,
+				// This needs to be changed after the miners have unique IDs
+				WorkerType::Executable,
+				WorkerStatusType::Active,
+			)?;
 
 			// Emit event.
 			Self::deposit_event(Event::MinerVacated { task_id });
