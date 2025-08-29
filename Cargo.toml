@@ -70,6 +70,7 @@ substrate-build-script-utils = { git = "https://github.com/Cyborg-Network/polkad
 
 
 # FRAME Pallets
+pallet-assets = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 pallet-aura = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 pallet-authorship = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 pallet-balances = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false } 

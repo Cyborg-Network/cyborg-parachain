@@ -10,12 +10,22 @@ pub mod apis;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarks;
 
+pub mod asset_registry;
 pub mod configs;
 mod oracle_router;
 pub mod weights;
+// pub mod hrmp_manager;
 use oracle_router::OracleRouter;
 
 extern crate alloc;
+use frame_support::traits::tokens::pay::{Pay, PaymentStatus};
+use frame_support::traits::tokens::ConversionFromAssetBalance;
+use frame_support::traits::ConstU128;
+use frame_support::PalletId;
+
+pub use asset_registry::pallet as pallet_asset_registry;
+
+
 use smallvec::smallvec;
 use sp_runtime::{
 	generic, impl_opaque_keys,
@@ -23,11 +33,13 @@ use sp_runtime::{
 	MultiSignature,
 };
 
+pub use crate::configs::xcm_config::TreasuryAccount;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
+use frame_support::traits::EnsureOriginWithArg;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU8},
@@ -412,6 +424,124 @@ impl pallet_zk_verifier::Config for Runtime {
 	type WeightInfo = ();
 }
 
+pub struct TreasuryPaymaster;
+impl Pay for TreasuryPaymaster {
+	type Beneficiary = AccountId;
+	type AssetKind = ();
+	type Balance = Balance;
+	type Id = u32;
+	type Error = ();
+
+	fn pay(
+		_who: &Self::Beneficiary,
+		_asset_kind: Self::AssetKind,
+		_amount: Self::Balance,
+	) -> Result<Self::Id, Self::Error> {
+		// We need to create a spend proposal first, then pay it out
+		// For now, return a dummy ID
+		Ok(0)
+	}
+
+	fn check_payment(_id: Self::Id) -> PaymentStatus {
+		// Simple implementation - assume payment is always successful
+		PaymentStatus::Success
+	}
+}
+
+pub struct UnityBalanceConverter;
+impl ConversionFromAssetBalance<Balance, (), Balance> for UnityBalanceConverter {
+	type Error = sp_runtime::DispatchError;
+
+	fn from_asset_balance(balance: Balance, _asset_id: ()) -> Result<Balance, Self::Error> {
+		Ok(balance)
+	}
+}
+
+parameter_types! {
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const Burn: Permill = Permill::from_percent(1);
+}
+
+parameter_types! {
+		pub const MaxSpendAmount: Balance = 1_000_000 * UNIT;
+}
+
+impl pallet_treasury::Config for Runtime {
+	type PalletId = TreasuryPalletId;
+	type Currency = Balances;
+	type SpendOrigin =
+		frame_system::EnsureRootWithSuccess<AccountId, ConstU128<{ MaxSpendAmount::get() }>>;
+
+	type AssetKind = ();
+	type Beneficiary = AccountId;
+	type BeneficiaryLookup = sp_runtime::traits::AccountIdLookup<AccountId, ()>;
+	type SpendFunds = ();
+	type WeightInfo = weights::pallet_treasury::SubstrateWeight<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type MaxApprovals = ConstU32<100>;
+	type SpendPeriod = ConstU32<{ 1 * DAYS }>;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type Paymaster = TreasuryPaymaster;
+	type BalanceConverter = UnityBalanceConverter;
+	type PayoutPeriod = ConstU32<0>;
+	type BlockNumberProvider = System;
+}
+
+parameter_types! {
+		pub const AssetDeposit: Balance = 100 * UNIT;
+		pub const AssetAccountDeposit: Balance = 10 * UNIT;
+		pub const ApprovalDeposit: Balance = 1 * UNIT;
+		pub const AssetsStringLimit: u32 = 50;
+		pub const MetadataDepositBase: Balance = 10 * UNIT;
+		pub const MetadataDepositPerByte: Balance = 1 * UNIT;
+}
+
+pub struct EnsureRootWithAccount;
+
+impl EnsureOriginWithArg<RuntimeOrigin, u32> for EnsureRootWithAccount {
+	type Success = AccountId;
+
+	fn try_origin(origin: RuntimeOrigin, _asset_id: &u32) -> Result<Self::Success, RuntimeOrigin> {
+		EnsureRoot::<AccountId>::try_origin(origin.clone(), &())?;
+		Ok(TreasuryAccount::get())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin(_asset_id: &u32) -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::root())
+	}
+}
+
+impl pallet_assets::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = codec::Compact<u32>;
+	type Currency = Balances;
+	type CreateOrigin = EnsureRootWithAccount;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = weights::pallet_assets::SubstrateWeight<Runtime>;
+	type RemoveItemsLimit = ConstU32<1000>;
+	type CallbackHandle = ();
+	type Holder = ();
+}
+
+impl pallet_asset_registry::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Currency = Balances;
+    type TreasuryAccount = TreasuryAccount;
+}
+
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("cyborg-runtime"),
@@ -570,6 +700,15 @@ mod runtime {
 
 	#[runtime::pallet_index(47)]
 	pub type NeuroZk = pallet_neuro_zk;
+
+	#[runtime::pallet_index(48)]
+	pub type Treasury = pallet_treasury;
+
+	#[runtime::pallet_index(49)]
+	pub type Assets = pallet_assets;
+
+	#[runtime::pallet_index(50)]
+	pub type AssetRegistry = pallet_asset_registry;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {
