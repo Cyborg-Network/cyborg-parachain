@@ -2,6 +2,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	pallet_prelude::*,
 	traits::{Currency, Get},
+	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
@@ -13,9 +14,9 @@ use crate::{AccountId, Balance, Runtime, TreasuryAccount};
 
 /// Asset metadata structure
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetMetadata {
-	pub name: Vec<u8>,
-	pub symbol: Vec<u8>,
+pub struct AssetMetadata<T: Config> {
+	pub name: BoundedVec<u8, T::StringLimit>,
+	pub symbol: BoundedVec<u8, T::StringLimit>,
 	pub decimals: u8,
 }
 
@@ -31,6 +32,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: Currency<Self::AccountId>;
 		type TreasuryAccount: Get<Self::AccountId>;
+		type StringLimit: Get<u32>;
 	}
 
 	/// Mapping from local asset ID to XCM multi-location
@@ -46,7 +48,7 @@ pub mod pallet {
 	/// Asset metadata storage
 	#[pallet::storage]
 	#[pallet::getter(fn asset_metadatas)]
-	pub type AssetMetadatas<T> = StorageMap<_, Blake2_128Concat, u32, AssetMetadata, OptionQuery>;
+	pub type AssetMetadatas<T> = StorageMap<_, Blake2_128Concat, u32, AssetMetadata<T>, OptionQuery>;
 
 	/// Next available asset ID
 	#[pallet::storage]
@@ -86,7 +88,7 @@ pub mod pallet {
 		pub fn register_asset(
 			origin: OriginFor<T>,
 			asset_location: MultiLocation,
-			metadata: AssetMetadata,
+			metadata: AssetMetadata<T>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -108,7 +110,7 @@ pub mod pallet {
 			pallet_assets::Pallet::<Runtime>::create(
 				frame_system::RawOrigin::Root.into(),
 				asset_id.into(),
-				sp_runtime::MultiAddress::Id(T::TreasuryAccount::get()),
+				sp_runtime::MultiAddress::Id(T::TreasuryAccount::get().into()),
 				Balance::from(1u32), // minimal balance
 			)?;
 
@@ -116,8 +118,8 @@ pub mod pallet {
 			pallet_assets::Pallet::<Runtime>::set_metadata(
 				frame_system::RawOrigin::Root.into(),
 				asset_id.into(),
-				metadata.name.clone(),
-				metadata.symbol.clone(),
+				metadata.name.clone().into_inner(),
+				metadata.symbol.clone().into_inner(),
 				metadata.decimals,
 			)?;
 
@@ -148,7 +150,7 @@ pub mod pallet {
 			pallet_assets::Pallet::<Runtime>::mint(
 				frame_system::RawOrigin::Root.into(),
 				asset_id.into(),
-				MultiAddress::Id(beneficiary.clone()),
+				MultiAddress::Id(beneficiary.clone().into()),
 				amount,
 			)?;
 
@@ -180,7 +182,7 @@ pub mod pallet {
 			pallet_assets::Pallet::<Runtime>::burn(
 				frame_system::RawOrigin::Root.into(),
 				asset_id.into(),
-				MultiAddress::Id(account.clone()),
+				MultiAddress::Id(account.clone().into()),
 				amount,
 			)?;
 
@@ -255,35 +257,35 @@ pub mod pallet {
 }
 
 // Default metadata for common assets
-impl AssetMetadata {
+impl<T: Config> AssetMetadata<T> {
 	pub fn usdt() -> Self {
 		Self {
-			name: b"Tether USD".to_vec(),
-			symbol: b"USDT".to_vec(),
+			name: b"Tether USD".to_vec().try_into().unwrap(),
+			symbol: b"USDT".to_vec().try_into().unwrap(),
 			decimals: 6,
 		}
 	}
 
 	pub fn usdc() -> Self {
 		Self {
-			name: b"USD Coin".to_vec(),
-			symbol: b"USDC".to_vec(),
+			name: b"USD Coin".to_vec().try_into().unwrap(),
+			symbol: b"USDC".to_vec().try_into().unwrap(),
 			decimals: 6,
 		}
 	}
 
 	pub fn dot() -> Self {
 		Self {
-			name: b"Polkadot".to_vec(),
-			symbol: b"DOT".to_vec(),
+			name: b"Polkadot".to_vec().try_into().unwrap(),
+			symbol: b"DOT".to_vec().try_into().unwrap(),
 			decimals: 10,
 		}
 	}
 
 	pub fn asset_hub_native() -> Self {
 		Self {
-			name: b"Asset Hub Native".to_vec(),
-			symbol: b"AHN".to_vec(),
+			name: b"Asset Hub Native".to_vec().try_into().unwrap(),
+			symbol: b"AHN".to_vec().try_into().unwrap(),
 			decimals: 12,
 		}
 	}

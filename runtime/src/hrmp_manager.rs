@@ -44,7 +44,7 @@ impl HrmpChannelManager for HrmpManager {
         // Call into the HRMP pallet to accept the channel
         pallet_hrmp::Pallet::<Runtime>::accept_open_channel(
             RuntimeOrigin::signed(recipient_account),
-            recipient, // This should be the sender para ID, but the interface expects recipient
+            recipient,
         )?;
         
         Ok(())
@@ -52,8 +52,7 @@ impl HrmpChannelManager for HrmpManager {
 
     fn close_channel(channel_id: HrmpChannelId) -> DispatchResult {
         // For closing, we need to determine which party is initiating the closure
-        // We'll use the sender for simplicity, but in practice you might want to check
-        // which para has permission to close
+        // We'll use the sender for simplicity, 
         let closer_account: AccountId = channel_id.sender.into_account_truncating();
         
         pallet_hrmp::Pallet::<Runtime>::close_channel(
