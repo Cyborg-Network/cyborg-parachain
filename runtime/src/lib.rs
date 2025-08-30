@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![feature(trivial_bounds)]
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -24,7 +25,6 @@ use frame_support::traits::ConstU128;
 use frame_support::PalletId;
 
 pub use asset_registry::pallet as pallet_asset_registry;
-
 
 use smallvec::smallvec;
 use sp_runtime::{
@@ -537,9 +537,9 @@ impl pallet_assets::Config for Runtime {
 }
 
 impl pallet_asset_registry::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type Currency = Balances;
-    type TreasuryAccount = TreasuryAccount;
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type TreasuryAccount = TreasuryAccount;
 }
 
 #[sp_version::runtime_version]

@@ -7,18 +7,17 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::{DispatchResult, MultiAddress};
-use sp_std::vec::Vec;
 use xcm::opaque::v3::MultiLocation;
 
-use crate::{AccountId, Balance, Runtime, TreasuryAccount};
+use crate::{Balance, Runtime};
 
 /// Asset metadata structure
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct AssetMetadata<T: Config> {
-	pub name: BoundedVec<u8, T::StringLimit>,
-	pub symbol: BoundedVec<u8, T::StringLimit>,
-	pub decimals: u8,
-}
+pub struct AssetMetadata(
+	pub BoundedVec<u8, ConstU32<50>>, // name
+	pub BoundedVec<u8, ConstU32<50>>, // symbol
+	pub u8,                           // decimals
+);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -32,7 +31,6 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: Currency<Self::AccountId>;
 		type TreasuryAccount: Get<Self::AccountId>;
-		type StringLimit: Get<u32>;
 	}
 
 	/// Mapping from local asset ID to XCM multi-location
@@ -48,7 +46,7 @@ pub mod pallet {
 	/// Asset metadata storage
 	#[pallet::storage]
 	#[pallet::getter(fn asset_metadatas)]
-	pub type AssetMetadatas<T> = StorageMap<_, Blake2_128Concat, u32, AssetMetadata<T>, OptionQuery>;
+	pub type AssetMetadatas<T> = StorageMap<_, Blake2_128Concat, u32, AssetMetadata, OptionQuery>;
 
 	/// Next available asset ID
 	#[pallet::storage]
@@ -81,14 +79,19 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		sp_runtime::AccountId32: From<T::AccountId>,
+	{
 		/// Register a foreign asset with a local asset ID
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::DbWeight::get().reads_writes(1, 3))]
 		pub fn register_asset(
 			origin: OriginFor<T>,
 			asset_location: MultiLocation,
-			metadata: AssetMetadata<T>,
+			name: BoundedVec<u8, ConstU32<50>>,
+			symbol: BoundedVec<u8, ConstU32<50>>,
+			decimals: u8,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -100,6 +103,9 @@ pub mod pallet {
 			// Get the next available asset ID
 			let asset_id = NextAssetId::<T>::get();
 			NextAssetId::<T>::put(asset_id + 1);
+
+			// Create metadata
+			let metadata = AssetMetadata(name, symbol, decimals);
 
 			// Store the mappings
 			AssetLocations::<T>::insert(asset_id, asset_location.clone());
@@ -118,9 +124,9 @@ pub mod pallet {
 			pallet_assets::Pallet::<Runtime>::set_metadata(
 				frame_system::RawOrigin::Root.into(),
 				asset_id.into(),
-				metadata.name.clone().into_inner(),
-				metadata.symbol.clone().into_inner(),
-				metadata.decimals,
+				metadata.0.clone().into_inner(),
+				metadata.1.clone().into_inner(),
+				metadata.2,
 			)?;
 
 			Self::deposit_event(Event::AssetRegistered {
@@ -257,36 +263,36 @@ pub mod pallet {
 }
 
 // Default metadata for common assets
-impl<T: Config> AssetMetadata<T> {
+impl AssetMetadata {
 	pub fn usdt() -> Self {
-		Self {
-			name: b"Tether USD".to_vec().try_into().unwrap(),
-			symbol: b"USDT".to_vec().try_into().unwrap(),
-			decimals: 6,
-		}
+		Self(
+			b"Tether USD".to_vec().try_into().unwrap(),
+			b"USDT".to_vec().try_into().unwrap(),
+			6,
+		)
 	}
 
 	pub fn usdc() -> Self {
-		Self {
-			name: b"USD Coin".to_vec().try_into().unwrap(),
-			symbol: b"USDC".to_vec().try_into().unwrap(),
-			decimals: 6,
-		}
+		Self(
+			b"USD Coin".to_vec().try_into().unwrap(),
+			b"USDC".to_vec().try_into().unwrap(),
+			6,
+		)
 	}
 
 	pub fn dot() -> Self {
-		Self {
-			name: b"Polkadot".to_vec().try_into().unwrap(),
-			symbol: b"DOT".to_vec().try_into().unwrap(),
-			decimals: 10,
-		}
+		Self(
+			b"Polkadot".to_vec().try_into().unwrap(),
+			b"DOT".to_vec().try_into().unwrap(),
+			10,
+		)
 	}
 
 	pub fn asset_hub_native() -> Self {
-		Self {
-			name: b"Asset Hub Native".to_vec().try_into().unwrap(),
-			symbol: b"AHN".to_vec().try_into().unwrap(),
-			decimals: 12,
-		}
+		Self(
+			b"Asset Hub Native".to_vec().try_into().unwrap(),
+			b"AHN".to_vec().try_into().unwrap(),
+			12,
+		)
 	}
 }
