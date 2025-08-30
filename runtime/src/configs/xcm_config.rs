@@ -3,6 +3,8 @@ use crate::{
 	RuntimeCall, RuntimeEvent, RuntimeOrigin, WeightToFee, XcmpQueue,
 };
 
+use alloc::vec;
+use alloc::vec::Vec;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, Contains, Disabled, Everything, Nothing},
@@ -14,23 +16,29 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use polkadot_runtime_common::impls::ToAuthor;
 use xcm::latest::prelude::*;
 use xcm_builder::{
-	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowTopLevelPaidExecutionFrom,
-	DenyReserveTransferToRelayChain, DenyThenTry, EnsureXcmOrigin, FixedWeightBounds,
-	FrameTransactionalProcessor, FungibleAdapter, IsConcrete, NativeAsset, ParentIsPreset,
+	AccountId32Aliases, AllowExplicitUnpaidExecutionFrom, AllowKnownQueryResponses,
+	AllowTopLevelPaidExecutionFrom, Case, DenyReserveTransferToRelayChain, DenyThenTry,
+	EnsureXcmOrigin, FixedWeightBounds, FrameTransactionalProcessor, FungibleAdapter, ParentIsPreset,
 	RelayChainAsNative, SendXcmFeeToAccount, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	TrailingSetTopicAsId, UsingComponents, WithComputedOrigin, WithUniqueTopic,
 	XcmFeeManagerFromComponents,
 };
+use xcm_executor::traits::MatchesFungible;
 use xcm_executor::XcmExecutor;
 
 parameter_types! {
 	pub const RelayLocation: Location = Location::parent();
-	pub const RelayNetwork: Option<NetworkId> = None;
+	pub const RelayNetwork: Option<NetworkId> = Some(NetworkId::Polkadot);
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-	// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
-	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
-	pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	pub UniversalLocation: InteriorLocation = [
+		GlobalConsensus(RelayNetwork::get().unwrap_or(NetworkId::Polkadot)),
+		Parachain(ParachainInfo::parachain_id().into())].into();
+
+		pub AssetHubLocation: Location = Location::new(
+			1, // parent: Polkadot relay chain
+			[Parachain(1000)]  // Asset Hub parachain ID
+	);
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -45,12 +53,118 @@ pub type LocationToAccountId = (
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
 
+pub struct RelayOrAssetHubFungible;
+impl MatchesFungible<u128> for RelayOrAssetHubFungible {
+	fn matches_fungible(a: &Asset) -> Option<u128> {
+		match a {
+			Asset {
+				id: AssetId(relay_location),
+				fun: Fungible(amount),
+			} if *relay_location == RelayLocation::get() => Some(*amount),
+			Asset {
+				id: AssetId(asset_hub_location),
+				fun: Fungible(amount),
+			} if *asset_hub_location == AssetHubLocation::get() => Some(*amount),
+			Asset {
+				id: AssetId(asset_hub_usdt_location),
+				fun: Fungible(amount),
+			} if *asset_hub_usdt_location == AssetHubUsdtLocation::get() => Some(*amount),
+			Asset {
+				id: AssetId(asset_hub_usdc_location),
+				fun: Fungible(amount),
+			} if *asset_hub_usdc_location == AssetHubUsdcLocation::get() => Some(*amount),
+			_ => None,
+		}
+	}
+}
+
+parameter_types! {
+		pub TrustedTeleporters: Vec<(Location, Vec<AssetId>)> = vec![
+				(
+						RelayLocation::get(),
+						vec![AssetId(RelayLocation::get())] // DOT
+				),
+				(
+						AssetHubLocation::get(),
+						vec![
+						AssetId(AssetHubUsdtLocation::get()), // USDT
+						AssetId(AssetHubUsdcLocation::get())  // USDC
+						]
+
+				)
+		];
+
+		pub TrustedReserves: Vec<(Location, Vec<AssetId>)> = vec![
+				(
+						RelayLocation::get(),
+						vec![AssetId(RelayLocation::get())] // DOT
+				),
+				(
+						AssetHubLocation::get(),
+						vec![
+								AssetId(AssetHubLocation::get()), // Asset Hub native
+								AssetId(AssetHubUsdtLocation::get()), // USDT
+								AssetId(AssetHubUsdcLocation::get())  // USDC
+						]
+				)
+		];
+}
+
+parameter_types! {
+		pub AssetHubFeePerSecond: (AssetId, u128) =
+				(AssetId(AssetHubLocation::get()), 1_000_000); // 0.000001 DOT per second
+
+				pub AssetHubUsdtFeePerSecond: (AssetId, u128) =
+				(AssetId(AssetHubUsdtLocation::get()), 1_000_000); // Fee rate for USDT
+}
+
+// teleportation configuration
+parameter_types! {
+		pub const AssetHubUsdtAssetId: u128 = 1984;
+		pub const AssetHubUsdcAssetId: u128 = 1337;
+		pub AssetHubUsdtLocation: Location = Location::new(
+				1,
+				[Parachain(1000), GeneralIndex(AssetHubUsdtAssetId::get())]
+		);
+		pub AssetHubUsdcLocation: Location = Location::new(
+			1,
+			[Parachain(1000), GeneralIndex(AssetHubUsdcAssetId::get())]
+	);
+}
+
+parameter_types! {
+		pub RelayDot: (AssetFilter, Location) = (Wild(All), RelayLocation::get());
+		pub AssetHubUsdt: (AssetFilter, Location) = (Wild(All), AssetHubUsdtLocation::get());
+		pub AssetHubUsdc: (AssetFilter, Location) = (Wild(All), AssetHubUsdcLocation::get());
+		pub AssetHubNative: (AssetFilter, Location) = (Wild(All), AssetHubLocation::get());
+}
+
+type IsTeleporter = (
+	// Allow teleportation of DOT from Relay Chain
+	Case<RelayDot>,
+	// Allow teleportation of USDT from Asset Hub
+	Case<AssetHubUsdt>,
+	// Allow teleportation of USDC from Asset Hub
+	Case<AssetHubUsdc>,
+);
+
+type IsReserve = (
+	// Reserve transfers for Relay Chain assets
+	Case<RelayDot>,
+	// Reserve transfers for Asset Hub assets
+	Case<AssetHubNative>,
+	// Reserve transfers for Asset Hub USDT
+	Case<AssetHubUsdt>,
+	// Reserve transfers for Asset Hub USDC
+	Case<AssetHubUsdc>,
+);
+
 /// Means for transacting assets on this chain.
 pub type LocalAssetTransactor = FungibleAdapter<
 	// Use this currency:
 	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
+	// Allow both relay chain assets and Asset Hub assets
+	RelayOrAssetHubFungible,
 	// Do a simple punn to convert an AccountId32 Location into a native chain account ID:
 	LocationToAccountId,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
@@ -87,6 +201,17 @@ parameter_types! {
 	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
+parameter_types! {
+	pub AssetHubFreeExecution: Location = Location::new(1, [Parachain(1000)]);
+}
+
+impl Contains<Location> for AssetHubFreeExecution {
+	fn contains(location: &Location) -> bool {
+		// Allow execution from Asset Hub parachain
+		*location == AssetHubLocation::get()
+	}
+}
+
 pub struct ParentOrParentsExecutivePlurality;
 impl Contains<Location> for ParentOrParentsExecutivePlurality {
 	fn contains(location: &Location) -> bool {
@@ -113,7 +238,10 @@ pub type Barrier = TrailingSetTopicAsId<
 				(
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
+					AllowExplicitUnpaidExecutionFrom<AssetHubFreeExecution>,
 					// ^^^ Parent and its exec plurality get free execution
+					// Allow teleportation from trusted locations
+					AllowKnownQueryResponses<PolkadotXcm>,
 				),
 				UniversalLocation,
 				ConstU32<8>,
@@ -124,8 +252,8 @@ pub type Barrier = TrailingSetTopicAsId<
 
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId = AccountId::from(AccountId::new([1u8; 32])); // FIX ME: get account from treasury pallet
-	//pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub TreasuryAccount: AccountId =
+				pallet_treasury::Pallet::<Runtime>::account_id();
 }
 
 pub struct XcmConfig;
@@ -136,8 +264,8 @@ impl xcm_executor::Config for XcmConfig {
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
-	type IsReserve = NativeAsset;
-	type IsTeleporter = (); // Teleporting is disabled.
+	type IsReserve = IsReserve;
+	type IsTeleporter = IsTeleporter;
 	type UniversalLocation = UniversalLocation;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
@@ -188,7 +316,7 @@ impl pallet_xcm::Config for Runtime {
 	// Needs to be `Everything` for local testing.
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Everything;
-	type XcmReserveTransferFilter = Nothing;
+	type XcmReserveTransferFilter = Everything;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
 	type UniversalLocation = UniversalLocation;
 	type RuntimeOrigin = RuntimeOrigin;
