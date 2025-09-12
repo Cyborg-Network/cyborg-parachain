@@ -90,6 +90,11 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn busy_workers)]
+	pub type BusyWorkers<T: Config> =
+		StorageMap<_, Twox64Concat, (T::AccountId, WorkerId), bool, ValueQuery>;
+
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -198,6 +203,8 @@ pub mod pallet {
 		WorkerSuspended,
 		/// Worker reputation is too low
 		InsufficientReputation,
+		/// Error indicating that the worker is busy and cannot be set to active
+		WorkerIsBusy,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -363,6 +370,12 @@ pub mod pallet {
 			visibility: bool,
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
+
+			let worker_key = (creator.clone(), worker_id);
+
+			if visibility && BusyWorkers::<T>::contains_key(worker_key) {
+				return Err(Error::<T>::WorkerIsBusy.into());
+			}
 			let worker_status = if visibility {
 				WorkerStatusType::Active
 			} else {
@@ -469,6 +482,27 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
+		pub fn set_worker_busy_status(
+			origin: OriginFor<T>,
+			worker_type: WorkerType,
+			worker_id: WorkerId,
+			is_busy: bool,
+		) -> DispatchResultWithPostInfo {
+			let creator = ensure_signed(origin)?;
+			let worker_key = (creator.clone(), worker_id);
+
+			// Update busy status
+			if is_busy {
+				BusyWorkers::<T>::insert(worker_key, true);
+			} else {
+				BusyWorkers::<T>::remove(worker_key);
+			}
+
+			Ok(().into())
 		}
 	}
 
@@ -711,6 +745,46 @@ pub mod pallet {
 			});
 
 			Ok(())
+		}
+
+		/// Helper function for oracle feeders to safely update worker status
+		/// Returns true if status was updated, false if worker is busy
+		pub fn safe_update_worker_status(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: &WorkerType,
+			desired_status: WorkerStatusType,
+		) -> Result<bool, Error<T>> {
+			// Don't allow setting to active if worker is busy
+			if desired_status == WorkerStatusType::Active && BusyWorkers::<T>::contains_key(worker_key) {
+				return Ok(false);
+			}
+
+			let mut worker = match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			// Only update if status is actually changing
+			if worker.status == desired_status {
+				return Ok(false);
+			}
+
+			worker.status = desired_status.clone();
+			worker.last_status_check = timestamp::Pallet::<T>::get();
+
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
+
+			Self::deposit_event(Event::WorkerStatusUpdated {
+				creator: worker_key.0.clone(),
+				worker_id: worker_key.1,
+				worker_status: desired_status,
+			});
+
+			Ok(true)
 		}
 	}
 
