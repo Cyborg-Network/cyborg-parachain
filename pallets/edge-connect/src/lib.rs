@@ -373,6 +373,7 @@ pub mod pallet {
 
 			let worker_key = (creator.clone(), worker_id);
 
+			// Prevent setting to active if worker is busy
 			if visibility && BusyWorkers::<T>::contains_key(worker_key) {
 				return Err(Error::<T>::WorkerIsBusy.into());
 			}
@@ -483,30 +484,43 @@ pub mod pallet {
 
 			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
 		}
+	}
 
-		#[pallet::call_index(7)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
-		pub fn set_worker_busy_status(
-			origin: OriginFor<T>,
+	impl<T: Config> Pallet<T> {
+		pub fn is_worker_busy(worker_key: &(T::AccountId, WorkerId)) -> bool {
+			BusyWorkers::<T>::contains_key(worker_key)
+		}
+
+		pub fn set_worker_busy_status_internal(
+			worker_key: &(T::AccountId, WorkerId),
 			worker_type: WorkerType,
-			worker_id: WorkerId,
 			is_busy: bool,
-		) -> DispatchResultWithPostInfo {
-			let creator = ensure_signed(origin)?;
-			let worker_key = (creator.clone(), worker_id);
-
+		) -> DispatchResult {
 			// Update busy status
 			if is_busy {
 				BusyWorkers::<T>::insert(worker_key, true);
+
+				// If worker is currently active, set to inactive
+				if let Some(mut worker) = Self::get_worker_cluster(worker_key, &worker_type) {
+					if worker.status == WorkerStatusType::Active {
+						worker.status = WorkerStatusType::Inactive;
+						worker.last_status_check = timestamp::Pallet::<T>::get();
+
+						Self::update_worker_cluster(worker_key, &worker_type, worker);
+
+						Self::deposit_event(Event::WorkerStatusUpdated {
+							creator: worker_key.0.clone(),
+							worker_id: worker_key.1,
+							worker_status: WorkerStatusType::Inactive,
+						});
+					}
+				}
 			} else {
 				BusyWorkers::<T>::remove(worker_key);
 			}
 
-			Ok(().into())
+			Ok(())
 		}
-	}
-
-	impl<T: Config> Pallet<T> {
 		// Helper Function to retrieve all active workers from storage.
 		// Filters workers based on their status (active or inactive).
 		pub fn get_active_workers() -> Option<

@@ -313,7 +313,7 @@ where
 		/// Allowed only if task is still `Assigned`.
 		/// Changes task state to `Running` and starts aggregation of resource usage.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
+        #[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
         pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
@@ -335,21 +335,24 @@ where
                 Error::<T>::RequireAssignedTask
             );
 
-            task_info.task_status = TaskStatusType::Running;
-            TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
-            Tasks::<T>::insert(task_id, task_info);
+          // Set worker as busy using the new helper function
+          Self::update_worker_busy_status(task_id, true)?;
 
-            ComputeAggregations::<T>::insert(
+           task_info.task_status = TaskStatusType::Running;
+           TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+           Tasks::<T>::insert(task_id, task_info);
+
+           ComputeAggregations::<T>::insert(
                 task_id,
-                (
-                    <frame_system::Pallet<T>>::block_number(),
-                    None::<BlockNumberFor<T>>,
-                ),
-            );
+              (
+                  <frame_system::Pallet<T>>::block_number(),
+                  None::<BlockNumberFor<T>>,
+              ),
+         );
 
-            Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
+          Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
 
-            Ok(())
+        Ok(())
         }
 
 		//
@@ -389,30 +392,33 @@ where
 		/// miner confirms that it has reset itself
 		/// Stopped to vacated
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_miner_vacation())]
-		pub fn confirm_miner_vacation(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+        #[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_miner_vacation())]
+        pub fn confirm_miner_vacation(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+             let who = ensure_signed(origin)?;
 
-			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+             let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-			// Ensure task owner is confirming.
-			ensure!(task.task_owner == who, Error::<T>::NotTaskOwner);
+             // Ensure task owner is confirming.
+             ensure!(task.task_owner == who, Error::<T>::NotTaskOwner);
 
-			// Ensure task is stopped.
-			ensure!(
-				task.task_status == TaskStatusType::Stopped,
-				Error::<T>::InvalidTaskState
-			);
+            // Ensure task is stopped.
+            ensure!(
+               task.task_status == TaskStatusType::Stopped,
+               Error::<T>::InvalidTaskState
+           );
 
-			// Move to Vacated state.
-			task.task_status = TaskStatusType::Vacated;
-			Tasks::<T>::insert(task_id, task);
+            // Clear worker busy status
+            Self::clear_worker_busy_status(task_id)?;
 
-			// Emit event.
-			Self::deposit_event(Event::MinerVacated { task_id });
+            // Move to Vacated state.
+            task.task_status = TaskStatusType::Vacated;
+            Tasks::<T>::insert(task_id, task);
 
-			Ok(())
-		}
+            // Emit event.
+            Self::deposit_event(Event::MinerVacated { task_id });
+
+           Ok(())
+        }
 
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_gatekeeper())]
@@ -501,6 +507,53 @@ where
 			} else {
 				Ok(())
 			}
+		}
+
+		fn update_worker_busy_status(task_id: TaskId, is_busy: bool) -> DispatchResult {
+			if let Some(assigned_worker) = TaskAllocations::<T>::get(task_id) {
+				let worker_key = (assigned_worker.0.clone(), assigned_worker.1);
+
+				// Get task to determine worker type
+				if let Some(task_info) = Tasks::<T>::get(task_id) {
+					let worker_type = match task_info.task_kind {
+						TaskKind::NeuroZK => WorkerType::Executable,
+						TaskKind::OpenInference => WorkerType::Executable,
+					};
+
+					// Update busy status
+					// Only set busy if worker exists
+					if pallet_edge_connect::Pallet::<T>::is_registered_miner(&assigned_worker.0) {
+						pallet_edge_connect::Pallet::<T>::set_worker_busy_status_internal(
+							&worker_key,
+							worker_type,
+							is_busy,
+						)?;
+					}
+				}
+			}
+			Ok(())
+		}
+
+		fn clear_worker_busy_status(task_id: TaskId) -> DispatchResult {
+			if let Some(assigned_worker) = TaskAllocations::<T>::get(task_id) {
+				let worker_key = (assigned_worker.0.clone(), assigned_worker.1);
+
+				// Get task to determine worker type
+				if let Some(task_info) = Tasks::<T>::get(task_id) {
+					let worker_type = match task_info.task_kind {
+						TaskKind::NeuroZK => WorkerType::Executable,
+						TaskKind::OpenInference => WorkerType::Executable,
+					};
+
+					// Clear busy status
+					pallet_edge_connect::Pallet::<T>::set_worker_busy_status_internal(
+						&worker_key,
+						worker_type,
+						false,
+					)?;
+				}
+			}
+			Ok(())
 		}
 	}
 
