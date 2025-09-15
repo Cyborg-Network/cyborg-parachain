@@ -768,8 +768,8 @@ pub mod pallet {
 			worker_type: &WorkerType,
 			desired_status: WorkerStatusType,
 		) -> Result<bool, Error<T>> {
-			// Don't allow setting to active if worker is busy
-			if desired_status == WorkerStatusType::Active && BusyWorkers::<T>::contains_key(worker_key) {
+			// Don't allow any status changes if worker is busy
+			if BusyWorkers::<T>::contains_key(worker_key) {
 				return Ok(false);
 			}
 
