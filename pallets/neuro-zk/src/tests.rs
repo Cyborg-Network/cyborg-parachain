@@ -10,9 +10,12 @@ fn create_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
 	let deposit = 10;
 	let azure_task = AzureTask {
-		storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+		storage_location_identifier: BoundedVec::try_from(
+			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+		)
+		.unwrap(),
 	};
-	let task_kind_neurozk = TaskKind::NeuroZK(NzkData { 
+	let task_kind_neurozk = TaskKind::NeuroZK(NzkData {
 		location: azure_task.clone(),
 		zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
 			.unwrap(),
@@ -21,11 +24,10 @@ fn create_neurozk_task(task_id: TaskId) {
 		zk_verifying_key: BoundedVec::try_from(
 			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 		)
-			.unwrap(),
+		.unwrap(),
 		zk_proof: None,
 		last_proof_accepted: None,
 	});
-
 
 	let task_info = TaskInfo {
 		task_owner: who,
@@ -46,8 +48,11 @@ fn create_non_neurozk_task(task_id: TaskId) {
 	let who: AccountId = 1;
 	let deposit = 10;
 	let task_kind_infer = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-		storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-		triton_config: None
+		storage_location_identifier: BoundedVec::try_from(
+			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+		)
+		.unwrap(),
+		triton_config: None,
 	}));
 
 	let task_info = TaskInfo {
@@ -242,9 +247,9 @@ fn finalize_verification_accepts_on_threshold() {
 
 		let task = get_nzk_task(task_id).unwrap();
 		if let TaskKind::NeuroZK(data) = task.task_kind {
-    		assert_eq!(data.last_proof_accepted.unwrap().0, true);
+			assert_eq!(data.last_proof_accepted.unwrap().0, true);
 		} else {
-    		panic!("Expected TaskKind::NeuroZK");
+			panic!("Expected TaskKind::NeuroZK");
 		}
 	});
 }
@@ -268,9 +273,9 @@ fn finalize_verification_rejects_below_threshold() {
 
 		let task = get_nzk_task(task_id).unwrap();
 		if let TaskKind::NeuroZK(data) = task.task_kind {
-    		assert_eq!(data.last_proof_accepted.unwrap().0, false);
+			assert_eq!(data.last_proof_accepted.unwrap().0, false);
 		} else {
-    		panic!("Expected TaskKind::NeuroZK");
+			panic!("Expected TaskKind::NeuroZK");
 		}
 	});
 }

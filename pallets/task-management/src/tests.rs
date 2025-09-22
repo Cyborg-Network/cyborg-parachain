@@ -1,7 +1,9 @@
 use crate::{mock::*, Error};
 use crate::{ComputeAggregations, GatekeeperAccount, ModelHashes, NextTaskId, TaskStatus, Tasks};
-use cyborg_primitives::task::{AzureTask, OnnxTask, OpenInferenceTask, TaskSubmissionData, NzkData};
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
+use cyborg_primitives::task::{
+	AzureTask, NzkData, OnnxTask, OpenInferenceTask, TaskSubmissionData,
+};
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
@@ -57,10 +59,13 @@ fn it_works_for_task_scheduler() {
 		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 1)));
 
 		let azure_task = AzureTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
 		};
 
-		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails { 
+		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails {
 			location: azure_task.clone(),
 			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
 				.unwrap(),
@@ -70,10 +75,14 @@ fn it_works_for_task_scheduler() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		let miner_id_docker = 0;
@@ -96,9 +105,12 @@ fn it_works_for_task_scheduler() {
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
 		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
 		assert_eq!(
-			task_info_0.task_kind, 
+			task_info_0.task_kind,
 			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-				storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+				)
+				.unwrap(),
 				triton_config: None
 			}))
 		);
@@ -135,12 +147,19 @@ fn it_works_for_task_scheduler() {
 		let task_id_2 = NextTaskId::<Test>::get() - 1;
 		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
 		assert_eq!(
-			task_info_2.task_kind, 
+			task_info_2.task_kind,
 			TaskKind::NeuroZK(NzkData {
 				location: azure_task,
-				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-				zk_verifying_key: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+					.unwrap(),
+				zk_settings: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+				)
+				.unwrap(),
+				zk_verifying_key: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+				)
+				.unwrap(),
 				zk_proof: None,
 				last_proof_accepted: None
 			})
@@ -166,8 +185,11 @@ fn it_works_for_miner_status_updates() {
 		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		let miner_id_exec = 0;
@@ -189,9 +211,12 @@ fn it_works_for_miner_status_updates() {
 		let task_id_0 = NextTaskId::<Test>::get() - 1;
 		let task_info_0 = Tasks::<Test>::get(task_id_0).unwrap();
 		assert_eq!(
-			task_info_0.task_kind, 
+			task_info_0.task_kind,
 			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-				storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+				)
+				.unwrap(),
 				triton_config: None
 			}))
 		);
@@ -210,7 +235,7 @@ fn it_works_for_miner_status_updates() {
 
 		// Confirm task reception
 		assert_ok!(TaskManagementModule::confirm_task_reception(
-			RuntimeOrigin::signed(executor),	
+			RuntimeOrigin::signed(executor),
 			0
 		));
 
@@ -222,13 +247,13 @@ fn it_works_for_miner_status_updates() {
 
 		// Confirm miner has vacated
 		assert_ok!(TaskManagementModule::confirm_miner_vacation(
-			RuntimeOrigin::signed(executor),			
+			RuntimeOrigin::signed(executor),
 			0
 		));
 
 		// Schedule another task to the now free miner
 		assert_ok!(TaskManagementModule::task_scheduler(
-			RuntimeOrigin::signed(alice),	
+			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
 			executor,
 			miner_id_exec,
@@ -254,11 +279,14 @@ fn it_fails_when_miner_not_registered() {
 		));
 
 		let azure_task = AzureTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
 		};
 
 		// nzk_data only required for NeuroZK
-		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails { 
+		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails {
 			location: azure_task.clone(),
 			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
 				.unwrap(),
@@ -268,6 +296,7 @@ fn it_fails_when_miner_not_registered() {
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
 			.unwrap(),
+			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
 		});
 
 		// Provide compute hours
@@ -295,8 +324,11 @@ fn it_fails_when_no_miners_are_available() {
 		let miner_owner = 2;
 		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -332,8 +364,11 @@ fn it_fails_when_no_computer_hours_available() {
 		let miner_owner = 2;
 		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		// Register miner first
@@ -366,8 +401,11 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		let executor = 2;
 		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		// Register miner first
@@ -410,8 +448,11 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let intruder = 99;
 		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
@@ -443,8 +484,11 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		let executor = 2;
 		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
@@ -469,7 +513,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		// Second time (should fail - already running)
 		assert_noop!(
 			TaskManagementModule::confirm_task_reception(RuntimeOrigin::signed(executor), task_id),
-			Error::<Test>::RequireAssignedTask
+			Error::<Test>::TaskReceptionAlreadyConfirmed
 		);
 	});
 }
@@ -481,10 +525,12 @@ fn it_works_for_confirm_miner_vacation() {
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
-
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
@@ -536,8 +582,11 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		let alice = 1;
 		let bob = 2;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
@@ -580,8 +629,11 @@ fn fails_if_task_not_stopped() {
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
@@ -618,8 +670,11 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		// Provide compute hours and register miner
@@ -673,8 +728,11 @@ fn fails_if_task_is_not_running() {
 		System::set_block_number(1);
 		let alice = 1;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
-			triton_config: None
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);

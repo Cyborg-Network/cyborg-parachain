@@ -39,7 +39,17 @@ pub struct ProcessStatus {
 }
 
 #[derive(
-	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking,
+	Clone,
+	Encode,
+	Decode,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
 )]
 pub enum OracleKey<AccountId> {
 	Miner(OracleMinerFormat<AccountId>),
@@ -47,7 +57,17 @@ pub enum OracleKey<AccountId> {
 }
 
 #[derive(
-	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking
+	Clone,
+	Encode,
+	Decode,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
 )]
 pub enum OracleValue {
 	MinerStatus(ProcessStatus),

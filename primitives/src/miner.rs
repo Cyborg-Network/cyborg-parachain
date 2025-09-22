@@ -1,6 +1,7 @@
-use codec::{Decode, Encode, MaxEncodedLen, DecodeWithMemTracking};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
+use crate::task::TaskId;
 
 pub type MinerId = u64;
 
@@ -57,6 +58,7 @@ pub struct Miner<AccountId, BlockNumber, TimeStamp> {
 	pub location: Location,
 	pub specs: MinerSpecs,
 	pub reputation: MinerReputation<BlockNumber>,
+	pub current_task: Option<TaskId>,
 	pub start_block: BlockNumber,
 	pub status: MinerStatusType,
 	pub status_last_updated: BlockNumber,
@@ -106,11 +108,14 @@ pub enum SuspicionLevel {
 	Ban,
 }
 
-#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(
+	PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking,
+)]
 pub enum SuspensionReason {
 	RepeatedTaskFailures,
 	SpamBehavior,
 	MaliciousActivity,
 	ReputationThreshold,
 	ManualOverride,
+	TaskConfirmationTimeout,
 }

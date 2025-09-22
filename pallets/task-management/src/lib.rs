@@ -16,6 +16,8 @@ pub use weights::*;
 
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::miner::{MinerId, MinerStatusType, MinerType};
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
+use pallet_edge_connect::SuspensionReason;
 
 use scale_info::prelude::vec::Vec;
 
@@ -23,9 +25,11 @@ use scale_info::prelude::vec::Vec;
 pub mod pallet {
 	use super::*;
 	use frame_support::dispatch::PostDispatchInfo;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::traits::Currency;
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
+	use pallet_edge_connect::PenaltyReason;
 	use pallet_timestamp as timestamp;
 	// use pallet_edge_connect::AccountMiners;
 
@@ -40,6 +44,9 @@ pub mod pallet {
 
 		/// A type representing the weights required by the dispatchables of this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// Number of blocks to wait for task confirmation before penalizing miner
+		type TaskConfirmationTimeout: Get<BlockNumberFor<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -92,6 +99,19 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type ModelHashes<T: Config> = StorageMap<_, Blake2_128Concat, [u8; 32], T::Hash, OptionQuery>;
+
+	#[pallet::storage]
+	pub type TaskAssignmentBlock<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, BlockNumberFor<T>, OptionQuery>;
+
+	#[pallet::storage]
+	pub type PendingTaskConfirmations<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		BlockNumberFor<T>,                 // Timeout block
+		BoundedVec<TaskId, ConstU32<100>>, // Tasks expiring at this block
+		ValueQuery,
+	>;
 
 	/// Pallets use events to inform users when important changes are made.
 	/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/guides/your_first_pallet/index.html#event-and-error>
@@ -156,6 +176,17 @@ pub mod pallet {
 		RateLimitExceeded,
 		ModelAlreadyRegistered,
 		ModelNotFound,
+		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			if let Err(e) = Self::check_task_confirmation_timeouts() {
+				log::error!("Error checking task confirmation timeouts: {:?}", e);
+			}
+			T::DbWeight::get().reads_writes(1, 1)
+		}
 	}
 
 	#[pallet::call]
@@ -235,10 +266,17 @@ where
 				task_status: TaskStatusType::Assigned,
 			};
 
-			TaskAllocations::<T>::insert(task_id, selected_miner.clone());
+			let timeout_block = <frame_system::Pallet<T>>::block_number()
+				.saturating_add(T::TaskConfirmationTimeout::get());
+			PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
+				tasks.try_push(task_id).expect("Task queue bounded to 100 per block");
+			});
+
+			TaskAllocations::<T>::insert(task_id, selected_worker.clone());
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
+			TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
 
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
 				&selected_miner,
@@ -265,44 +303,53 @@ where
 		/// Changes task state to `Running` and starts aggregation of resource usage.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
-		pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+        pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+            let who = ensure_signed(origin)?;
 
-			// Load task
-			let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            // Load task
+            let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
-			// Check that caller is the assigned miner
-			let assigned_miner =
-				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
-			ensure!(assigned_miner.0 == who, Error::<T>::InvalidTaskOwner);
+            // Check that caller is the assigned worker
+            let assigned_miner = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            ensure!(assigned_miner.0 == who, Error::<T>::InvalidTaskOwner);
 
-			// Task must currently be `Assigned`
-			ensure!(
-				task_info.task_status == TaskStatusType::Assigned,
-				Error::<T>::RequireAssignedTask
-			);
+            // If task is already running, return specific error
+            if task_info.task_status == TaskStatusType::Running {
+                return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
+            }
 
-			// Transition task to `Running`
-			task_info.task_status = TaskStatusType::Running;
-			TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+            // Task must currently be `Assigned`
+            ensure!(
+                task_info.task_status == TaskStatusType::Assigned,
+                Error::<T>::RequireAssignedTask
+            );
 
-			// Store back the updated task info
-			Tasks::<T>::insert(task_id, task_info);
+            task_info.task_status = TaskStatusType::Running;
+            TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+            Tasks::<T>::insert(task_id, task_info);
 
-			// Start compute aggregation: record starting block
-			ComputeAggregations::<T>::insert(
-				task_id,
-				(
-					<frame_system::Pallet<T>>::block_number(),
-					None::<BlockNumberFor<T>>,
-				),
-			);
+            ComputeAggregations::<T>::insert(
+                task_id,
+                (
+                    <frame_system::Pallet<T>>::block_number(),
+                    None::<BlockNumberFor<T>>,
+                ),
+            );
 
-			// Emit event (you can define a new event like TaskReceptionConfirmed if needed)
-			Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
+            Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
 
-			Ok(())
-		}
+			   // If confirmation succeeds, remove from pending confirmations
+			   if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
+				let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
+				PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
+					if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
+						tasks.swap_remove(pos);
+					}
+				});
+			}
+
+            Ok(())
+        }
 
 		//
 		/// signals the miner to exit task execution and reset itself
@@ -462,6 +509,53 @@ where
 			} else {
 				Ok(())
 			}
+		}
+
+		/// Check for expired task confirmations and penalize miners
+		pub fn check_task_confirmation_timeouts() -> DispatchResult {
+			let current_block = <frame_system::Pallet<T>>::block_number();
+
+			// Only check tasks that are due at or before current_block
+			for (timeout_block, task_ids) in PendingTaskConfirmations::<T>::iter() {
+				if timeout_block > current_block {
+					break;
+				}
+
+				for task_id in task_ids.iter() {
+					// Check if task is still in Assigned state
+					if let Some(status) = TaskStatus::<T>::get(task_id) {
+						if status != TaskStatusType::Assigned {
+							continue;
+						}
+
+						// Get assigned worker and penalize
+						if let Some((worker_account, worker_id)) = TaskAllocations::<T>::get(task_id) {
+							pallet_edge_connect::Pallet::<T>::apply_penalty(
+								&(worker_account.clone(), worker_id),
+								&WorkerType::Executable,
+								20,
+								PenaltyReason::LateResponse,
+							)?;
+
+							pallet_edge_connect::Pallet::<T>::suspend_workers(
+								&(worker_account.clone(), worker_id),
+								&WorkerType::Executable,
+								1000u32.into(),
+								SuspensionReason::TaskConfirmationTimeout,
+							)?;
+
+							// Clean up task state
+							TaskStatus::<T>::remove(task_id);
+							TaskAssignmentBlock::<T>::remove(task_id);
+						}
+					}
+				}
+
+				// Remove processed block from storage
+				PendingTaskConfirmations::<T>::remove(timeout_block);
+			}
+
+			Ok(())
 		}
 	}
 

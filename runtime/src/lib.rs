@@ -360,6 +360,7 @@ impl pallet_edge_connect::Config for Runtime {
 impl pallet_task_management::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_task_management::SubstrateWeight<Runtime>;
+	type TaskConfirmationTimeout = ConstU32<75>;
 }
 
 parameter_types! {

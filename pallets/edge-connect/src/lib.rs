@@ -19,7 +19,8 @@ pub use cyborg_primitives::miner::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::sp_runtime::Saturating;
+	use cyborg_primitives::task::TaskId;
+use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
@@ -165,7 +166,17 @@ pub mod pallet {
 		MinerUnsuspended { miner: (T::AccountId, MinerId) },
 	}
 
-	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+	#[derive(
+		PartialEq,
+		Eq,
+		Clone,
+		RuntimeDebug,
+		Encode,
+		Decode,
+		TypeInfo,
+		MaxEncodedLen,
+		DecodeWithMemTracking,
+	)]
 	pub enum PenaltyReason {
 		TaskRejection,
 		FalseCompletion,
@@ -279,6 +290,7 @@ pub mod pallet {
 				location: miner_location,
 				specs: miner_specs,
 				reputation: MinerReputation::<BlockNumberFor<T>>::default(),
+				current_task: None,
 				start_block: blocknumber.clone(),
 				status: MinerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
@@ -598,11 +610,11 @@ pub mod pallet {
 
 			Ok(())
 		}
-		
+
 		pub fn update_miner_status(
-			miner_id: &(T::AccountId, MinerId),
-			miner_type: MinerType,
-			new_status: MinerStatusType
+			miner: &(T::AccountId, WorkerId),
+			miner_type: WorkerType,
+			new_status: WorkerStatusType
 		) -> DispatchResult {
 			let mut miner = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
@@ -614,6 +626,44 @@ pub mod pallet {
 			match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
 				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
+			}
+			Ok(())
+		}
+
+		pub fn update_miner_current_task(
+			miner: &(T::AccountId, WorkerId),
+			miner_type: &WorkerType,
+			current_task: Option<TaskId>,
+		) -> DispatchResult {
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_id),
+			}
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
+
+			miner.current_task = current_task;
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
+				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
+			}
+			Ok(())
+		}
+
+		pub fn update_miner_current_task(
+			miner: &(T::AccountId, WorkerId),
+			miner_type: &WorkerType,
+			current_task: Option<TaskId>,
+		) -> DispatchResult {
+			let mut worker = match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(miner),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(miner),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			worker.current_task = current_task;
+			match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
 			}
 			Ok(())
 		}
