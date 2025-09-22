@@ -503,7 +503,7 @@ use frame_support::sp_runtime::Saturating;
 		}
 
 		/// Apply penalty to a miner's reputation
-		fn apply_penalty(
+		pub fn apply_penalty(
 			miner_key: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
 			penalty: i32,
@@ -612,9 +612,9 @@ use frame_support::sp_runtime::Saturating;
 		}
 
 		pub fn update_miner_status(
-			miner: &(T::AccountId, WorkerId),
-			miner_type: WorkerType,
-			new_status: WorkerStatusType
+			miner_id: &(T::AccountId, MinerId),
+			miner_type: MinerType,
+			new_status: MinerStatusType
 		) -> DispatchResult {
 			let mut miner = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
@@ -630,9 +630,10 @@ use frame_support::sp_runtime::Saturating;
 			Ok(())
 		}
 
+		/// Updates the current task of the miner in question
 		pub fn update_miner_current_task(
-			miner: &(T::AccountId, WorkerId),
-			miner_type: &WorkerType,
+			miner_id: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 			current_task: Option<TaskId>,
 		) -> DispatchResult {
 			let mut miner = match miner_type {
@@ -649,27 +650,8 @@ use frame_support::sp_runtime::Saturating;
 			Ok(())
 		}
 
-		pub fn update_miner_current_task(
-			miner: &(T::AccountId, WorkerId),
-			miner_type: &WorkerType,
-			current_task: Option<TaskId>,
-		) -> DispatchResult {
-			let mut worker = match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(miner),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(miner),
-			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
-
-			worker.current_task = current_task;
-			match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
-			}
-			Ok(())
-		}
-
 		/// Suspend a miner with a specific reason and duration
-		fn suspend_miners(
+		pub fn suspend_miners(
 			miner_key: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
 			blocks: BlockNumberFor<T>,

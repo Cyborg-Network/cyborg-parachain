@@ -272,7 +272,7 @@ where
 				tasks.try_push(task_id).expect("Task queue bounded to 100 per block");
 			});
 
-			TaskAllocations::<T>::insert(task_id, selected_worker.clone());
+			TaskAllocations::<T>::insert(task_id, selected_miner.clone());
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
@@ -309,7 +309,7 @@ where
             // Load task
             let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
-            // Check that caller is the assigned worker
+            // Check that caller is the assigned miner
             let assigned_miner = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
             ensure!(assigned_miner.0 == who, Error::<T>::InvalidTaskOwner);
 
@@ -528,18 +528,18 @@ where
 							continue;
 						}
 
-						// Get assigned worker and penalize
-						if let Some((worker_account, worker_id)) = TaskAllocations::<T>::get(task_id) {
+						// Get assigned miner and penalize
+						if let Some((miner_account, miner_id)) = TaskAllocations::<T>::get(task_id) {
 							pallet_edge_connect::Pallet::<T>::apply_penalty(
-								&(worker_account.clone(), worker_id),
-								&WorkerType::Executable,
+								&(miner_account.clone(), miner_id),
+								&MinerType::Edge,
 								20,
 								PenaltyReason::LateResponse,
 							)?;
 
-							pallet_edge_connect::Pallet::<T>::suspend_workers(
-								&(worker_account.clone(), worker_id),
-								&WorkerType::Executable,
+							pallet_edge_connect::Pallet::<T>::suspend_miners(
+								&(miner_account.clone(), miner_id),
+								&MinerType::Edge,
 								1000u32.into(),
 								SuspensionReason::TaskConfirmationTimeout,
 							)?;
