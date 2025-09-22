@@ -14,6 +14,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 		let worker_type_0 = WorkerType::Docker;
 		let worker_type_1 = WorkerType::Executable;
 		let latitude: Latitude = 590000;
+		let current_task = None;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
 		let storage: StorageBytes = 100000000;
@@ -35,6 +36,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
 			status_last_updated: 10,
+			current_task: current_task.clone(),
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
@@ -48,6 +50,7 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
 			status_last_updated: 10,
+			current_task: current_task.clone(),
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),
@@ -102,6 +105,7 @@ fn it_works_for_registering_domain() {
 		let latitude: Latitude = 590000;
 		let longitude: Longitude = 120000;
 		let ram: RamBytes = 100000000;
+		let current_task = None;
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
 
@@ -121,6 +125,7 @@ fn it_works_for_registering_domain() {
 			start_block: 10,
 			status: WorkerStatusType::Inactive,
 			status_last_updated: 10,
+			current_task: current_task.clone(),
 			api: api_info.clone(),
 			location: worker_location.clone(),
 			specs: worker_specs.clone(),

@@ -19,7 +19,8 @@ pub use cyborg_primitives::worker::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::sp_runtime::Saturating;
+	use cyborg_primitives::task::TaskId;
+use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
@@ -165,7 +166,17 @@ pub mod pallet {
 		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
 	}
 
-	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+	#[derive(
+		PartialEq,
+		Eq,
+		Clone,
+		RuntimeDebug,
+		Encode,
+		Decode,
+		TypeInfo,
+		MaxEncodedLen,
+		DecodeWithMemTracking,
+	)]
 	pub enum PenaltyReason {
 		TaskRejection,
 		FalseCompletion,
@@ -279,6 +290,7 @@ pub mod pallet {
 				location: worker_location,
 				specs: worker_specs,
 				reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
+				current_task: None,
 				start_block: blocknumber.clone(),
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
@@ -491,7 +503,7 @@ pub mod pallet {
 		}
 
 		/// Apply penalty to a worker's reputation
-		fn apply_penalty(
+		pub fn apply_penalty(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 			penalty: i32,
@@ -567,8 +579,7 @@ pub mod pallet {
 			miner_key: &(T::AccountId, WorkerId),
 			miner_type: &WorkerType,
 		) -> DispatchResult {
-			let miner = Self::get_miner(miner_key, miner_type)	
-				.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::WorkerDoesNotExist)?;
 
 			// Check if suspended
 			match miner.status {
@@ -584,7 +595,7 @@ pub mod pallet {
 							WorkerType::Executable => ExecutableWorkers::<T>::insert(miner_key, miner),
 						}
 					}
-				},
+				}
 				WorkerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
 				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
 				//WorkerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
@@ -598,11 +609,11 @@ pub mod pallet {
 
 			Ok(())
 		}
-		
+
 		pub fn update_miner_status(
 			miner: &(T::AccountId, WorkerId),
 			miner_type: WorkerType,
-			new_status: WorkerStatusType
+			new_status: WorkerStatusType,
 		) -> DispatchResult {
 			let mut worker = match miner_type {
 				WorkerType::Docker => WorkerClusters::<T>::get(miner),
@@ -618,8 +629,27 @@ pub mod pallet {
 			Ok(())
 		}
 
+		pub fn update_miner_current_task(
+			miner: &(T::AccountId, WorkerId),
+			miner_type: &WorkerType,
+			current_task: Option<TaskId>,
+		) -> DispatchResult {
+			let mut worker = match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::get(miner),
+				WorkerType::Executable => ExecutableWorkers::<T>::get(miner),
+			}
+			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			worker.current_task = current_task;
+			match miner_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
+			}
+			Ok(())
+		}
+
 		/// Suspend a worker with a specific reason and duration
-		fn suspend_workers(
+		pub fn suspend_workers(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 			blocks: BlockNumberFor<T>,
