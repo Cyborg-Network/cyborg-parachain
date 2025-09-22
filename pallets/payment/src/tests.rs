@@ -74,7 +74,7 @@ fn non_admin_cannot_set_service_provider_account() {
 fn it_records_usage_successfully() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
 
 		assert_ok!(PaymentModule::record_usage(
 			RuntimeOrigin::signed(USER2),
@@ -100,7 +100,7 @@ fn it_fails_when_usage_input_is_invalid() {
 		System::set_block_number(1);
 
 		// Usage above 100% should fail
-		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
 
 		assert_noop!(
 			PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 120, 50, 80),
@@ -172,7 +172,7 @@ fn it_fails_to_distribute_if_provider_not_set() {
 #[test]
 fn it_overwrites_existing_usage() {
 	new_test_ext().execute_with(|| {
-		pallet_edge_connect::AccountWorkers::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
 
 		assert_ok!(PaymentModule::record_usage(
 			RuntimeOrigin::signed(USER2),
@@ -226,11 +226,11 @@ fn it_skips_distribution_for_zero_rewards() {
 }
 
 #[test]
-fn it_fails_to_record_usage_if_not_a_worker() {
+fn it_fails_to_record_usage_if_not_a_miner() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		// USER2 is NOT a registered worker
+		// USER2 is NOT a registered miner
 		assert_noop!(
 			PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 70, 50, 80),
 			pallet_payment::Error::<Test>::NotRegisteredMiner

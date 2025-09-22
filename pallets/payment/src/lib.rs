@@ -328,7 +328,7 @@ pub mod pallet {
 		pub fn record_usage(origin: OriginFor<T>, cpu: u8, ram: u8, storage: u8) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
-				pallet_edge_connect::Pallet::<T>::account_workers(&who).is_some(),
+				pallet_edge_connect::Pallet::<T>::account_miners(&who).is_some(),
 				Error::<T>::NotRegisteredMiner
 			);
 			ensure!(

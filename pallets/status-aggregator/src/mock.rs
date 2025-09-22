@@ -58,7 +58,7 @@ impl pallet_status_aggregator::Config for Test {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<10>;
-	type WorkerInfoHandler = EdgeConnectModule;
+	type MinerInfoHandler = EdgeConnectModule;
 }
 
 impl pallet_timestamp::Config for Test {

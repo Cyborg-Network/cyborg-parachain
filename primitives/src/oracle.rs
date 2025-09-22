@@ -1,5 +1,5 @@
 use crate::task::TaskId;
-use crate::worker::{WorkerId, WorkerType};
+use crate::miner::{MinerId, MinerType};
 use frame_support::{pallet_prelude::*, traits::Time};
 use orml_oracle::Config;
 use orml_traits;
@@ -42,7 +42,7 @@ pub struct ProcessStatus {
 	Clone, Encode, Decode, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking,
 )]
 pub enum OracleKey<AccountId> {
-	Miner(OracleWorkerFormat<AccountId>),
+	Miner(OracleMinerFormat<AccountId>),
 	NzkProofResult(TaskId),
 }
 
@@ -55,9 +55,9 @@ pub enum OracleValue {
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo, PartialOrd, Ord, DecodeWithMemTracking)]
-pub struct OracleWorkerFormat<AccoundId> {
-	pub id: (AccoundId, WorkerId),
-	pub worker_type: WorkerType,
+pub struct OracleMinerFormat<AccoundId> {
+	pub id: (AccoundId, MinerId),
+	pub miner_type: MinerType,
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, Copy, Debug, PartialEq, Eq, TypeInfo)]

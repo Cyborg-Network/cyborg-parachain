@@ -16,8 +16,8 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus},
-	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType, WorkerType},
+	oracle::{OracleMinerFormat, ProcessStatus},
+	miner::{MinerId, MinerInfoHandler, MinerStatusType, MinerType},
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
@@ -72,18 +72,18 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxBlockRangePeriod: Get<BlockNumberFor<Self>>;
 
-		/// The percentage of active oracle entries needed to determine online status for worker
+		/// The percentage of active oracle entries needed to determine online status for miner
 		#[pallet::constant]
 		type ThresholdUptimeStatus: Get<u8>;
 
-		/// Maximum number of status entries by unique oracle feeders for a worker per period
+		/// Maximum number of status entries by unique oracle feeders for a miner per period
 		#[pallet::constant]
 		type MaxAggregateParamLength: Get<u32>;
 
-		/// Updates Worker Status for Edge Connect
-		type WorkerInfoHandler: WorkerInfoHandler<
+		/// Updates Miner Status for Edge Connect
+		type MinerInfoHandler: MinerInfoHandler<
 			Self::AccountId,
-			WorkerId,
+			MinerId,
 			BlockNumberFor<Self>,
 			Self::Moment,
 		>;
@@ -97,68 +97,68 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type LastClearedBlock<T: Config> = StorageValue<_, BlockNumberFor<T>, ValueQuery>;
 
-	/// Stores the status entries (online/offline, available/unavailable) for each worker over a specific period.
+	/// Stores the status entries (online/offline, available/unavailable) for each miner over a specific period.
 	/// The status is provided by different oracle feeders, and the data is collected and aggregated to calculate
-	/// the overall status for each worker.
+	/// the overall status for each miner.
 	///
-	/// - The storage key is a tuple of `(T::AccountId, WorkerId)`, which uniquely identifies the worker.
-	/// - The value is a bounded vector of `StatusInstance`, which contains the worker's status over time.
+	/// - The storage key is a tuple of `(T::AccountId, MinerId)`, which uniquely identifies the miner.
+	/// - The value is a bounded vector of `StatusInstance`, which contains the miner's status over time.
 	#[pallet::storage]
-	pub type WorkerStatusEntriesPerPeriod<T: Config> = StorageMap<
+	pub type MinerStatusEntriesPerPeriod<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		OracleWorkerFormat<T::AccountId>,
+		OracleMinerFormat<T::AccountId>,
 		BoundedVec<StatusInstance<BlockNumberFor<T>>, T::MaxAggregateParamLength>,
 		ValueQuery,
 	>;
 
-	/// Tracks whether a specific oracle provider has submitted worker status data during the current period.
+	/// Tracks whether a specific oracle provider has submitted miner status data during the current period.
 	/// This is used to prevent multiple submissions from the same oracle provider within a period.
 	///
-	/// - The key is a tuple of the oracle provider's account and required worker info `(T::AccountId, OracleWorkerFormat)`.
+	/// - The key is a tuple of the oracle provider's account and required miner info `(T::AccountId, OracleMinerFormat)`.
 	/// - The value is a boolean indicating whether the oracle has already submitted data.
 	#[pallet::storage]
 	pub type SubmittedPerPeriod<T: Config> =
-		StorageMap<_, Twox64Concat, (T::AccountId, OracleWorkerFormat<T::AccountId>), bool, ValueQuery>;
+		StorageMap<_, Twox64Concat, (T::AccountId, OracleMinerFormat<T::AccountId>), bool, ValueQuery>;
 
-	/// Stores the resulting percentage status (online and available) for each worker after aggregation.
+	/// Stores the resulting percentage status (online and available) for each miner after aggregation.
 	/// This is calculated by taking the status data submitted during the period and determining the
-	/// percentage of time the worker was online and available.
+	/// percentage of time the miner was online and available.
 	///
-	/// - The key is `(T::AccountId, WorkerId)`, representing the worker.
+	/// - The key is `(T::AccountId, MinerId)`, representing the miner.
 	/// - The value is `ProcessStatusPercentages`, which contains the percentages and the block number of the last processed status.
 	#[pallet::storage]
-	pub type ResultingWorkerStatusPercentages<T: Config> = StorageMap<
+	pub type ResultingMinerStatusPercentages<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		OracleWorkerFormat<T::AccountId>,
+		OracleMinerFormat<T::AccountId>,
 		ProcessStatusPercentages<BlockNumberFor<T>>,
 		ValueQuery,
 	>;
 
-	/// Stores the final status (online/offline and available/unavailable) for each worker based on the percentage thresholds.
+	/// Stores the final status (online/offline and available/unavailable) for each miner based on the percentage thresholds.
 	/// The final status is determined based on the configured threshold values for uptime.
 	///
-	/// - The key is `(T::AccountId, WorkerId)`, representing the worker.
-	/// - The value is `ProcessStatus`, which contains the final online and available status for the worker.
+	/// - The key is `(T::AccountId, MinerId)`, representing the miner.
+	/// - The value is `ProcessStatus`, which contains the final online and available status for the miner.
 	#[pallet::storage]
-	pub type ResultingWorkerStatus<T: Config> =
-		StorageMap<_, Twox64Concat, OracleWorkerFormat<T::AccountId>, ProcessStatus, ValueQuery>;
+	pub type ResultingMinerStatus<T: Config> =
+		StorageMap<_, Twox64Concat, OracleMinerFormat<T::AccountId>, ProcessStatus, ValueQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event emitted when the worker status is updated based on aggregated data from the oracle.
-		/// This provides the new online and availability status for the worker and the block number where the status was last updated.
+		/// Event emitted when the miner status is updated based on aggregated data from the oracle.
+		/// This provides the new online and availability status for the miner and the block number where the status was last updated.
 		///
-		/// - `worker`: A tuple containing the worker's account ID and the worker ID.
-		/// - `online`: A boolean indicating whether the worker is online.
-		/// - `available`: A boolean indicating whether the worker is available.
-		/// - `last_block_processed`: The block number at which the worker's status was last updated.
-		UpdateFromAggregatedWorkerInfo {
-			worker: (T::AccountId, WorkerId),
+		/// - `miner`: A tuple containing the miner's account ID and the miner ID.
+		/// - `online`: A boolean indicating whether the miner is online.
+		/// - `available`: A boolean indicating whether the miner is available.
+		/// - `last_block_processed`: The block number at which the miner's status was last updated.
+		UpdateFromAggregatedMinerInfo {
+			miner: (T::AccountId, MinerId),
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
@@ -171,9 +171,9 @@ pub mod pallet {
 		LastBlockUpdated { block_number: BlockNumberFor<T> },
 	}
 
-	/// This hook function is called at the end of each block to process worker status data for a given period.
+	/// This hook function is called at the end of each block to process miner status data for a given period.
 	/// It checks whether the current block number exceeds the last cleared block by the maximum block range period.
-	/// If so, it aggregates the worker status data for the period, clears outdated data, and updates the worker status.
+	/// If so, it aggregates the miner status data for the period, clears outdated data, and updates the miner status.
 	/// It also logs the result of the clearing process and emits an event when the last block is updated.
 	/// This hook calculates storage values in this pallet updated by the oracle per MaxBlockRangePeriod
 	#[pallet::hooks]
@@ -182,7 +182,7 @@ pub mod pallet {
 			if LastClearedBlock::<T>::get() + T::MaxBlockRangePeriod::get() <= now {
 				Self::process_aggregate_data_for_period();
 				let clear_result_a = SubmittedPerPeriod::<T>::clear(500, None);
-				let clear_result_b = WorkerStatusEntriesPerPeriod::<T>::clear(500, None);
+				let clear_result_b = MinerStatusEntriesPerPeriod::<T>::clear(500, None);
 				if clear_result_a.maybe_cursor.is_none() && clear_result_b.maybe_cursor.is_none() {
 					LastClearedBlock::<T>::set(now);
 					Self::deposit_event(Event::LastBlockUpdated { block_number: now });
@@ -194,7 +194,7 @@ pub mod pallet {
 				);
 				log::info!(
 						target: LOG_TARGET,
-								"Clearing map result for WorkerStatusEntriesPerPeriod: {:?}",
+								"Clearing map result for MinerStatusEntriesPerPeriod: {:?}",
 								clear_result_b.deconstruct()
 				);
 			}
@@ -203,7 +203,7 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		fn process_aggregate_data_for_period() {
-			for (key_worker, value_status_vec) in WorkerStatusEntriesPerPeriod::<T>::iter() {
+			for (key_miner, value_status_vec) in MinerStatusEntriesPerPeriod::<T>::iter() {
 				let mut total_online: u32 = 0;
 				let mut total_available: u32 = 0;
 				value_status_vec
@@ -220,72 +220,72 @@ pub mod pallet {
 					available,
 					last_block_processed: current_block,
 				};
-				ResultingWorkerStatusPercentages::<T>::set(&key_worker, process_status_percentages);
+				ResultingMinerStatusPercentages::<T>::set(&key_miner, process_status_percentages);
 
-				// Update worker statuses
+				// Update miner statuses
 				let online_status = online >= T::ThresholdUptimeStatus::get();
 				let available_status = available >= T::ThresholdUptimeStatus::get();
-				ResultingWorkerStatus::<T>::set(
-					key_worker.clone(),
+				ResultingMinerStatus::<T>::set(
+					key_miner.clone(),
 					ProcessStatus {
 						online: online_status,
 						available: available_status,
 					},
 				);
-				Self::update_worker_clusters(
-					key_worker.id,
-					key_worker.worker_type,
+				Self::update_miner_clusters(
+					key_miner.id,
+					key_miner.miner_type,
 					online_status,
 					available_status,
 					current_block,
 				);
 			}
 		}
-		/// sends updated worker info to pallets that implement T::WorkerClusterHandler and emits an event
-		fn update_worker_clusters(
-			key_worker: (T::AccountId, WorkerId),
-			worker_type: WorkerType,
+		/// sends updated miner info to pallets that implement T::MinerClusterHandler and emits an event
+		fn update_miner_clusters(
+			key_miner: (T::AccountId, MinerId),
+			miner_type: MinerType,
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
 		) {
-			if let Some(mut worker_cluster) =
-				T::WorkerInfoHandler::get_worker_cluster(&key_worker, &worker_type)
+			if let Some(mut miner_cluster) =
+				T::MinerInfoHandler::get_miner(&key_miner, &miner_type)
 			{
 				let status = if online {
 					if available {
-						WorkerStatusType::Active
+						MinerStatusType::Active
 					} else {
-						WorkerStatusType::Busy
+						MinerStatusType::Busy
 					}
 				} else {
-					WorkerStatusType::Inactive
+					MinerStatusType::Inactive
 				};
-				worker_cluster.status = status;
-				worker_cluster.status_last_updated = last_block_processed;
+				miner_cluster.status = status;
+				miner_cluster.status_last_updated = last_block_processed;
 
-				T::WorkerInfoHandler::update_worker_cluster(&key_worker, &worker_type, worker_cluster);
+				T::MinerInfoHandler::update_miner(&key_miner, &miner_type, miner_cluster);
 
-				Self::deposit_event(Event::UpdateFromAggregatedWorkerInfo {
-					worker: key_worker,
+				Self::deposit_event(Event::UpdateFromAggregatedMinerInfo {
+					miner: key_miner,
 					online,
 					available,
 					last_block_processed,
 				});
 			} else {
-				log::warn!("Worker cluster not found for the given account and worker_id.");
+				log::warn!("Miner cluster not found for the given account and miner_id.");
 			}
 		}
 
 		pub fn on_new_data(
 			who: &T::AccountId,
-			key: &OracleWorkerFormat<T::AccountId>,
+			key: &OracleMinerFormat<T::AccountId>,
 			value: &ProcessStatus,
 		) {
-			if T::WorkerInfoHandler::get_worker_cluster(&key.id, &key.worker_type).is_none() {
+			if T::MinerInfoHandler::get_miner(&key.id, &key.miner_type).is_none() {
 				log::error!(
 					target: LOG_TARGET,
-					"No worker registed by this key: {:?}",
+					"No miner registed by this key: {:?}",
 					key
 				);
 				return;
@@ -298,7 +298,7 @@ pub mod pallet {
 				);
 				return;
 			}
-			WorkerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
+			MinerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
 				match status_vec.try_push(StatusInstance {
 					is_online: value.online,
 					is_available: value.available,
@@ -328,18 +328,18 @@ pub mod pallet {
 
 	/*
 	/// Data from the oracle first enters into this pallet through this trait implementation and updates this pallet's storage
-	impl<T: Config> OnNewData<T::AccountId, OracleWorkerFormat<T::AccountId>, ProcessStatus>
+	impl<T: Config> OnNewData<T::AccountId, OracleMinerFormat<T::AccountId>, ProcessStatus>
 		for Pallet<T>
 	{
 		fn on_new_data(
 			who: &T::AccountId,
-			key: &OracleWorkerFormat<T::AccountId>,
+			key: &OracleMinerFormat<T::AccountId>,
 			value: &ProcessStatus,
 		) {
-			if T::WorkerInfoHandler::get_worker_cluster(&key.id, &key.worker_type).is_none() {
+			if T::MinerInfoHandler::get_miner_cluster(&key.id, &key.miner_type).is_none() {
 				log::error!(
 					target: LOG_TARGET,
-					"No worker registed by this key: {:?}",
+					"No miner registed by this key: {:?}",
 					key
 				);
 				return;
@@ -352,7 +352,7 @@ pub mod pallet {
 				);
 				return;
 			}
-			WorkerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
+			MinerStatusEntriesPerPeriod::<T>::mutate(key, |status_vec| {
 				match status_vec.try_push(StatusInstance {
 					is_online: value.online,
 					is_available: value.available,
@@ -381,11 +381,11 @@ pub mod pallet {
 	 }*/
 
 	/*
-	impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, WorkerId), TimestampedValue<T>>
+	impl<T: Config + orml_oracle::Config> CombineData<(T::AccountId, MinerId), TimestampedValue<T>>
 		for Pallet<T>
 	{
 		fn combine_data(
-			_key: &(T::AccountId, WorkerId),
+			_key: &(T::AccountId, MinerId),
 			_values: Vec<TimestampedValue<T>>,
 			_prev_value: Option<TimestampedValue<T>>,
 		) -> Option<TimestampedValue<T>> {

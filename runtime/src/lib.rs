@@ -47,9 +47,9 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, OracleKey, OracleValue, OracleWorkerFormat, ProcessStatus},
+	oracle::{DummyCombineData, OracleKey, OracleValue, OracleMinerFormat, ProcessStatus},
 	task::TaskId,
-	worker::{WorkerId, WorkerType},
+	miner::{MinerId, MinerType},
 };
 
 pub use pallet_edge_connect;
@@ -198,7 +198,7 @@ use sp_runtime::{traits::Get, BoundedVec};
 pub struct BenchmarkHelperImpl<MaxFeedValues>(PhantomData<MaxFeedValues>);
 
 // Implementing the orml_oracle::BenchmarkHelper trait for the BenchmarkHelperImpl struct.
-// The trait is specialized for key-value pairs with the key being a tuple of (AccountId, WorkerId)
+// The trait is specialized for key-value pairs with the key being a tuple of (AccountId, MinerId)
 // and the value being ProcessStatus. MaxFeedValues is a type constant that defines the upper limit
 // on the number of pairs that can be generated.
 #[cfg(feature = "runtime-benchmarks")]
@@ -208,7 +208,7 @@ where
 	MaxFeedValues: Get<u32>,
 {
 	// The required method from the BenchmarkHelper trait, which we are customizing for benchmarking the status-aggregator pallet.
-	// This method outputs key-value pairs where the key is a tuple of (AccountId, WorkerId) and the value is ProcessStatus.
+	// This method outputs key-value pairs where the key is a tuple of (AccountId, MinerId) and the value is ProcessStatus.
 	fn get_currency_id_value_pairs() -> BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues>
 	{
 		let mut pairs: BoundedVec<(OracleKey<AccountId>, OracleValue), MaxFeedValues> =
@@ -218,14 +218,14 @@ where
 
 		for seed in 0..max {
 			let account: AccountId = account("oracle", 0, seed);
-			let worker_id: WorkerId = seed as u64;
+			let miner_id: MinerId = seed as u64;
 
 			// Alternate between Miner and Zk entries
 			if seed % 2 == 0 {
 				// MinerStatus entry
-				let key = OracleKey::Miner(OracleWorkerFormat {
-					id: (account.clone(), worker_id),
-					worker_type: WorkerType::Executable,
+				let key = OracleKey::Miner(OracleMinerFormat {
+					id: (account.clone(), miner_id),
+					miner_type: MinerType::Executable,
 				});
 
 				let value = OracleValue::MinerStatus(ProcessStatus {
@@ -259,15 +259,15 @@ impl<MaxFeedValues> BenchmarkHelperImpl<MaxFeedValues>
 where
 	MaxFeedValues: Get<u32>,
 {
-	// This method generates key-value pairs of (AccountId, WorkerId) -> ProcessStatus,
+	// This method generates key-value pairs of (AccountId, MinerId) -> ProcessStatus,
 	// used in the context of benchmarking the status-aggregator pallet.
 	// The number of pairs generated is limited by the value of MaxFeedValues.
 
 	fn status_aggregator_benchmark_data(
-	) -> BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> {
+	) -> BoundedVec<((AccountId, MinerId), ProcessStatus), MaxFeedValues> {
 		// Initialize a BoundedVec to store the generated key-value pairs,
 		// constrained by MaxFeedValues, which defines the upper limit.
-		let mut pairs: BoundedVec<((AccountId, WorkerId), ProcessStatus), MaxFeedValues> =
+		let mut pairs: BoundedVec<((AccountId, MinerId), ProcessStatus), MaxFeedValues> =
 			BoundedVec::default();
 
 		let max_limit = 100;
@@ -278,8 +278,8 @@ where
 			//generate pseudo-random accountId
 			let account_id: AccountId = account("benchmark_account", 0, seed);
 
-			//generate pseudo-random workerId
-			let worker_id: WorkerId = (seed as u64) * 12345;
+			//generate pseudo-random minerId
+			let miner_id: MinerId = (seed as u64) * 12345;
 
 			//generate pseudo-random ProcessStatus
 			let process_status = ProcessStatus {
@@ -290,7 +290,7 @@ where
 			// Add the generated key-value pair to the BoundedVec.
 			// The number of entries pushed is limited by MaxFeedValues.
 			pairs
-				.try_push(((account_id, worker_id), process_status))
+				.try_push(((account_id, miner_id), process_status))
 				.expect("Exceeded MaxFeedValues limit");
 		}
 
@@ -387,7 +387,7 @@ impl pallet_status_aggregator::Config for Runtime {
 	type MaxBlockRangePeriod = MaxBlockRangePeriod;
 	type ThresholdUptimeStatus = ConstU8<75>;
 	type MaxAggregateParamLength = ConstU32<300>;
-	type WorkerInfoHandler = EdgeConnect;
+	type MinerInfoHandler = EdgeConnect;
 }
 
 impl pallet_neuro_zk::Config for Runtime {

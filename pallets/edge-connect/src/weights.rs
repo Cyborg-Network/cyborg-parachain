@@ -31,23 +31,23 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for `pallet_edge_connect`.
 pub trait WeightInfo {
-	fn register_worker() -> Weight;
-	fn remove_worker() -> Weight;
-    fn toggle_worker_visibility() -> Weight;
-	fn penalize_worker() -> Weight;
-	fn suspend_worker() -> Weight;
-    fn ban_worker() -> Weight;
-    fn unsuspend_worker() -> Weight;
+	fn register_miner() -> Weight;
+	fn remove_miner() -> Weight;
+    fn toggle_miner_visibility() -> Weight;
+	fn penalize_miner() -> Weight;
+	fn suspend_miner() -> Weight;
+    fn ban_miner() -> Weight;
+    fn unsuspend_miner() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	/// Storage: `EdgeConnect::AccountWorkers` (r:1 w:1)
-	/// Proof: `EdgeConnect::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `EdgeConnect::WorkerClusters` (r:0 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn register_worker() -> Weight {
+	/// Storage: `EdgeConnect::AccountMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::AccountMiners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::CloudMiners` (r:0 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn register_miner() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `76`
 		//  Estimated: `3513`
@@ -56,9 +56,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn remove_worker() -> Weight {
+	/// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn remove_miner() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -67,9 +67,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-  /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_worker_visibility() -> Weight {
+  /// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn toggle_miner_visibility() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -79,25 +79,25 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 
-	fn penalize_worker() -> Weight {
+	fn penalize_miner() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 
-	fn suspend_worker() -> Weight {
+	fn suspend_miner() -> Weight {
         Weight::from_parts(15_000_000, 3688)
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(2_u64))
     }
     
-    fn ban_worker() -> Weight {
+    fn ban_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
     
-    fn unsuspend_worker() -> Weight {
+    fn unsuspend_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
@@ -108,11 +108,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
-	/// Storage: `EdgeConnect::AccountWorkers` (r:1 w:1)
-	/// Proof: `EdgeConnect::AccountWorkers` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
-	/// Storage: `EdgeConnect::WorkerClusters` (r:0 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn register_worker() -> Weight {
+	/// Storage: `EdgeConnect::AccountMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::AccountMiners` (`max_values`: None, `max_size`: Some(48), added: 2523, mode: `MaxEncodedLen`)
+	/// Storage: `EdgeConnect::CloudMiners` (r:0 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn register_miner() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `76`
 		//  Estimated: `3513`
@@ -121,9 +121,9 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
-	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn remove_worker() -> Weight {
+	/// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn remove_miner() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -132,9 +132,9 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-  	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
-	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_worker_visibility() -> Weight {
+  	/// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
+	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn toggle_miner_visibility() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -143,25 +143,25 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	fn penalize_worker() -> Weight {
+	fn penalize_miner() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 
-	fn suspend_worker() -> Weight {
+	fn suspend_miner() -> Weight {
         Weight::from_parts(15_000_000, 3688)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(2_u64))
     }
     
-    fn ban_worker() -> Weight {
+    fn ban_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
     
-    fn unsuspend_worker() -> Weight {
+    fn unsuspend_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))

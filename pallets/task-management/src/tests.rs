@@ -5,20 +5,20 @@ pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
 use frame_support::{assert_noop, assert_ok};
 
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
-pub use cyborg_primitives::worker::*;
+pub use cyborg_primitives::miner::*;
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_std::convert::TryFrom;
 
-fn register_worker(
+fn register_miner(
 	account: u64,
-	worker_type: WorkerType,
+	miner_type: MinerType,
 	domain_str: &str,
 ) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
-	EdgeConnectModule::register_worker(
+	EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
-		worker_type,
+		miner_type,
 		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
 		590000,   // latitude
 		120000,   // longitude
@@ -40,21 +40,21 @@ fn it_works_for_task_scheduler() {
 		let alice = 1;
 		let executor = 2;
 
-		// Register workers first
-		assert_ok!(register_worker(
+		// Register miners first
+		assert_ok!(register_miner(
 			executor,
-			WorkerType::Executable,
-			"docker.worker"
+			MinerType::Edge,
+			"docker.miner"
 		));
-		assert_ok!(register_worker(
+		assert_ok!(register_miner(
 			executor,
-			WorkerType::Executable,
-			"exec.worker"
+			MinerType::Edge,
+			"exec.miner"
 		));
 
-		// Verify workers are registered
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
+		// Verify miners are registered
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 1)));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
@@ -76,8 +76,8 @@ fn it_works_for_task_scheduler() {
 			triton_config: None
 		}));
 
-		let worker_id_docker = 0;
-		let worker_id_exec = 1;
+		let miner_id_docker = 0;
+		let miner_id_exec = 1;
 
 		// Provide initial compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
@@ -89,7 +89,7 @@ fn it_works_for_task_scheduler() {
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
 			executor,
-			worker_id_docker,
+			miner_id_docker,
 			Some(10)
 		));
 
@@ -112,7 +112,7 @@ fn it_works_for_task_scheduler() {
 		// 	task_data.clone(),
 		// 	None,
 		// 	executor,
-		// 	worker_id_exec,
+		// 	miner_id_exec,
 		// 	Some(10)
 		// ));
 
@@ -128,7 +128,7 @@ fn it_works_for_task_scheduler() {
 			RuntimeOrigin::signed(alice),
 			task_kind_neurozk,
 			executor,
-			worker_id_exec,
+			miner_id_exec,
 			Some(10)
 		));
 
@@ -156,21 +156,21 @@ fn it_works_for_miner_status_updates() {
 		let alice = 1;
 		let executor = 2;
 
-		assert_ok!(register_worker(
+		assert_ok!(register_miner(
 			executor,
-			WorkerType::Executable,
-			"exec.worker"
+			MinerType::Edge,
+			"exec.miner"
 		));
 
-		// Verify workers are registered
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
+		// Verify miners are registered
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
 		}));
 
-		let worker_id_exec = 0;
+		let miner_id_exec = 0;
 
 		// Provide initial compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
@@ -182,7 +182,7 @@ fn it_works_for_miner_status_updates() {
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
 			executor,
-			worker_id_exec,
+			miner_id_exec,
 			Some(10)
 		));
 
@@ -202,7 +202,7 @@ fn it_works_for_miner_status_updates() {
 				RuntimeOrigin::signed(alice),
 				task_kind_infer.clone(),
 				executor,
-				worker_id_exec,
+				miner_id_exec,
 				Some(10)
 			),
 			pallet_edge_connect::Error::<Test>::MinerIsBusy
@@ -231,26 +231,26 @@ fn it_works_for_miner_status_updates() {
 			RuntimeOrigin::signed(alice),	
 			task_kind_infer.clone(),
 			executor,
-			worker_id_exec,
+			miner_id_exec,
 			Some(10)
 		));
 	});
 }
 
 #[test]
-fn it_fails_when_worker_not_registered() {
+fn it_fails_when_miner_not_registered() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let worker_owner = 2;
-		let worker_id = 99;
+		let miner_owner = 2;
+		let miner_id = 99;
 
-		// Register an Executable worker to ensure workers exist
-		assert_ok!(register_worker(
-			worker_owner,
-			WorkerType::Executable,
-			"exec.worker"
+		// Register an Executable miner to ensure miners exist
+		assert_ok!(register_miner(
+			miner_owner,
+			MinerType::Edge,
+			"exec.miner"
 		));
 
 		let azure_task = AzureTask {
@@ -273,27 +273,27 @@ fn it_fails_when_worker_not_registered() {
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		// Attempt to schedule with non-existent worker ID
+		// Attempt to schedule with non-existent miner ID
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_neurozk,
-				worker_owner,
-				worker_id,
+				miner_owner,
+				miner_id,
 				Some(1),
 			),
-			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
+			pallet_edge_connect::Error::<Test>::MinerDoesNotExist
 		);
 	});
 }
 
 #[test]
-fn it_fails_when_no_workers_are_available() {
+fn it_fails_when_no_miners_are_available() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		let alice = 1;
-		let worker_owner = 2;
-		let worker_id = 0;
+		let miner_owner = 2;
+		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
@@ -301,24 +301,24 @@ fn it_fails_when_no_workers_are_available() {
 		// Provide an initial compute hours balance for Alice
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		// Ensure no workers exist
-		assert!(pallet_edge_connect::WorkerClusters::<Test>::iter()
+		// Ensure no miners exist
+		assert!(pallet_edge_connect::CloudMiners::<Test>::iter()
 			.next()
 			.is_none());
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::iter()
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::iter()
 			.next()
 			.is_none());
 
-		// Dispatch a signed extrinsic and expect an error because no workers are available
+		// Dispatch a signed extrinsic and expect an error because no miners are available
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				worker_owner,
-				worker_id,
+				miner_owner,
+				miner_id,
 				Some(10)
 			),
-			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
+			pallet_edge_connect::Error::<Test>::MinerDoesNotExist
 		);
 	});
 }
@@ -329,27 +329,27 @@ fn it_fails_when_no_computer_hours_available() {
 		setup_gatekeeper();
 		let alice = 1;
 
-		let worker_owner = 2;
-		let worker_id = 0;
+		let miner_owner = 2;
+		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
 		}));
 
-		// Register worker first
-		assert_ok!(register_worker(
-			worker_owner,
-			WorkerType::Executable,
-			"worker.domain"
+		// Register miner first
+		assert_ok!(register_miner(
+			miner_owner,
+			MinerType::Edge,
+			"miner.domain"
 		));
 
-		// Dispatch a signed extrinsic and expect an error because no workers are available
+		// Dispatch a signed extrinsic and expect an error because no miners are available
 		assert_noop!(
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				worker_owner,
-				worker_id,
+				miner_owner,
+				miner_id,
 				None
 			),
 			Error::<Test>::RequireComputeHoursDeposit
@@ -358,20 +358,20 @@ fn it_fails_when_no_computer_hours_available() {
 }
 
 #[test]
-fn confirm_task_reception_should_work_for_valid_assigned_worker() {
+fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let creator = 1;
 		let executor = 2;
-		let worker_id = 0;
+		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
 		}));
 
-		// Register worker first
-		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
+		// Register miner first
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
 
@@ -379,7 +379,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_worker() {
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			worker_id,
+			miner_id,
 			Some(10)
 		));
 
@@ -408,20 +408,20 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let creator = 1;
 		let executor = 2;
 		let intruder = 99;
-		let worker_id = 0;
+		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
-		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			worker_id,
+			miner_id,
 			Some(10)
 		));
 
@@ -441,20 +441,20 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		setup_gatekeeper();
 		let creator = 1;
 		let executor = 2;
-		let worker_id = 0;
+		let miner_id = 0;
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()).unwrap(),
 			triton_config: None
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
-		assert_ok!(register_worker(executor, WorkerType::Executable, "exec"));
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			worker_id,
+			miner_id,
 			Some(10)
 		));
 
@@ -489,15 +489,15 @@ fn it_works_for_confirm_miner_vacation() {
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		// Register an Executable worker
-		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		// Register an Executable miner
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0, // worker_id
+			0, // miner_id
 			Some(10),
 		));
 
@@ -541,7 +541,7 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -585,7 +585,7 @@ fn fails_if_task_not_stopped() {
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -622,9 +622,9 @@ fn it_works_for_stop_task_and_vacate_miner() {
 			triton_config: None
 		}));
 
-		// Provide compute hours and register worker
+		// Provide compute hours and register miner
 		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
-		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -678,7 +678,7 @@ fn fails_if_task_is_not_running() {
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
-		assert_ok!(register_worker(alice, WorkerType::Executable, "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// Schedule task and don't confirm reception (still Assigned)
 		assert_ok!(TaskManagementModule::task_scheduler(

@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod worker;
+pub mod miner;
 
 pub mod task;
 

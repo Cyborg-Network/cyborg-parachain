@@ -14,7 +14,7 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
-pub use cyborg_primitives::worker::*;
+pub use cyborg_primitives::miner::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -41,52 +41,52 @@ pub mod pallet {
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
 
-	// A helper function providing a default value for worker IDs.
+	// A helper function providing a default value for miner IDs.
 	#[pallet::type_value]
-	pub fn WorkerCountDefault() -> WorkerId {
+	pub fn MinerCountDefault() -> MinerId {
 		0
 	}
 
-	// A helper function providing a default value for worker reputations.
+	// A helper function providing a default value for miner reputations.
 	#[pallet::type_value]
-	pub fn WorkerReputationDefault<T: Config>() -> WorkerReputation<BlockNumberFor<T>> {
-		WorkerReputation::default()
+	pub fn MinerReputationDefault<T: Config>() -> MinerReputation<BlockNumberFor<T>> {
+		MinerReputation::default()
 	}
 
-	/// AccountWorkers Information, Storage map for associating an account ID with a worker ID. If no worker exists, the query returns None.
-	/// Keeps track of workerIds per account if any
+	/// AccountMiners Information, Storage map for associating an account ID with a miner ID. If no miner exists, the query returns None.
+	/// Keeps track of MinerIds per account if any
 	#[pallet::storage]
-	#[pallet::getter(fn account_workers)]
-	pub type AccountWorkers<T: Config> =
-		StorageMap<_, Twox64Concat, T::AccountId, WorkerId, OptionQuery>;
+	#[pallet::getter(fn account_miners)]
+	pub type AccountMiners<T: Config> =
+		StorageMap<_, Twox64Concat, T::AccountId, MinerId, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn suspended_workers)]
-	pub type SuspendedWorkers<T: Config> = StorageMap<
+	#[pallet::getter(fn suspended_miners)]
+	pub type SuspendedMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, WorkerId),
+		(T::AccountId, MinerId),
 		(BlockNumberFor<T>, SuspensionReason),
 		OptionQuery,
 	>;
 
-	/// Worker Cluster information, Storage map to keep track of detailed worker cluster information for each (account ID, worker ID) pair.
+	/// Cloud Miner information, Storage map to keep track of detailed miner information for each (account ID, miner ID) pair.
 	#[pallet::storage]
-	pub type WorkerClusters<T: Config> = StorageMap<
+	pub type CloudMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, WorkerId),
-		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		(T::AccountId, MinerId),
+		Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
 
-	/// Execultable Worker information, Storage map to keep track of detailed worker cluster information for each (account ID, worker ID) pair.
+	/// Edge Miner information, Storage map to keep track of detailed miner information for each (account ID, miner ID) pair.
 	#[pallet::storage]
-	pub type ExecutableWorkers<T: Config> = StorageMap<
+	pub type EdgeMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, WorkerId),
-		Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		(T::AccountId, MinerId),
+		Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
 
@@ -95,74 +95,74 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event emitted when a new worker is successfully registered.
+		/// Event emitted when a new miner is successfully registered.
 		///
-		/// - `creator`: The account ID of the worker's creator.
-		/// - `worker`: A tuple containing the account ID of the worker owner and the worker ID.
+		/// - `creator`: The account ID of the miner's creator.
+		/// - `miner`: A tuple containing the account ID of the miner owner and the miner ID.
 		/// - `domain`: The domain associated with the
-		WorkerRegistered {
+		MinerRegistered {
 			creator: T::AccountId,
-			worker: (T::AccountId, WorkerId),
+			miner: (T::AccountId, MinerId),
 			domain: Domain,
 		},
 
 		/// Event emitted when a miner tries to re-register itself.
 		///
 		/// - `creator`: The account ID of the miner's creator.
-		/// - `worker`: A tuple containing the account ID of the miner owner and the miner ID.
-		WorkerAlreadyRegistered {
+		/// - `miner`: A tuple containing the account ID of the miner owner and the miner ID.
+		MinerAlreadyRegistered {
 			creator: T::AccountId,
-			worker: (T::AccountId, WorkerId),
+			miner: (T::AccountId, MinerId),
 			domain: Domain,
 		},
 
-		/// Event emitted when a worker is removed from the system.
+		/// Event emitted when a miner is removed from the system.
 		///
-		/// - `creator`: The account ID of the worker's creator.
-		/// - `worker_id`: The ID of the worker that was removed.
-		WorkerRemoved {
+		/// - `creator`: The account ID of the miner's creator.
+		/// - `miner_id`: The ID of the miner that was removed.
+		MinerRemoved {
 			creator: T::AccountId,
-			worker_id: WorkerId,
+			miner_id: MinerId,
 		},
 
-		/// Event emitted when a worker's status is updated (e.g., toggling visibility).
+		/// Event emitted when a miner's status is updated (e.g., toggling visibility).
 		///
-		/// - `creator`: The account ID of the worker's creator.
-		/// - `worker_id`: The ID of the worker whose status was updated.
-		/// - `worker_status`: The new status of the worker, either active or inactive.
-		WorkerStatusUpdated {
+		/// - `creator`: The account ID of the miner's creator.
+		/// - `miner_id`: The ID of the miner whose status was updated.
+		/// - `miner_status`: The new status of the miner, either active or inactive.
+		MinerStatusUpdated {
 			creator: T::AccountId,
-			worker_id: WorkerId,
-			worker_status: WorkerStatusType,
+			miner_id: MinerId,
+			miner_status: MinerStatusType,
 		},
 
-		/// Event emitted when a worker is penalized
-		WorkerPenalized {
-			worker: (T::AccountId, WorkerId),
+		/// Event emitted when a miner is penalized
+		MinerPenalized {
+			miner: (T::AccountId, MinerId),
 			penalty: i32,
 			reason: PenaltyReason,
 		},
 
-		/// Event emitted when a worker is suspended
-		WorkerSuspended {
-			worker: (T::AccountId, WorkerId),
+		/// Event emitted when a miner is suspended
+		MinerSuspended {
+			miner: (T::AccountId, MinerId),
 			until_block: BlockNumberFor<T>,
 		},
 
-		/// Event emitted when a worker is put under review
-		WorkerUnderReview {
-			worker: (T::AccountId, WorkerId),
+		/// Event emitted when a miner is put under review
+		MinerUnderReview {
+			miner: (T::AccountId, MinerId),
 			reason: SuspensionReason,
 		},
 
-		/// Event emitted when a worker is banned
-		WorkerBanned {
-			worker: (T::AccountId, WorkerId),
+		/// Event emitted when a miner is banned
+		MinerBanned {
+			miner: (T::AccountId, MinerId),
 			reason: SuspensionReason,
 		},
 
-		/// Event emitted when a worker is unsuspended
-		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
+		/// Event emitted when a miner is unsuspended
+		MinerUnsuspended { miner: (T::AccountId, MinerId) },
 	}
 
 	#[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -178,15 +178,15 @@ pub mod pallet {
 	/// These errors will be returned in the `DispatchResult` when a function call fails.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error indicating that either the IP address or the domain was missing when attempting to register a worker.
-		WorkerRegisterMissingIpOrDomain,
-		/// Error indicating that the worker already exists and cannot be registered again.
-		WorkerExists,
-		/// Error indicating that the worker does not exist in the system when trying to perform actions (e.g., removal or status update).
-		WorkerDoesNotExist,
-		/// Worker is suspended and cannot perform actions.
-		WorkerSuspended,
-		/// Worker reputation is too low
+		/// Error indicating that either the IP address or the domain was missing when attempting to register a miner.
+		MinerRegisterMissingIpOrDomain,
+		/// Error indicating that the miner already exists and cannot be registered again.
+		MinerExists,
+		/// Error indicating that the miner does not exist in the system when trying to perform actions (e.g., removal or status update).
+		MinerDoesNotExist,
+		/// Miner is suspended and cannot perform actions.
+		MinerSuspended,
+		/// Miner reputation is too low
 		InsufficientReputation,
 		/// Miner is busy
 		MinerIsBusy,
@@ -200,12 +200,12 @@ pub mod pallet {
 	// to sign the transaction unless specified otherwise.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Registers a Worker with either a domain and initialize it with an inactive status.
+		/// Registers a Miner with either a domain and initialize it with an inactive status.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_worker())]
-		pub fn register_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_miner())]
+		pub fn register_miner(
 			origin: OriginFor<T>,
-			worker_type: WorkerType,
+			miner_type: MinerType,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -215,44 +215,44 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			let api = WorkerAPI { domain };
-			let worker_keys = AccountWorkers::<T>::get(creator.clone());
-			let worker_location = Location {
+			let api = MinerAPI { domain };
+			let miner_keys = AccountMiners::<T>::get(creator.clone());
+			let miner_location = Location {
 				latitude,
 				longitude,
 			};
-			let worker_specs = WorkerSpecs { ram, storage, cpu };
+			let miner_specs = MinerSpecs { ram, storage, cpu };
 
 			//TODO: There needs to be a proper id mechanism to avoid loops and the increment id system
-			match worker_keys {
+			match miner_keys {
 				Some(keys) => {
 					for id in 0..=keys {
-						// Get the Worker associated with the creator and worker_id
-						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
-							if worker_type == cyborg_primitives::worker::WorkerType::Docker {
+						// Get the Miner associated with the creator and miner_id
+						if let Some(miner) = CloudMiners::<T>::get((creator.clone(), id)) {
+							if miner_type == cyborg_primitives::miner::MinerType::Cloud {
 								// Check if the API matches and throw an error if it does
-								if api == worker.api {
-									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered {
+								if api == miner.api {
+									// The event is necessary since the miner still needs it's data if it is already registered
+									Self::deposit_event(Event::MinerAlreadyRegistered {
 										creator: creator.clone(),
-										worker: (creator.clone(), worker.id),
-										domain: worker.api.domain,
+										miner: (creator.clone(), miner.id),
+										domain: miner.api.domain,
 									});
-									return Err(Error::<T>::WorkerExists.into());
+									return Err(Error::<T>::MinerExists.into());
 								}
 							}
 						}
-						if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
-							if worker_type == cyborg_primitives::worker::WorkerType::Executable {
+						if let Some(miner) = EdgeMiners::<T>::get((creator.clone(), id)) {
+							if miner_type == cyborg_primitives::miner::MinerType::Edge {
 								// Check if the API matches and throw an error if it does
-								if api == worker.api {
-									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered {
+								if api == miner.api {
+									// The event is necessary since the miner still needs it's data if it is already registered
+									Self::deposit_event(Event::MinerAlreadyRegistered {
 										creator: creator.clone(),
-										worker: (creator.clone(), worker.id),
-										domain: worker.api.domain,
+										miner: (creator.clone(), miner.id),
+										domain: miner.api.domain,
 									});
-									return Err(Error::<T>::WorkerExists.into());
+									return Err(Error::<T>::MinerExists.into());
 								}
 							}
 						}
@@ -261,140 +261,140 @@ pub mod pallet {
 				None => {}
 			}
 
-			let worker_id: WorkerId = match AccountWorkers::<T>::get(creator.clone()) {
+			let miner_id: MinerId = match AccountMiners::<T>::get(creator.clone()) {
 				Some(id) => {
-					AccountWorkers::<T>::insert(creator.clone(), id + 1);
+					AccountMiners::<T>::insert(creator.clone(), id + 1);
 					id + 1
 				}
 				None => {
-					AccountWorkers::<T>::insert(creator.clone(), 0);
+					AccountMiners::<T>::insert(creator.clone(), 0);
 					0
 				}
 			};
 
 			let blocknumber = <frame_system::Pallet<T>>::block_number();
-			let worker = Worker {
-				id: worker_id.clone(),
+			let miner = Miner {
+				id: miner_id.clone(),
 				owner: creator.clone(),
-				location: worker_location,
-				specs: worker_specs,
-				reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
+				location: miner_location,
+				specs: miner_specs,
+				reputation: MinerReputation::<BlockNumberFor<T>>::default(),
 				start_block: blocknumber.clone(),
-				status: WorkerStatusType::Inactive,
+				status: MinerStatusType::Inactive,
 				status_last_updated: blocknumber.clone(),
 				api: api,
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
 			// update storage
-			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
+			AccountMiners::<T>::insert(creator.clone(), miner_id.clone());
 
-			match worker_type {
-				cyborg_primitives::worker::WorkerType::Docker => {
-					WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
+			match miner_type {
+				cyborg_primitives::miner::MinerType::Cloud => {
+					CloudMiners::<T>::insert((creator.clone(), miner_id.clone()), miner.clone());
 				}
-				cyborg_primitives::worker::WorkerType::Executable => {
-					ExecutableWorkers::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
+				cyborg_primitives::miner::MinerType::Edge => {
+					EdgeMiners::<T>::insert((creator.clone(), miner_id.clone()), miner.clone());
 				}
 			}
 
 			// Emit an event.
-			Self::deposit_event(Event::WorkerRegistered {
+			Self::deposit_event(Event::MinerRegistered {
 				creator: creator.clone(),
-				worker: (worker.owner, worker.id),
-				domain: worker.api.domain,
+				miner: (miner.owner, miner.id),
+				domain: miner.api.domain,
 			});
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
 
-		/// Remove a worker from storage an deactivates it
+		/// Remove a miner from storage an deactivates it
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_worker())]
-		pub fn remove_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_miner())]
+		pub fn remove_miner(
 			origin: OriginFor<T>,
-			worker_type: WorkerType,
-			worker_id: WorkerId,
+			miner_type: MinerType,
+			miner_id: MinerId,
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			match worker_type {
-				WorkerType::Docker => {
+			match miner_type {
+				MinerType::Cloud => {
 					ensure!(
-						WorkerClusters::<T>::get((creator.clone(), worker_id)) != None,
-						Error::<T>::WorkerDoesNotExist
+						CloudMiners::<T>::get((creator.clone(), miner_id)) != None,
+						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					WorkerClusters::<T>::remove((creator.clone(), worker_id));
+					CloudMiners::<T>::remove((creator.clone(), miner_id));
 				}
-				WorkerType::Executable => {
+				MinerType::Edge => {
 					ensure!(
-						ExecutableWorkers::<T>::get((creator.clone(), worker_id)) != None,
-						Error::<T>::WorkerDoesNotExist
+						EdgeMiners::<T>::get((creator.clone(), miner_id)) != None,
+						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					ExecutableWorkers::<T>::remove((creator.clone(), worker_id));
+					EdgeMiners::<T>::remove((creator.clone(), miner_id));
 				}
 			}
 
 			// Emit an event.
-			Self::deposit_event(Event::WorkerRemoved { creator, worker_id });
+			Self::deposit_event(Event::MinerRemoved { creator, miner_id });
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
 
-		/// Switches the visibility of a worker between active and inactive.
+		/// Switches the visibility of a miner between active and inactive.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
-		pub fn toggle_worker_visibility(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_miner_visibility())]
+		pub fn toggle_miner_visibility(
 			origin: OriginFor<T>,
-			worker_type: WorkerType,
-			worker_id: WorkerId,
+			miner_type: MinerType,
+			miner_id: MinerId,
 			visibility: bool,
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
-			let worker_status = if visibility {
-				WorkerStatusType::Active
+			let miner_status = if visibility {
+				MinerStatusType::Active
 			} else {
-				WorkerStatusType::Inactive
+				MinerStatusType::Inactive
 			};
 
-			match worker_type {
-				WorkerType::Docker => {
-					WorkerClusters::<T>::mutate((creator.clone(), worker_id), |worker_option| {
-						if let Some(worker) = worker_option {
-							worker.status = worker_status;
-							worker.last_status_check = timestamp::Pallet::<T>::get();
+			match miner_type {
+				MinerType::Cloud => {
+					CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+						if let Some(miner) = miner_option {
+							miner.status = miner_status;
+							miner.last_status_check = timestamp::Pallet::<T>::get();
 
-							Self::deposit_event(Event::WorkerStatusUpdated {
+							Self::deposit_event(Event::MinerStatusUpdated {
 								creator,
-								worker_id,
-								worker_status: worker.status.clone(),
+								miner_id,
+								miner_status: miner.status.clone(),
 							});
 							Ok(())
 						} else {
-							Err(Error::<T>::WorkerDoesNotExist)
+							Err(Error::<T>::MinerDoesNotExist)
 						}
 					})
 				}
-				WorkerType::Executable => {
-					ExecutableWorkers::<T>::mutate((creator.clone(), worker_id), |worker_option| {
-						if let Some(worker) = worker_option {
-							worker.status = worker_status;
-							worker.last_status_check = timestamp::Pallet::<T>::get();
+				MinerType::Edge => {
+					EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+						if let Some(miner) = miner_option {
+							miner.status = miner_status;
+							miner.last_status_check = timestamp::Pallet::<T>::get();
 
-							Self::deposit_event(Event::WorkerStatusUpdated {
+							Self::deposit_event(Event::MinerStatusUpdated {
 								creator,
-								worker_id,
-								worker_status: worker.status.clone(),
+								miner_id,
+								miner_status: miner.status.clone(),
 							});
 							Ok(())
 						} else {
-							Err(Error::<T>::WorkerDoesNotExist)
+							Err(Error::<T>::MinerDoesNotExist)
 						}
 					})
 				}
@@ -404,145 +404,145 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_worker())]
-		pub fn penalize_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_miner())]
+		pub fn penalize_miner(
 			origin: OriginFor<T>,
-			worker_owner: T::AccountId,
-			worker_id: WorkerId,
-			worker_type: WorkerType,
+			miner_owner: T::AccountId,
+			miner_id: MinerId,
+			miner_type: MinerType,
 			penalty: i32,
 			reason: PenaltyReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::apply_penalty(&(worker_owner, worker_id), &worker_type, penalty, reason)?;
+			Self::apply_penalty(&(miner_owner, miner_id), &miner_type, penalty, reason)?;
 
 			Ok(())
 		}
 
-		/// Manually suspend a worker (root only)
+		/// Manually suspend a miner (root only)
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::suspend_worker())]
-		pub fn suspend_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::suspend_miner())]
+		pub fn suspend_miner(
 			origin: OriginFor<T>,
-			worker_owner: T::AccountId,
-			worker_id: WorkerId,
-			worker_type: WorkerType,
+			miner_owner: T::AccountId,
+			miner_id: MinerId,
+			miner_type: MinerType,
 			blocks: BlockNumberFor<T>,
 			reason: SuspensionReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::suspend_workers(&(worker_owner, worker_id), &worker_type, blocks, reason)
+			Self::suspend_miners(&(miner_owner, miner_id), &miner_type, blocks, reason)
 		}
 
-		/// Manually ban a worker (root only)
+		/// Manually ban a miner (root only)
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_worker())]
-		pub fn ban_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_miner())]
+		pub fn ban_miner(
 			origin: OriginFor<T>,
-			worker_owner: T::AccountId,
-			worker_id: WorkerId,
-			worker_type: WorkerType,
+			miner_owner: T::AccountId,
+			miner_id: MinerId,
+			miner_type: MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::ban_workers(&(worker_owner, worker_id), worker_type, reason)
+			Self::ban_miners(&(miner_owner, miner_id), miner_type, reason)
 		}
 
-		/// Lift suspension from a worker (root only)
+		/// Lift suspension from a miner (root only)
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::unsuspend_worker())]
-		pub fn unsuspend_worker(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::unsuspend_miner())]
+		pub fn unsuspend_miner(
 			origin: OriginFor<T>,
-			worker_owner: T::AccountId,
-			worker_id: WorkerId,
-			worker_type: WorkerType,
+			miner_owner: T::AccountId,
+			miner_id: MinerId,
+			miner_type: MinerType,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
+			Self::lift_suspension(&(miner_owner, miner_id), &miner_type)
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		// Helper Function to retrieve all active workers from storage.
-		// Filters workers based on their status (active or inactive).
-		pub fn get_active_workers() -> Option<
+		// Helper Function to retrieve all active miners from storage.
+		// Filters miners based on their status (active or inactive).
+		pub fn get_active_miners() -> Option<
 			Vec<(
-				(T::AccountId, WorkerId),
-				Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+				(T::AccountId, MinerId),
+				Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 			)>,
 		> {
-			let workers = WorkerClusters::<T>::iter()
-				.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active)
+			let miners = CloudMiners::<T>::iter()
+				.filter(|&(_, ref miner)| miner.status == MinerStatusType::Active)
 				.collect::<Vec<_>>();
 
-			if workers.is_empty() {
+			if miners.is_empty() {
 				None
 			} else {
-				Some(workers)
+				Some(miners)
 			}
 		}
 
 		pub fn is_registered_miner(account: &T::AccountId) -> bool {
-			AccountWorkers::<T>::contains_key(account)
+			AccountMiners::<T>::contains_key(account)
 		}
 
-		/// Apply penalty to a worker's reputation
+		/// Apply penalty to a miner's reputation
 		fn apply_penalty(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 			penalty: i32,
 			reason: PenaltyReason,
 		) -> DispatchResult {
-			let mut worker = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Apply penalty
-			worker.reputation.score = worker.reputation.score.saturating_sub(penalty);
-			worker.reputation.violations += 1;
-			worker.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
+			miner.reputation.score = miner.reputation.score.saturating_sub(penalty);
+			miner.reputation.violations += 1;
+			miner.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
 
 			// Automatic suspension triggers
-			if worker.reputation.score < 30 {
+			if miner.reputation.score < 30 {
 				// Severe penalty - suspend for 1000 blocks (~4 hours at 6s/block)
-				Self::suspend_workers(
-					worker_key,
-					&worker_type.clone(),
+				Self::suspend_miners(
+					miner_key,
+					&miner_type.clone(),
 					1000u32.into(),
 					SuspensionReason::ReputationThreshold,
 				)?;
-			} else if worker.reputation.score < 50 {
+			} else if miner.reputation.score < 50 {
 				// Moderate penalty - put under review
-				Self::put_worker_under_review(
-					worker_key,
-					&worker_type.clone(),
+				Self::put_miner_under_review(
+					miner_key,
+					&miner_type.clone(),
 					SuspensionReason::ReputationThreshold,
 				)?;
-			} else if worker.reputation.violations > 10 {
+			} else if miner.reputation.violations > 10 {
 				// Too many violations - review
-				Self::put_worker_under_review(
-					worker_key,
-					&worker_type.clone(),
+				Self::put_miner_under_review(
+					miner_key,
+					&miner_type.clone(),
 					SuspensionReason::RepeatedTaskFailures,
 				)?;
 			}
 
 			// Update storage if not suspended
-			if worker.status != WorkerStatusType::Suspended {
-				match worker_type {
-					WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-					WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			if miner.status != MinerStatusType::Suspended {
+				match miner_type {
+					MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
+					MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 				}
 			}
 
-			Self::deposit_event(Event::WorkerPenalized {
-				worker: worker_key.clone(),
+			Self::deposit_event(Event::MinerPenalized {
+				miner: miner_key.clone(),
 				penalty,
 				reason,
 			});
@@ -551,43 +551,43 @@ pub mod pallet {
 		}
 
 		pub fn get_miner(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
-		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			let miner = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
+		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			let miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			};
 
 			miner
 		}
 
-		/// Check if worker can perform actions
-		pub fn check_worker_status(
-			miner_key: &(T::AccountId, WorkerId),
-			miner_type: &WorkerType,
+		/// Check if miner can perform actions
+		pub fn check_miner_status(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 		) -> DispatchResult {
 			let miner = Self::get_miner(miner_key, miner_type)	
-				.ok_or(Error::<T>::WorkerDoesNotExist)?;
+				.ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Check if suspended
 			match miner.status {
-				WorkerStatusType::Suspended => {
+				MinerStatusType::Suspended => {
 					if <frame_system::Pallet<T>>::block_number() < miner.status_last_updated {
-						return Err(Error::<T>::WorkerSuspended.into());
+						return Err(Error::<T>::MinerSuspended.into());
 					} else {
 						// Auto-unsuspend if suspension period is over
 						let mut miner = miner.clone();
-						miner.status = WorkerStatusType::Inactive;
+						miner.status = MinerStatusType::Inactive;
 						match miner_type {
-							WorkerType::Docker => WorkerClusters::<T>::insert(miner_key, miner),
-							WorkerType::Executable => ExecutableWorkers::<T>::insert(miner_key, miner),
+							MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
+							MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 						}
 					}
 				},
-				WorkerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
+				MinerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
 				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
-				//WorkerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
+				//MinerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
 				_ => (),
 			}
 
@@ -600,142 +600,142 @@ pub mod pallet {
 		}
 		
 		pub fn update_miner_status(
-			miner: &(T::AccountId, WorkerId),
-			miner_type: WorkerType,
-			new_status: WorkerStatusType
+			miner_id: &(T::AccountId, MinerId),
+			miner_type: MinerType,
+			new_status: MinerStatusType
 		) -> DispatchResult {
-			let mut worker = match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(miner),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(miner),
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_id),
 			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			worker.status = new_status;
+			miner.status = new_status;
 			match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
+				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
+				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
 			}
 			Ok(())
 		}
 
-		/// Suspend a worker with a specific reason and duration
-		fn suspend_workers(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
+		/// Suspend a miner with a specific reason and duration
+		fn suspend_miners(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 			blocks: BlockNumberFor<T>,
 			reason: SuspensionReason,
 		) -> DispatchResult {
-			let mut worker = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let suspension_end = current_block.saturating_add(blocks);
 
-			// Update worker status
-			worker.status = WorkerStatusType::Suspended;
-			worker.status_last_updated = suspension_end;
-			worker.reputation.suspension_count += 1;
+			// Update miner status
+			miner.status = MinerStatusType::Suspended;
+			miner.status_last_updated = suspension_end;
+			miner.reputation.suspension_count += 1;
 
 			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
+				MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 			}
 
 			// Record suspension
-			SuspendedWorkers::<T>::insert(worker_key, (suspension_end, reason.clone()));
+			SuspendedMiners::<T>::insert(miner_key, (suspension_end, reason.clone()));
 
-			Self::deposit_event(Event::WorkerSuspended {
-				worker: worker_key.clone(),
+			Self::deposit_event(Event::MinerSuspended {
+				miner: miner_key.clone(),
 				until_block: suspension_end,
 			});
 
 			Ok(())
 		}
 
-		/// Put worker under review
-		fn put_worker_under_review(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
+		/// Put miner under review
+		fn put_miner_under_review(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
-			let mut worker = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			worker.status = WorkerStatusType::Inactive; // Can't accept new tasks
-			worker.reputation.review_count += 1;
+			miner.status = MinerStatusType::Inactive; // Can't accept new tasks
+			miner.reputation.review_count += 1;
 
 			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
+				MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 			}
 
-			Self::deposit_event(Event::WorkerUnderReview {
-				worker: worker_key.clone(),
+			Self::deposit_event(Event::MinerUnderReview {
+				miner: miner_key.clone(),
 				reason,
 			});
 
 			Ok(())
 		}
 
-		/// Ban a worker permanently
-		fn ban_workers(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: WorkerType,
+		/// Ban a miner permanently
+		fn ban_miners(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
-			// Remove from active workers
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::remove(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::remove(worker_key),
+			// Remove from active miners
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::remove(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::remove(miner_key),
 			}
 
-			Self::deposit_event(Event::WorkerBanned {
-				worker: worker_key.clone(),
+			Self::deposit_event(Event::MinerBanned {
+				miner: miner_key.clone(),
 				reason,
 			});
 
 			Ok(())
 		}
 
-		/// Lift suspension from a worker
+		/// Lift suspension from a miner
 		fn lift_suspension(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
 		) -> DispatchResult {
-			let mut worker = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+			let mut miner = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
+			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Only proceed if actually suspended
-			if worker.status != WorkerStatusType::Suspended {
+			if miner.status != MinerStatusType::Suspended {
 				return Ok(());
 			}
 
-			// Update worker status
-			worker.status = WorkerStatusType::Inactive;
-			worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
+			// Update miner status
+			miner.status = MinerStatusType::Inactive;
+			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
 
 			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
+				MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 			}
 
-			// Remove from suspended workers
-			SuspendedWorkers::<T>::remove(worker_key);
+			// Remove from suspended miners
+			SuspendedMiners::<T>::remove(miner_key);
 
-			Self::deposit_event(Event::WorkerUnsuspended {
-				worker: worker_key.clone(),
+			Self::deposit_event(Event::MinerUnsuspended {
+				miner: miner_key.clone(),
 			});
 
 			Ok(())
@@ -743,31 +743,31 @@ pub mod pallet {
 	}
 
 	impl<T: Config + timestamp::Config>
-		WorkerInfoHandler<T::AccountId, WorkerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
+		MinerInfoHandler<T::AccountId, MinerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
 	{
-		// Implementation of the WorkerInfoHandler trait, which provides methods for accessing worker cluster information.
-		fn get_worker_cluster(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
-		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
+		// Implementation of the MinerInfoHandler trait, which provides methods for accessing miner cluster information.
+		fn get_miner(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
+		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
+				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
 			}
 		}
 
-		// Implementation of the WorkerInfoHandler trait, which provides methods for updating worker cluster information.
-		fn update_worker_cluster(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
-			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		// Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
+		fn update_miner(
+			miner_key: &(T::AccountId, MinerId),
+			miner_type: &MinerType,
+			miner: Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		) {
-			match worker_type {
-				WorkerType::Docker => {
-					WorkerClusters::<T>::insert(worker_key, worker);
+			match miner_type {
+				MinerType::Cloud => {
+					CloudMiners::<T>::insert(miner_key, miner);
 				}
-				WorkerType::Executable => {
-					ExecutableWorkers::<T>::insert(worker_key, worker);
+				MinerType::Edge => {
+					EdgeMiners::<T>::insert(miner_key, miner);
 				}
 			}
 		}

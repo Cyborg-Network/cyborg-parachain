@@ -15,7 +15,7 @@ pub mod weights;
 pub use weights::*;
 
 pub use cyborg_primitives::task::*;
-use cyborg_primitives::worker::{WorkerId, WorkerStatusType, WorkerType};
+use cyborg_primitives::miner::{MinerId, MinerStatusType, MinerType};
 
 use scale_info::prelude::vec::Vec;
 
@@ -27,7 +27,7 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_timestamp as timestamp;
-	// use pallet_edge_connect::AccountWorkers;
+	// use pallet_edge_connect::AccountMiners;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -49,10 +49,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type TaskStatus<T: Config> = StorageMap<_, Twox64Concat, TaskId, TaskStatusType, OptionQuery>;
 
-	/// Allocation of tasks to workers.
+	/// Allocation of tasks to miners.
 	#[pallet::storage]
 	pub type TaskAllocations<T: Config> =
-		StorageMap<_, Twox64Concat, TaskId, (T::AccountId, WorkerId), OptionQuery>;
+		StorageMap<_, Twox64Concat, TaskId, (T::AccountId, MinerId), OptionQuery>;
 
 	/// Owners of the tasks.
 	#[pallet::storage]
@@ -98,15 +98,15 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new task has been scheduled and assigned to a worker.
+		/// A new task has been scheduled and assigned to a miner.
 		TaskScheduled {
-			assigned_worker: (T::AccountId, WorkerId),
+			assigned_miner: (T::AccountId, MinerId),
 			task_kind: TaskKind<BlockNumberFor<T>>,
 			task_owner: T::AccountId,
 			task_id: TaskId,
 		},
 
-		/// A worker confirmed reception of task data and started execution.
+		/// A miner confirmed reception of task data and started execution.
 		TaskReceptionConfirmed {
 			task_id: TaskId,
 			who: T::AccountId,
@@ -163,7 +163,7 @@ pub mod pallet {
 where
     <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
         TryFrom<u64>, {
-		/// Creates a new task and assigns it to a randomly selected worker.
+		/// Creates a new task and assigns it to a randomly selected miner.
 		/// None -> Assigned
 		// TODO calculate actual weight from the length of the inputs 
 		#[pallet::call_index(0)]
@@ -173,23 +173,28 @@ where
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
 			// TODO requesting_user: Option<Some data that identifies the user>,
 			task_kind: TaskSubmissionData,
-			worker_owner: T::AccountId,
-			worker_id: WorkerId,
+			miner_owner: T::AccountId,
+			miner_id: MinerId,
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
-			// Determine worker type based on task kind
-			let worker_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { 
-					WorkerType::Executable
+			// Determine miner type based on task kind
+			let miner_type = match task_kind {
+				TaskSubmissionData::NeuroZK(_) | 
+				TaskSubmissionData::OpenInference(_) | 
+				TaskSubmissionData::FlashInfer(_) => {
+					MinerType::Edge
+				}
+				TaskSubmissionData::CyCloud => { 
+					MinerType::Cloud
 				},
 			};
 
 			// Check if the miner exists, and if its status allows for task execution
-			pallet_edge_connect::Pallet::<T>::check_worker_status(
-				&(worker_owner.clone(), worker_id),
-				&worker_type,
+			pallet_edge_connect::Pallet::<T>::check_miner_status(
+				&(miner_owner.clone(), miner_id),
+				&miner_type,
 			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
@@ -215,7 +220,7 @@ where
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-			let selected_worker = (worker_owner, worker_id);
+			let selected_miner = (miner_owner, miner_id);
 			let task_kind = TaskKind::from_submission(task_kind);
 
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
@@ -230,19 +235,19 @@ where
 				task_status: TaskStatusType::Assigned,
 			};
 
-			TaskAllocations::<T>::insert(task_id, selected_worker.clone());
+			TaskAllocations::<T>::insert(task_id, selected_miner.clone());
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
 
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
-				&selected_worker,
-				worker_type,
-				WorkerStatusType::Busy,
+				&selected_miner,
+				miner_type,
+				MinerStatusType::Busy,
 			)?;
 
 			Self::deposit_event(Event::TaskScheduled {
-				assigned_worker: selected_worker,
+				assigned_miner: selected_miner,
 				task_kind,
 				task_owner: who,
 				task_id,
@@ -266,10 +271,10 @@ where
 			// Load task
 			let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
-			// Check that caller is the assigned worker
-			let assigned_worker =
+			// Check that caller is the assigned miner
+			let assigned_miner =
 				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
-			ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
+			ensure!(assigned_miner.0 == who, Error::<T>::InvalidTaskOwner);
 
 			// Task must currently be `Assigned`
 			ensure!(
@@ -341,10 +346,10 @@ where
 			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
-			let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+			let assigned_miner = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
 			// Ensure the caller is the miner who was assigned the task
-			ensure!(assigned_worker.0 == who, Error::<T>::NotAssignedMiner);
+			ensure!(assigned_miner.0 == who, Error::<T>::NotAssignedMiner);
 
 			// Ensure task is stopped.
 			ensure!(
@@ -358,10 +363,10 @@ where
 
 			// Update the miner status back to active
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
-				&assigned_worker,
+				&assigned_miner,
 				// This needs to be changed after the miners have unique IDs
-				WorkerType::Executable,
-				WorkerStatusType::Active,
+				MinerType::Edge,
+				MinerStatusType::Active,
 			)?;
 
 			// Emit event.
