@@ -15,9 +15,8 @@ pub mod weights;
 pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use cyborg_primitives::{
-	oracle::{OracleWorkerFormat, ProcessStatus},
-	worker::{WorkerId, WorkerInfoHandler, WorkerStatusType, WorkerType},
+use cyborg_primitives::worker::{
+	OperationalStatus, OracleStatus, WorkerId, WorkerInfoHandler, WorkerType,
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
@@ -53,6 +52,7 @@ pub struct ProcessStatusPercentages<BlockNumber> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use cyborg_primitives::oracle::{OracleWorkerFormat, ProcessStatus};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -252,16 +252,20 @@ pub mod pallet {
 			if let Some(mut worker_cluster) =
 				T::WorkerInfoHandler::get_worker_cluster(&key_worker, &worker_type)
 			{
-				let status = if online {
-					if available {
-						WorkerStatusType::Active
-					} else {
-						WorkerStatusType::Busy
-					}
+				// Update oracle_status based on online status
+				worker_cluster.oracle_status = if online {
+					OracleStatus::Online
 				} else {
-					WorkerStatusType::Inactive
+					OracleStatus::Offline
 				};
-				worker_cluster.status = status;
+
+				// Update operational_status based on available status
+				worker_cluster.operational_status = if available {
+					OperationalStatus::Available
+				} else {
+					OperationalStatus::Busy
+				};
+
 				worker_cluster.status_last_updated = last_block_processed;
 
 				T::WorkerInfoHandler::update_worker_cluster(&key_worker, &worker_type, worker_cluster);

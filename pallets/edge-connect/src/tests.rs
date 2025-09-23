@@ -34,7 +34,8 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			id: 0,
 			owner: alice,
 			start_block: 10,
-			status: WorkerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -48,7 +49,8 @@ fn it_works_for_inserting_worker_into_correct_storage() {
 			id: 1,
 			owner: alice,
 			start_block: 10,
-			status: WorkerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -123,7 +125,8 @@ fn it_works_for_registering_domain() {
 			id: 0,
 			owner: alice,
 			start_block: 10,
-			status: WorkerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -341,133 +344,6 @@ fn emiting_proper_event_for_registering_worker() {
 			worker: (alice, alice_first_worker_id),
 			domain: domain,
 		}));
-	})
-}
-
-#[test]
-fn it_works_for_changing_visibility() {
-	new_test_ext().execute_with(|| {
-		let alice = 0;
-		let alice_first_worker_id = 0;
-		let alice_second_worker_id = 1;
-		let domain_str = "foobarkoo.com";
-		let domain: BoundedVec<u8, ConstU32<128>> =
-			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
-		let worker_type_0 = WorkerType::Docker;
-		let worker_type_1 = WorkerType::Executable;
-		let latitude: Latitude = 590000;
-		let longitude: Longitude = 120000;
-		let ram: RamBytes = 100000000;
-		let storage: StorageBytes = 100000000;
-		let cpu: CpuCores = 12;
-
-		System::set_block_number(10);
-		assert_ok!(EdgeConnectModule::register_worker(
-			RuntimeOrigin::signed(alice),
-			worker_type_0.clone(),
-			domain.clone(),
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu
-		));
-
-		assert_ok!(EdgeConnectModule::register_worker(
-			RuntimeOrigin::signed(alice),
-			worker_type_1.clone(),
-			domain.clone(),
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu
-		));
-
-		let _ = EdgeConnectModule::toggle_worker_visibility(
-			RuntimeOrigin::signed(alice),
-			worker_type_0.clone(),
-			alice_first_worker_id,
-			true,
-		);
-
-		let _ = EdgeConnectModule::toggle_worker_visibility(
-			RuntimeOrigin::signed(alice),
-			worker_type_1.clone(),
-			alice_second_worker_id,
-			true,
-		);
-
-		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get((alice, alice_first_worker_id))
-				.unwrap()
-				.status,
-			WorkerStatusType::Active
-		);
-
-		assert_eq!(
-			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, alice_second_worker_id))
-				.unwrap()
-				.status,
-			WorkerStatusType::Active
-		);
-
-		let _ = EdgeConnectModule::toggle_worker_visibility(
-			RuntimeOrigin::signed(alice),
-			worker_type_0,
-			alice_first_worker_id,
-			false,
-		);
-
-		let _ = EdgeConnectModule::toggle_worker_visibility(
-			RuntimeOrigin::signed(alice),
-			worker_type_1,
-			alice_second_worker_id,
-			false,
-		);
-
-		assert_eq!(
-			pallet_edge_connect::WorkerClusters::<Test>::get((alice, alice_first_worker_id))
-				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
-		);
-
-		assert_eq!(
-			pallet_edge_connect::ExecutableWorkers::<Test>::get((alice, alice_second_worker_id))
-				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
-		);
-	})
-}
-
-#[test]
-fn it_fails_for_changing_visibility_on_nonexistant_worker() {
-	new_test_ext().execute_with(|| {
-		let alice = 0;
-		let alice_first_worker_id = 0;
-
-		System::set_block_number(10);
-		assert_noop!(
-			EdgeConnectModule::toggle_worker_visibility(
-				RuntimeOrigin::signed(alice),
-				WorkerType::Docker,
-				alice_first_worker_id,
-				true
-			),
-			Error::<Test>::WorkerDoesNotExist
-		);
-
-		assert_noop!(
-			EdgeConnectModule::toggle_worker_visibility(
-				RuntimeOrigin::signed(alice),
-				WorkerType::Executable,
-				alice_first_worker_id,
-				true
-			),
-			Error::<Test>::WorkerDoesNotExist
-		);
 	})
 }
 

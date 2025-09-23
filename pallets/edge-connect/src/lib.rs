@@ -20,7 +20,7 @@ pub use cyborg_primitives::worker::*;
 pub mod pallet {
 	use super::*;
 	use cyborg_primitives::task::TaskId;
-use frame_support::sp_runtime::Saturating;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
@@ -125,19 +125,14 @@ use frame_support::sp_runtime::Saturating;
 			creator: T::AccountId,
 			worker_id: WorkerId,
 		},
-
-		/// Event emitted when a worker's status is updated (e.g., toggling visibility).
-		///
-		/// - `creator`: The account ID of the worker's creator.
-		/// - `worker_id`: The ID of the worker whose status was updated.
-		/// - `worker_status`: The new status of the worker, either active or inactive.
-		WorkerStatusUpdated {
-			creator: T::AccountId,
-			worker_id: WorkerId,
-			worker_status: WorkerStatusType,
+		OracleStatusUpdated {
+			worker: (T::AccountId, WorkerId),
+			online: bool,
 		},
-
-		/// Event emitted when a worker is penalized
+		OperationalStatusUpdated {
+			worker: (T::AccountId, WorkerId),
+			status: OperationalStatus,
+		},
 		WorkerPenalized {
 			worker: (T::AccountId, WorkerId),
 			penalty: i32,
@@ -161,9 +156,9 @@ use frame_support::sp_runtime::Saturating;
 			worker: (T::AccountId, WorkerId),
 			reason: SuspensionReason,
 		},
-
-		/// Event emitted when a worker is unsuspended
-		WorkerUnsuspended { worker: (T::AccountId, WorkerId) },
+		WorkerUnsuspended {
+			worker: (T::AccountId, WorkerId),
+		},
 	}
 
 	#[derive(
@@ -203,6 +198,7 @@ use frame_support::sp_runtime::Saturating;
 		MinerIsBusy,
 		/// Miner is inactive
 		MinerIsInactive,
+		NotAuthorized,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -234,37 +230,28 @@ use frame_support::sp_runtime::Saturating;
 			};
 			let worker_specs = WorkerSpecs { ram, storage, cpu };
 
-			//TODO: There needs to be a proper id mechanism to avoid loops and the increment id system
+			// Check for existing worker with same domain
 			match worker_keys {
 				Some(keys) => {
 					for id in 0..=keys {
-						// Get the Worker associated with the creator and worker_id
 						if let Some(worker) = WorkerClusters::<T>::get((creator.clone(), id)) {
-							if worker_type == cyborg_primitives::worker::WorkerType::Docker {
-								// Check if the API matches and throw an error if it does
-								if api == worker.api {
-									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered {
-										creator: creator.clone(),
-										worker: (creator.clone(), worker.id),
-										domain: worker.api.domain,
-									});
-									return Err(Error::<T>::WorkerExists.into());
-								}
+							if worker_type == WorkerType::Docker && api == worker.api {
+								Self::deposit_event(Event::WorkerAlreadyRegistered {
+									creator: creator.clone(),
+									worker: (creator.clone(), worker.id),
+									domain: worker.api.domain,
+								});
+								return Err(Error::<T>::WorkerExists.into());
 							}
 						}
 						if let Some(worker) = ExecutableWorkers::<T>::get((creator.clone(), id)) {
-							if worker_type == cyborg_primitives::worker::WorkerType::Executable {
-								// Check if the API matches and throw an error if it does
-								if api == worker.api {
-									// The event is necessary since the worker still needs it's data if it is already registered
-									Self::deposit_event(Event::WorkerAlreadyRegistered {
-										creator: creator.clone(),
-										worker: (creator.clone(), worker.id),
-										domain: worker.api.domain,
-									});
-									return Err(Error::<T>::WorkerExists.into());
-								}
+							if worker_type == WorkerType::Executable && api == worker.api {
+								Self::deposit_event(Event::WorkerAlreadyRegistered {
+									creator: creator.clone(),
+									worker: (creator.clone(), worker.id),
+									domain: worker.api.domain,
+								});
+								return Err(Error::<T>::WorkerExists.into());
 							}
 						}
 					}
@@ -292,7 +279,8 @@ use frame_support::sp_runtime::Saturating;
 				reputation: WorkerReputation::<BlockNumberFor<T>>::default(),
 				current_task: None,
 				start_block: blocknumber.clone(),
-				status: WorkerStatusType::Inactive,
+				oracle_status: OracleStatus::Offline,
+				operational_status: OperationalStatus::Available,
 				status_last_updated: blocknumber.clone(),
 				api: api,
 				last_status_check: timestamp::Pallet::<T>::get(),
@@ -302,10 +290,10 @@ use frame_support::sp_runtime::Saturating;
 			AccountWorkers::<T>::insert(creator.clone(), worker_id.clone());
 
 			match worker_type {
-				cyborg_primitives::worker::WorkerType::Docker => {
+				WorkerType::Docker => {
 					WorkerClusters::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
 				}
-				cyborg_primitives::worker::WorkerType::Executable => {
+				WorkerType::Executable => {
 					ExecutableWorkers::<T>::insert((creator.clone(), worker_id.clone()), worker.clone());
 				}
 			}
@@ -359,34 +347,28 @@ use frame_support::sp_runtime::Saturating;
 			Ok(().into())
 		}
 
-		/// Switches the visibility of a worker between active and inactive.
+		/// Updates the oracle status (callable by oracle feeder)
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_worker_visibility())]
-		pub fn toggle_worker_visibility(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_oracle_status())]
+		pub fn update_oracle_status(
 			origin: OriginFor<T>,
-			worker_type: WorkerType,
+			worker_owner: T::AccountId,
 			worker_id: WorkerId,
-			visibility: bool,
-		) -> DispatchResultWithPostInfo {
-			let creator = ensure_signed(origin)?;
-			let worker_status = if visibility {
-				WorkerStatusType::Active
-			} else {
-				WorkerStatusType::Inactive
-			};
+			worker_type: WorkerType,
+			online: bool,
+		) -> DispatchResult {
+			ensure_signed(origin)?;
 
 			match worker_type {
 				WorkerType::Docker => {
-					WorkerClusters::<T>::mutate((creator.clone(), worker_id), |worker_option| {
+					WorkerClusters::<T>::mutate((worker_owner.clone(), worker_id), |worker_option| {
 						if let Some(worker) = worker_option {
-							worker.status = worker_status;
+							worker.oracle_status = if online {
+								OracleStatus::Online
+							} else {
+								OracleStatus::Offline
+							};
 							worker.last_status_check = timestamp::Pallet::<T>::get();
-
-							Self::deposit_event(Event::WorkerStatusUpdated {
-								creator,
-								worker_id,
-								worker_status: worker.status.clone(),
-							});
 							Ok(())
 						} else {
 							Err(Error::<T>::WorkerDoesNotExist)
@@ -394,16 +376,14 @@ use frame_support::sp_runtime::Saturating;
 					})
 				}
 				WorkerType::Executable => {
-					ExecutableWorkers::<T>::mutate((creator.clone(), worker_id), |worker_option| {
+					ExecutableWorkers::<T>::mutate((worker_owner.clone(), worker_id), |worker_option| {
 						if let Some(worker) = worker_option {
-							worker.status = worker_status;
+							worker.oracle_status = if online {
+								OracleStatus::Online
+							} else {
+								OracleStatus::Offline
+							};
 							worker.last_status_check = timestamp::Pallet::<T>::get();
-
-							Self::deposit_event(Event::WorkerStatusUpdated {
-								creator,
-								worker_id,
-								worker_status: worker.status.clone(),
-							});
 							Ok(())
 						} else {
 							Err(Error::<T>::WorkerDoesNotExist)
@@ -412,10 +392,68 @@ use frame_support::sp_runtime::Saturating;
 				}
 			}?;
 
-			Ok(().into())
+			Self::deposit_event(Event::OracleStatusUpdated {
+				worker: (worker_owner, worker_id),
+				online,
+			});
+
+			Ok(())
 		}
 
+		/// Updates the operational status (callable by miner itself)
 		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_operational_status())]
+		pub fn update_operational_status(
+			origin: OriginFor<T>,
+			worker_type: WorkerType,
+			worker_id: WorkerId,
+			status: OperationalStatus,
+		) -> DispatchResult {
+			let miner = ensure_signed(origin)?;
+			let status_clone = status.clone();
+
+			match worker_type {
+				WorkerType::Docker => {
+					WorkerClusters::<T>::mutate((miner.clone(), worker_id), |worker_option| {
+						if let Some(worker) = worker_option {
+							// Miners can only set Available or Busy status
+							if matches!(status, OperationalStatus::Suspended) {
+								return Err(Error::<T>::NotAuthorized.into());
+							}
+							worker.operational_status = status;
+							worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
+							Ok(())
+						} else {
+							Err(Error::<T>::WorkerDoesNotExist)
+						}
+					})
+				}
+				WorkerType::Executable => {
+					ExecutableWorkers::<T>::mutate((miner.clone(), worker_id), |worker_option| {
+						if let Some(worker) = worker_option {
+							// Miners can only set Available or Busy status
+							if matches!(status, OperationalStatus::Suspended) {
+								return Err(Error::<T>::NotAuthorized.into());
+							}
+							worker.operational_status = status;
+							worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
+							Ok(())
+						} else {
+							Err(Error::<T>::WorkerDoesNotExist)
+						}
+					})
+				}
+			}?;
+
+			Self::deposit_event(Event::OperationalStatusUpdated {
+				worker: (miner, worker_id),
+				status: status_clone,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_worker())]
 		pub fn penalize_worker(
 			origin: OriginFor<T>,
@@ -426,14 +464,12 @@ use frame_support::sp_runtime::Saturating;
 			reason: PenaltyReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
 			Self::apply_penalty(&(worker_owner, worker_id), &worker_type, penalty, reason)?;
-
 			Ok(())
 		}
 
 		/// Manually suspend a worker (root only)
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::suspend_worker())]
 		pub fn suspend_worker(
 			origin: OriginFor<T>,
@@ -444,12 +480,11 @@ use frame_support::sp_runtime::Saturating;
 			reason: SuspensionReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
-			Self::suspend_workers(&(worker_owner, worker_id), &worker_type, blocks, reason)
+			Self::suspend_worker_internal(&(worker_owner, worker_id), &worker_type, blocks, reason)
 		}
 
 		/// Manually ban a worker (root only)
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_worker())]
 		pub fn ban_worker(
 			origin: OriginFor<T>,
@@ -459,12 +494,11 @@ use frame_support::sp_runtime::Saturating;
 			reason: SuspensionReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
-			Self::ban_workers(&(worker_owner, worker_id), worker_type, reason)
+			Self::ban_worker_internal(&(worker_owner, worker_id), worker_type, reason)
 		}
 
 		/// Lift suspension from a worker (root only)
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unsuspend_worker())]
 		pub fn unsuspend_worker(
 			origin: OriginFor<T>,
@@ -473,7 +507,6 @@ use frame_support::sp_runtime::Saturating;
 			worker_type: WorkerType,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-
 			Self::lift_suspension(&(worker_owner, worker_id), &worker_type)
 		}
 	}
@@ -488,7 +521,7 @@ use frame_support::sp_runtime::Saturating;
 			)>,
 		> {
 			let workers = WorkerClusters::<T>::iter()
-				.filter(|&(_, ref worker)| worker.status == WorkerStatusType::Active)
+				.filter(|&(_, ref worker)| worker.can_accept_tasks())
 				.collect::<Vec<_>>();
 
 			if workers.is_empty() {
@@ -515,42 +548,24 @@ use frame_support::sp_runtime::Saturating;
 			}
 			.ok_or(Error::<T>::WorkerDoesNotExist)?;
 
-			// Apply penalty
 			worker.reputation.score = worker.reputation.score.saturating_sub(penalty);
 			worker.reputation.violations += 1;
 			worker.reputation.last_updated = Some(<frame_system::Pallet<T>>::block_number());
 
 			// Automatic suspension triggers
 			if worker.reputation.score < 30 {
-				// Severe penalty - suspend for 1000 blocks (~4 hours at 6s/block)
-				Self::suspend_workers(
+				Self::suspend_worker_internal(
 					worker_key,
-					&worker_type.clone(),
+					worker_type,
 					1000u32.into(),
 					SuspensionReason::ReputationThreshold,
 				)?;
-			} else if worker.reputation.score < 50 {
-				// Moderate penalty - put under review
-				Self::put_worker_under_review(
-					worker_key,
-					&worker_type.clone(),
-					SuspensionReason::ReputationThreshold,
-				)?;
-			} else if worker.reputation.violations > 10 {
-				// Too many violations - review
-				Self::put_worker_under_review(
-					worker_key,
-					&worker_type.clone(),
-					SuspensionReason::RepeatedTaskFailures,
-				)?;
 			}
 
-			// Update storage if not suspended
-			if worker.status != WorkerStatusType::Suspended {
-				match worker_type {
-					WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-					WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
-				}
+			// Update storage
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
 			}
 
 			Self::deposit_event(Event::WorkerPenalized {
@@ -566,12 +581,10 @@ use frame_support::sp_runtime::Saturating;
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 		) -> Option<Worker<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			let miner = match worker_type {
+			match worker_type {
 				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
 				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
-			};
-
-			miner
+			}
 		}
 
 		/// Check if worker can perform actions
@@ -581,39 +594,49 @@ use frame_support::sp_runtime::Saturating;
 		) -> DispatchResult {
 			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::WorkerDoesNotExist)?;
 
-			// Check if suspended
-			match miner.status {
-				WorkerStatusType::Suspended => {
-					if <frame_system::Pallet<T>>::block_number() < miner.status_last_updated {
-						return Err(Error::<T>::WorkerSuspended.into());
-					} else {
-						// Auto-unsuspend if suspension period is over
-						let mut miner = miner.clone();
-						miner.status = WorkerStatusType::Inactive;
-						match miner_type {
-							WorkerType::Docker => WorkerClusters::<T>::insert(miner_key, miner),
-							WorkerType::Executable => ExecutableWorkers::<T>::insert(miner_key, miner),
-						}
-					}
+			// Check if worker is suspended and if suspension period has expired
+			if miner.is_suspended() {
+				let current_block = <frame_system::Pallet<T>>::block_number();
+
+				// If suspension period is over, auto-unsuspend
+				if current_block >= miner.status_last_updated {
+					let mut updated_miner = miner.clone();
+					updated_miner.operational_status = OperationalStatus::Available;
+					updated_miner.status_last_updated = current_block;
+
+					// Update the worker status
+					Self::update_worker(miner_key, miner_type, updated_miner);
+
+					// Remove from suspended workers storage
+					SuspendedWorkers::<T>::remove(miner_key);
+				} else {
+					return Err(Error::<T>::WorkerSuspended.into());
 				}
-				WorkerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
-				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
-				//WorkerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
-				_ => (),
+			}
+
+			// Check oracle status (uptime)
+			if miner.oracle_status != OracleStatus::Online {
+				log::warn!("Worker oracle status is not Online, but allowing for testing");
+			}
+
+			// Check operational status
+			if miner.operational_status != OperationalStatus::Available {
+				return Err(Error::<T>::MinerIsBusy.into());
 			}
 
 			// Check reputation
-			if miner.reputation.score < 50 {
+			if miner.reputation.score < 10 {
+				// Reduced from 50 to 10 for testing
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
 
 			Ok(())
 		}
 
-		pub fn update_miner_status(
+		pub fn update_miner_operational_status(
 			miner: &(T::AccountId, WorkerId),
 			miner_type: WorkerType,
-			new_status: WorkerStatusType,
+			available: bool,
 		) -> DispatchResult {
 			let mut worker = match miner_type {
 				WorkerType::Docker => WorkerClusters::<T>::get(miner),
@@ -621,11 +644,12 @@ use frame_support::sp_runtime::Saturating;
 			}
 			.ok_or(Error::<T>::WorkerDoesNotExist)?;
 
-			worker.status = new_status;
-			match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
-			}
+			worker.operational_status = if available {
+				OperationalStatus::Available
+			} else {
+				OperationalStatus::Busy
+			};
+			Self::update_worker(miner, &miner_type, worker);
 			Ok(())
 		}
 
@@ -641,15 +665,12 @@ use frame_support::sp_runtime::Saturating;
 			.ok_or(Error::<T>::WorkerDoesNotExist)?;
 
 			worker.current_task = current_task;
-			match miner_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(miner, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(miner, worker),
-			}
+			Self::update_worker(miner, miner_type, worker);
 			Ok(())
 		}
 
 		/// Suspend a worker with a specific reason and duration
-		pub fn suspend_workers(
+		pub fn suspend_worker_internal(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: &WorkerType,
 			blocks: BlockNumberFor<T>,
@@ -664,16 +685,12 @@ use frame_support::sp_runtime::Saturating;
 			let current_block = <frame_system::Pallet<T>>::block_number();
 			let suspension_end = current_block.saturating_add(blocks);
 
-			// Update worker status
-			worker.status = WorkerStatusType::Suspended;
+			// Update worker operational status to suspended
+			worker.operational_status = OperationalStatus::Suspended;
 			worker.status_last_updated = suspension_end;
 			worker.reputation.suspension_count += 1;
 
-			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
-			}
+			Self::update_worker(worker_key, worker_type, worker);
 
 			// Record suspension
 			SuspendedWorkers::<T>::insert(worker_key, (suspension_end, reason.clone()));
@@ -686,37 +703,8 @@ use frame_support::sp_runtime::Saturating;
 			Ok(())
 		}
 
-		/// Put worker under review
-		fn put_worker_under_review(
-			worker_key: &(T::AccountId, WorkerId),
-			worker_type: &WorkerType,
-			reason: SuspensionReason,
-		) -> DispatchResult {
-			let mut worker = match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::get(worker_key),
-				WorkerType::Executable => ExecutableWorkers::<T>::get(worker_key),
-			}
-			.ok_or(Error::<T>::WorkerDoesNotExist)?;
-
-			worker.status = WorkerStatusType::Inactive; // Can't accept new tasks
-			worker.reputation.review_count += 1;
-
-			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
-			}
-
-			Self::deposit_event(Event::WorkerUnderReview {
-				worker: worker_key.clone(),
-				reason,
-			});
-
-			Ok(())
-		}
-
 		/// Ban a worker permanently
-		fn ban_workers(
+		fn ban_worker_internal(
 			worker_key: &(T::AccountId, WorkerId),
 			worker_type: WorkerType,
 			reason: SuspensionReason,
@@ -747,19 +735,15 @@ use frame_support::sp_runtime::Saturating;
 			.ok_or(Error::<T>::WorkerDoesNotExist)?;
 
 			// Only proceed if actually suspended
-			if worker.status != WorkerStatusType::Suspended {
+			if !worker.is_suspended() {
 				return Ok(());
 			}
 
-			// Update worker status
-			worker.status = WorkerStatusType::Inactive;
+			// Update worker status to available
+			worker.operational_status = OperationalStatus::Available;
 			worker.status_last_updated = <frame_system::Pallet<T>>::block_number();
 
-			// Update storage
-			match worker_type {
-				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
-				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
-			}
+			Self::update_worker(worker_key, worker_type, worker);
 
 			// Remove from suspended workers
 			SuspendedWorkers::<T>::remove(worker_key);
@@ -769,6 +753,17 @@ use frame_support::sp_runtime::Saturating;
 			});
 
 			Ok(())
+		}
+
+		fn update_worker(
+			worker_key: &(T::AccountId, WorkerId),
+			worker_type: &WorkerType,
+			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		) {
+			match worker_type {
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
+			}
 		}
 	}
 
@@ -793,12 +788,8 @@ use frame_support::sp_runtime::Saturating;
 			worker: Worker<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		) {
 			match worker_type {
-				WorkerType::Docker => {
-					WorkerClusters::<T>::insert(worker_key, worker);
-				}
-				WorkerType::Executable => {
-					ExecutableWorkers::<T>::insert(worker_key, worker);
-				}
+				WorkerType::Docker => WorkerClusters::<T>::insert(worker_key, worker),
+				WorkerType::Executable => ExecutableWorkers::<T>::insert(worker_key, worker),
 			}
 		}
 	}

@@ -31,7 +31,8 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn register_worker() -> Weight;
 	fn remove_worker() -> Weight;
-	fn toggle_worker_visibility() -> Weight;
+    fn update_oracle_status() -> Weight;
+    fn update_operational_status() -> Weight;
 	fn penalize_worker() -> Weight;
 	fn suspend_worker() -> Weight;
     fn ban_worker() -> Weight;
@@ -65,9 +66,22 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+
+    /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
 	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_worker_visibility() -> Weight {
+	fn update_oracle_status() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `260`
+		//  Estimated: `3688`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+    
+    /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn update_operational_status() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -100,8 +114,6 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
-
-
 }
 
 // For backwards compatibility and tests.
@@ -130,9 +142,23 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+
+    
+    /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
 	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_worker_visibility() -> Weight {
+	fn update_oracle_status() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `260`
+		//  Estimated: `3688`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+    
+    /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn update_operational_status() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `260`
 		//  Estimated: `3688`
@@ -142,7 +168,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	
-
 	fn penalize_worker() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
@@ -166,6 +191,4 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
-
-
 }

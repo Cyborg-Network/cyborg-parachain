@@ -17,17 +17,43 @@ fn register_worker(
 	account: u64,
 	worker_type: WorkerType,
 	domain_str: &str,
-) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
-	EdgeConnectModule::register_worker(
+) -> Result<(PostDispatchInfo, WorkerId), DispatchErrorWithPostInfo> {
+	let result = EdgeConnectModule::register_worker(
 		RuntimeOrigin::signed(account),
-		worker_type,
+		worker_type.clone(),
 		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
 		590000,   // latitude
 		120000,   // longitude
 		10000000, // ram
 		10000000, // storage
 		12,       // cpu
-	)
+	);
+
+	if result.is_ok() {
+		// Get the actual worker ID that was created
+		let worker_id = pallet_edge_connect::AccountWorkers::<Test>::get(account).unwrap_or(0);
+
+		// Force set the oracle status to Online for testing
+		let _ = EdgeConnectModule::update_oracle_status(
+			RuntimeOrigin::signed(account),
+			account,
+			worker_id, // Use the actual worker ID
+			worker_type.clone(),
+			true, // online
+		);
+
+		// Set operational status to Available
+		let _ = EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(account),
+			worker_type,
+			worker_id, // Use the actual worker ID
+			OperationalStatus::Available,
+		);
+
+		Ok((result.unwrap(), worker_id))
+	} else {
+		Err(result.err().unwrap())
+	}
 }
 
 fn setup_gatekeeper() {
@@ -42,21 +68,20 @@ fn it_works_for_task_scheduler() {
 		let alice = 1;
 		let executor = 2;
 
-		// Register workers first
-		assert_ok!(register_worker(
-			executor,
-			WorkerType::Executable,
-			"docker.worker"
-		));
-		assert_ok!(register_worker(
-			executor,
-			WorkerType::Executable,
-			"exec.worker"
-		));
+		// Register workers first and get their actual IDs
+		let (_, worker_id_docker) =
+			register_worker(executor, WorkerType::Executable, "docker.worker").unwrap();
 
-		// Verify workers are registered
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 0)));
-		assert!(pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, 1)));
+		let (_, worker_id_exec) =
+			register_worker(executor, WorkerType::Executable, "exec.worker").unwrap();
+
+		// Verify workers are registered with correct IDs
+		assert!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, worker_id_docker))
+		);
+		assert!(
+			pallet_edge_connect::ExecutableWorkers::<Test>::contains_key((executor, worker_id_exec))
+		);
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -89,10 +114,10 @@ fn it_works_for_task_scheduler() {
 		let worker_id_exec = 1;
 
 		// Provide initial compute hours
-		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
+		pallet_payment::ComputeHours::<Test>::insert(alice, 50); // Increased for multiple tasks
 
 		// --------------------------------------------------
-		// ✅ Schedule OpenInference Executable Task (valid)
+		// ✅ Schedule OpenInference Executable Task (valid) - Use first worker
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -116,25 +141,7 @@ fn it_works_for_task_scheduler() {
 		);
 
 		// --------------------------------------------------
-		// ✅ Schedule OpenInference Executable Task (valid)
-		// --------------------------------------------------
-		// assert_ok!(TaskManagementModule::task_scheduler(
-		// 	RuntimeOrigin::signed(alice),
-		// 	task_kind_infer.clone(),
-		// 	task_data.clone(),
-		// 	None,
-		// 	executor,
-		// 	worker_id_exec,
-		// 	Some(10)
-		// ));
-
-		// let task_id_1 = NextTaskId::<Test>::get() - 1;
-		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
-		// assert_eq!(task_info_1.task_kind, TaskKind::OpenInference);
-		// assert_eq!(task_info_1.zk_files_cid, None);
-
-		// --------------------------------------------------
-		// ✅ Schedule NeuroZK Executable Task (valid with zk_files)
+		// ✅ Schedule NeuroZK Executable Task (valid with zk_files) - Use second worker
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -144,10 +151,10 @@ fn it_works_for_task_scheduler() {
 			Some(10),
 		));
 
-		let task_id_2 = NextTaskId::<Test>::get() - 1;
-		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
+		let task_id_1 = NextTaskId::<Test>::get() - 1;
+		let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
 		assert_eq!(
-			task_info_2.task_kind,
+			task_info_1.task_kind,
 			TaskKind::NeuroZK(NzkData {
 				location: azure_task,
 				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
@@ -164,6 +171,18 @@ fn it_works_for_task_scheduler() {
 				last_proof_accepted: None
 			})
 		);
+
+		// Verify both tasks are in the system
+		assert_eq!(Tasks::<Test>::iter().count(), 2);
+
+		// Verify both workers are now busy
+		let worker_0 =
+			pallet_edge_connect::ExecutableWorkers::<Test>::get((executor, worker_id_docker)).unwrap();
+		let worker_1 =
+			pallet_edge_connect::ExecutableWorkers::<Test>::get((executor, worker_id_exec)).unwrap();
+
+		assert_eq!(worker_0.operational_status, OperationalStatus::Busy);
+		assert_eq!(worker_1.operational_status, OperationalStatus::Busy);
 	});
 }
 
@@ -230,7 +249,7 @@ fn it_works_for_miner_status_updates() {
 				worker_id_exec,
 				Some(10)
 			),
-			pallet_edge_connect::Error::<Test>::MinerIsBusy
+			Error::<Test>::MinerIsBusy
 		);
 
 		// Confirm task reception
@@ -311,7 +330,7 @@ fn it_fails_when_worker_not_registered() {
 				worker_id,
 				Some(1),
 			),
-			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
+			Error::<Test>::WorkerDoesNotExist
 		);
 	});
 }
@@ -350,7 +369,7 @@ fn it_fails_when_no_workers_are_available() {
 				worker_id,
 				Some(10),
 			),
-			pallet_edge_connect::Error::<Test>::WorkerDoesNotExist
+			Error::<Test>::WorkerDoesNotExist
 		);
 	});
 }

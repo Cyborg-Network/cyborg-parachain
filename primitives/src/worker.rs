@@ -1,7 +1,7 @@
+use crate::task::TaskId;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use crate::task::TaskId;
 
 pub type WorkerId = u64;
 
@@ -38,14 +38,43 @@ pub enum WorkerType {
 	Executable,
 }
 
+/// Status controlled by the oracle feeder - reflects uptime and availability
 #[derive(
-	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+	PartialEq,
+	Eq,
+	Clone,
+	Decode,
+	Encode,
+	TypeInfo,
+	Debug,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
 )]
-pub enum WorkerStatusType {
-	Active,
-	Busy,
-	Inactive,
-	Suspended,
+pub enum OracleStatus {
+	Online,  // Worker is online and responsive (set by oracle)
+	Offline, // Worker is not responding (set by oracle)
+}
+
+/// Status controlled by the miner itself
+#[derive(
+	PartialEq,
+	Eq,
+	Clone,
+	Decode,
+	Encode,
+	TypeInfo,
+	Debug,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
+)]
+pub enum OperationalStatus {
+	Available, // Miner is available for new tasks (set by miner)
+	Busy,      // Miner is currently processing a task (set by miner)
+	Suspended, // Miner is suspended (set by system via reputation penalties)
 }
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
@@ -75,10 +104,26 @@ pub struct Worker<AccountId, BlockNumber, TimeStamp> {
 	pub reputation: WorkerReputation<BlockNumber>,
 	pub current_task: Option<TaskId>,
 	pub start_block: BlockNumber,
-	pub status: WorkerStatusType,
+
+	// Two independent status types
+	pub oracle_status: OracleStatus, // Set by oracle feeder (uptime)
+	pub operational_status: OperationalStatus, // Set by miner itself + system (operational state)
+
 	pub status_last_updated: BlockNumber,
 	pub api: WorkerAPI,
 	pub last_status_check: TimeStamp,
+}
+
+// Helper method to check if worker can accept tasks
+impl<AccountId, BlockNumber, TimeStamp> Worker<AccountId, BlockNumber, TimeStamp> {
+	pub fn can_accept_tasks(&self) -> bool {
+		self.oracle_status == OracleStatus::Online
+			&& self.operational_status == OperationalStatus::Available
+	}
+
+	pub fn is_suspended(&self) -> bool {
+		self.operational_status == OperationalStatus::Suspended
+	}
 }
 
 pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {

@@ -19,7 +19,6 @@ use cyborg_primitives::worker::WorkerId;
 use cyborg_primitives::worker::WorkerType;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
-use pallet_edge_connect::WorkerStatusType;
 
 use scale_info::prelude::vec::Vec;
 
@@ -179,6 +178,16 @@ pub mod pallet {
 		ModelAlreadyRegistered,
 		ModelNotFound,
 		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
+		/// Error indicating that the worker does not exist
+		WorkerDoesNotExist,
+		/// Error indicating that the miner is busy
+		MinerIsBusy,
+		/// Error indicating insufficient reputation
+		InsufficientReputation,
+		/// Error indicating that the miner is inactive
+		MinerIsInactive,
+		/// Error indicating that the worker is suspended
+		WorkerSuspended,
 	}
 
 	#[pallet::hooks]
@@ -214,10 +223,24 @@ where
 
 			// Determine worker type based on task kind
 			let worker_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { 
+				TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => {
 					WorkerType::Executable
 				},
 			};
+
+			// Check if the miner can accept tasks using the new status system
+			let miner_key = (worker_owner.clone(), worker_id);
+			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &worker_type)
+				.ok_or(Error::<T>::WorkerDoesNotExist)?;
+
+			if !miner.can_accept_tasks() {
+				return Err(Error::<T>::MinerIsBusy.into());
+			}
+
+			// Check reputation separately if needed
+			if miner.reputation.score < 50i32 {
+				return Err(Error::<T>::InsufficientReputation.into());
+			}
 
 			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_worker_status(
@@ -275,10 +298,10 @@ where
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
 			TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
 
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
+			pallet_edge_connect::Pallet::<T>::update_miner_operational_status(
 				&selected_worker,
 				worker_type.clone(),
-				WorkerStatusType::Busy,
+				false,  // set to busy
 			)?;
 
 			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
@@ -315,6 +338,15 @@ where
             // Check that caller is the assigned worker
             let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
             ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
+
+			// Update miner status to busy
+			if let Some(assigned_worker) = TaskAllocations::<T>::get(task_id) {
+				pallet_edge_connect::Pallet::<T>::update_miner_operational_status(
+					&assigned_worker,
+					WorkerType::Executable,
+					false, // set to busy
+				)?;
+			}
 
             // If task is already running, return specific error
             if task_info.task_status == TaskStatusType::Running {
@@ -398,6 +430,15 @@ where
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 			let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
+			// Update miner status back to available
+			if let Some(assigned_worker) = TaskAllocations::<T>::get(task_id) {
+				pallet_edge_connect::Pallet::<T>::update_miner_operational_status(
+					&assigned_worker,
+					WorkerType::Executable,
+					true, // set to available
+				)?;
+			}
+
 			// Ensure the caller is the miner who was assigned the task
 			ensure!(assigned_worker.0 == who, Error::<T>::NotAssignedMiner);
 
@@ -412,11 +453,11 @@ where
 			Tasks::<T>::insert(task_id, task);
 
 			// Update the miner status back to active
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
+			pallet_edge_connect::Pallet::<T>::update_miner_operational_status(
 				&assigned_worker,
 				// This needs to be changed after the miners have unique IDs
 				WorkerType::Executable,
-				WorkerStatusType::Active,
+				true,  // set to available
 			)?;
 
 			// Emit event.
@@ -540,7 +581,7 @@ where
 								PenaltyReason::LateResponse,
 							)?;
 
-							pallet_edge_connect::Pallet::<T>::suspend_workers(
+							pallet_edge_connect::Pallet::<T>::suspend_worker_internal(
 								&(worker_account.clone(), worker_id),
 								&WorkerType::Executable,
 								1000u32.into(),

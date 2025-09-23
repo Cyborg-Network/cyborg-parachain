@@ -300,18 +300,25 @@ fn on_finalize_works_as_expected_for_docker_workers() {
 			worker_type: WorkerType::Docker,
 		};
 
+		assert_ok!(EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(worker_addrs[1]), // worker owner
+			WorkerType::Docker,
+			worker_ids[0],
+			OperationalStatus::Busy
+		));
+
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
@@ -494,15 +501,16 @@ fn on_finalize_works_as_expected_for_docker_workers() {
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Active
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Busy
+				.operational_status,
+			OperationalStatus::Busy
 		);
+
 		assert_eq!(
 			pallet_edge_connect::WorkerClusters::<Test>::get(key_1.id)
 				.unwrap()
@@ -582,18 +590,25 @@ fn on_finalize_works_as_expected_for_executable_workers() {
 			worker_type: WorkerType::Executable,
 		};
 
+		assert_ok!(EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(worker_addrs[1]), // worker owner
+			WorkerType::Executable,
+			worker_ids[0],
+			OperationalStatus::Busy
+		));
+
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
@@ -776,14 +791,14 @@ fn on_finalize_works_as_expected_for_executable_workers() {
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Active
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			WorkerStatusType::Busy
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::ExecutableWorkers::<Test>::get(key_1.id)
