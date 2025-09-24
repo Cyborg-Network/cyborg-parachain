@@ -124,6 +124,11 @@ impl<AccountId, BlockNumber, TimeStamp> Worker<AccountId, BlockNumber, TimeStamp
 	pub fn is_suspended(&self) -> bool {
 		self.operational_status == OperationalStatus::Suspended
 	}
+
+	pub fn is_online_and_available(&self) -> bool {
+		self.oracle_status == OracleStatus::Online && 
+		self.operational_status == OperationalStatus::Available
+	}
 }
 
 pub trait WorkerInfoHandler<AccountId, WorkerId, BlockNumber, TimeStamp> {
