@@ -280,8 +280,14 @@ where
 
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
 				&selected_miner,
-				miner_type,
+				&miner_type,
 				MinerStatusType::Busy,
+			)?;
+
+			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
+				&selected_miner,
+				&miner_type,
+				Some(task_id),
 			)?;
 
 			Self::deposit_event(Event::TaskScheduled {
@@ -389,7 +395,7 @@ where
 		/// Stopped to vacated
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_miner_vacation())]
-		pub fn confirm_miner_vacation(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+		pub fn confirm_miner_vacation(origin: OriginFor<T>, task_id: TaskId, miner_type: MinerType) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
@@ -412,8 +418,14 @@ where
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
 				&assigned_miner,
 				// This needs to be changed after the miners have unique IDs
-				MinerType::Edge,
+				&miner_type,
 				MinerStatusType::Active,
+			)?;
+
+			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
+				&assigned_miner,
+				&miner_type,
+				None,
 			)?;
 
 			// Emit event.

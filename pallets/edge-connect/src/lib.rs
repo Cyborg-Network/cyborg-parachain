@@ -613,7 +613,7 @@ use frame_support::sp_runtime::Saturating;
 
 		pub fn update_miner_status(
 			miner_id: &(T::AccountId, MinerId),
-			miner_type: MinerType,
+			miner_type: &MinerType,
 			new_status: MinerStatusType
 		) -> DispatchResult {
 			let mut miner = match miner_type {

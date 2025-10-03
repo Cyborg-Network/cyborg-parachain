@@ -174,10 +174,11 @@ fn it_works_for_miner_status_updates() {
 		System::set_block_number(1);
 		let alice = 1;
 		let executor = 2;
+		let miner_type = MinerType::Edge;
 
 		assert_ok!(register_miner(
 			executor,
-			MinerType::Edge,
+			miner_type.clone(),
 			"exec.miner"
 		));
 
@@ -248,7 +249,8 @@ fn it_works_for_miner_status_updates() {
 		// Confirm miner has vacated
 		assert_ok!(TaskManagementModule::confirm_miner_vacation(
 			RuntimeOrigin::signed(executor),
-			0
+			0,
+			miner_type
 		));
 
 		// Schedule another task to the now free miner
@@ -531,12 +533,13 @@ fn it_works_for_confirm_miner_vacation() {
 			.unwrap(),
 			triton_config: None,
 		}));
+		let miner_type = MinerType::Edge;
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Register an Executable miner
-		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
+		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
 
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -566,7 +569,8 @@ fn it_works_for_confirm_miner_vacation() {
 		// 🔹 Call confirm_miner_vacation
 		assert_ok!(TaskManagementModule::confirm_miner_vacation(
 			RuntimeOrigin::signed(alice),
-			task_id
+			task_id,
+			miner_type,
 		));
 
 		let updated_task = Tasks::<Test>::get(task_id).unwrap();
@@ -588,9 +592,10 @@ fn fails_if_not_assigned_miner_for_vacation() {
 			.unwrap(),
 			triton_config: None,
 		}));
+		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
+		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -616,7 +621,7 @@ fn fails_if_not_assigned_miner_for_vacation() {
 
 		// ❌ Bob is the task owner, but NOT the assigned miner
 		assert_noop!(
-			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(bob), task_id),
+			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(bob), task_id, miner_type),
 			Error::<Test>::NotAssignedMiner
 		);
 	});
@@ -635,9 +640,10 @@ fn fails_if_task_not_stopped() {
 			.unwrap(),
 			triton_config: None,
 		}));
+		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
+		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -657,7 +663,7 @@ fn fails_if_task_not_stopped() {
 
 		// ❌ Cannot confirm vacation unless status is Stopped
 		assert_noop!(
-			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(alice), task_id),
+			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(alice), task_id, miner_type),
 			Error::<Test>::InvalidTaskState
 		);
 	});
