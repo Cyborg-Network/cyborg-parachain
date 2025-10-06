@@ -14,8 +14,8 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
-pub use cyborg_primitives::task::*;
 use cyborg_primitives::miner::{MinerId, MinerStatusType, MinerType};
+pub use cyborg_primitives::task::*;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
 

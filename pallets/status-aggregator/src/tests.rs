@@ -1,16 +1,15 @@
 use crate::{mock::*, Event};
 use crate::{
-	pallet::Config, LastClearedBlock, ProcessStatusPercentages, ResultingMinerStatus,
-	ResultingMinerStatusPercentages, StatusInstance, SubmittedPerPeriod,
-	MinerStatusEntriesPerPeriod,
+	pallet::Config, LastClearedBlock, MinerStatusEntriesPerPeriod, ProcessStatusPercentages,
+	ResultingMinerStatus, ResultingMinerStatusPercentages, StatusInstance, SubmittedPerPeriod,
 };
 
 use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 
 use cyborg_primitives::{
-	oracle::{OracleMinerFormat, ProcessStatus},
 	miner::*,
+	oracle::{OracleMinerFormat, ProcessStatus},
 };
 
 #[test]

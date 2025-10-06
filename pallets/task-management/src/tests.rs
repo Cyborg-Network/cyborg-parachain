@@ -6,8 +6,8 @@ use cyborg_primitives::task::{
 };
 use frame_support::{assert_noop, assert_ok};
 
-pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 pub use cyborg_primitives::miner::*;
+pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -43,20 +43,16 @@ fn it_works_for_task_scheduler() {
 		let executor = 2;
 
 		// Register miners first
-		assert_ok!(register_miner(
-			executor,
-			MinerType::Edge,
-			"docker.miner"
-		));
-		assert_ok!(register_miner(
-			executor,
-			MinerType::Edge,
-			"exec.miner"
-		));
+		assert_ok!(register_miner(executor, MinerType::Edge, "docker.miner"));
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec.miner"));
 
 		// Verify miners are registered
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 1)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 0
+		)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 1
+		)));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -176,14 +172,12 @@ fn it_works_for_miner_status_updates() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
-		assert_ok!(register_miner(
-			executor,
-			miner_type.clone(),
-			"exec.miner"
-		));
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
 
 		// Verify miners are registered
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 0
+		)));
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -274,11 +268,7 @@ fn it_fails_when_miner_not_registered() {
 		let miner_id = 99;
 
 		// Register an Executable miner to ensure miners exist
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"exec.miner"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "exec.miner"));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -374,11 +364,7 @@ fn it_fails_when_no_computer_hours_available() {
 		}));
 
 		// Register miner first
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"miner.domain"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "miner.domain"));
 
 		// Dispatch a signed extrinsic and expect an error because no miners are available
 		assert_noop!(
@@ -663,7 +649,11 @@ fn fails_if_task_not_stopped() {
 
 		// ❌ Cannot confirm vacation unless status is Stopped
 		assert_noop!(
-			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(alice), task_id, miner_type),
+			TaskManagementModule::confirm_miner_vacation(
+				RuntimeOrigin::signed(alice),
+				task_id,
+				miner_type
+			),
 			Error::<Test>::InvalidTaskState
 		);
 	});

@@ -16,8 +16,8 @@ pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cyborg_primitives::{
-	oracle::{OracleMinerFormat, ProcessStatus},
 	miner::{MinerId, MinerInfoHandler, MinerStatusType, MinerType},
+	oracle::{OracleMinerFormat, ProcessStatus},
 };
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
@@ -249,9 +249,7 @@ pub mod pallet {
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
 		) {
-			if let Some(mut miner_cluster) =
-				T::MinerInfoHandler::get_miner(&key_miner, &miner_type)
-			{
+			if let Some(mut miner_cluster) = T::MinerInfoHandler::get_miner(&key_miner, &miner_type) {
 				let status = if online {
 					if available {
 						MinerStatusType::Active

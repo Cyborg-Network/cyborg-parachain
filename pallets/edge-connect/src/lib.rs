@@ -20,8 +20,8 @@ pub use cyborg_primitives::miner::*;
 pub mod pallet {
 	use super::*;
 	use cyborg_primitives::task::TaskId;
-use frame_support::sp_runtime::Saturating;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_support::sp_runtime::Saturating;
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*, BoundedVec};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
@@ -91,6 +91,14 @@ use frame_support::sp_runtime::Saturating;
 		OptionQuery,
 	>;
 
+	pub type MaxUuidLen = ConstU32<36>;
+
+	/// Testing the Miner UUID registration
+	/// This is only for testing purposes and will be Modified in production
+	#[pallet::storage]
+	#[pallet::getter(fn miner_uuids)]
+	pub type MinerUUIDs<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, MaxUuidLen>, OptionQuery>;
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -164,6 +172,13 @@ use frame_support::sp_runtime::Saturating;
 
 		/// Event emitted when a miner is unsuspended
 		MinerUnsuspended { miner: (T::AccountId, MinerId) },
+
+		/// Testing the Miner UUID registration
+		/// This is only for testing purposes and will be Modified in production
+		MinerUUIDRegistered {
+			account: T::AccountId,
+			uuid: Vec<u8>, // event carries a Vec for convenience
+		},
 	}
 
 	#[derive(
@@ -203,6 +218,7 @@ use frame_support::sp_runtime::Saturating;
 		MinerIsBusy,
 		/// Miner is inactive
 		MinerIsInactive,
+		UuidTooLong, // Provided UUID exceeded MaxUuidLen
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -376,40 +392,36 @@ use frame_support::sp_runtime::Saturating;
 			};
 
 			match miner_type {
-				MinerType::Cloud => {
-					CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.status = miner_status;
-							miner.last_status_check = timestamp::Pallet::<T>::get();
+				MinerType::Cloud => CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+					if let Some(miner) = miner_option {
+						miner.status = miner_status;
+						miner.last_status_check = timestamp::Pallet::<T>::get();
 
-							Self::deposit_event(Event::MinerStatusUpdated {
-								creator,
-								miner_id,
-								miner_status: miner.status.clone(),
-							});
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
-				MinerType::Edge => {
-					EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.status = miner_status;
-							miner.last_status_check = timestamp::Pallet::<T>::get();
+						Self::deposit_event(Event::MinerStatusUpdated {
+							creator,
+							miner_id,
+							miner_status: miner.status.clone(),
+						});
+						Ok(())
+					} else {
+						Err(Error::<T>::MinerDoesNotExist)
+					}
+				}),
+				MinerType::Edge => EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+					if let Some(miner) = miner_option {
+						miner.status = miner_status;
+						miner.last_status_check = timestamp::Pallet::<T>::get();
 
-							Self::deposit_event(Event::MinerStatusUpdated {
-								creator,
-								miner_id,
-								miner_status: miner.status.clone(),
-							});
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
+						Self::deposit_event(Event::MinerStatusUpdated {
+							creator,
+							miner_id,
+							miner_status: miner.status.clone(),
+						});
+						Ok(())
+					} else {
+						Err(Error::<T>::MinerDoesNotExist)
+					}
+				}),
 			}?;
 
 			Ok(().into())
@@ -475,6 +487,39 @@ use frame_support::sp_runtime::Saturating;
 			ensure_root(origin)?;
 
 			Self::lift_suspension(&(miner_owner, miner_id), &miner_type)
+		}
+
+		/// Testing the Miner UUID registration
+		/// This is only for testing purposes and will be Modified in production
+		/// Registers a deterministic miner UUID for the calling account.
+		/// Any account can call this to store its miner UUID.
+		#[pallet::call_index(7)]
+		#[pallet::weight(10_000)]
+		pub fn register_miner_uuid(origin: OriginFor<T>, uuid: Vec<u8>) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// Convert incoming Vec<u8> -> BoundedVec<u8, MaxUuidLen>
+			let bounded_uuid: BoundedVec<u8, MaxUuidLen> = uuid
+				.clone()
+				.try_into()
+				.map_err(|_| Error::<T>::UuidTooLong)?;
+
+			// Optional: ensure user doesn't already have a UUID
+			ensure!(
+				!MinerUUIDs::<T>::contains_key(&who),
+				Error::<T>::MinerExists
+			);
+
+			// Insert bounded UUID into storage
+			MinerUUIDs::<T>::insert(&who, bounded_uuid.clone());
+
+			// Emit event with Vec<u8> for easier off-chain consumption
+			Self::deposit_event(Event::MinerUUIDRegistered {
+				account: who,
+				uuid: bounded_uuid.to_vec(),
+			});
+
+			Ok(())
 		}
 	}
 
@@ -579,8 +624,7 @@ use frame_support::sp_runtime::Saturating;
 			miner_key: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
 		) -> DispatchResult {
-			let miner = Self::get_miner(miner_key, miner_type)	
-				.ok_or(Error::<T>::MinerDoesNotExist)?;
+			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Check if suspended
 			match miner.status {
@@ -596,7 +640,7 @@ use frame_support::sp_runtime::Saturating;
 							MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 						}
 					}
-				},
+				}
 				MinerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
 				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
 				//MinerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
@@ -614,7 +658,7 @@ use frame_support::sp_runtime::Saturating;
 		pub fn update_miner_status(
 			miner_id: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
-			new_status: MinerStatusType
+			new_status: MinerStatusType,
 		) -> DispatchResult {
 			let mut miner = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::get(miner_id),

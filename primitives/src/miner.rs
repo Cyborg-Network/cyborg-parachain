@@ -1,7 +1,7 @@
+use crate::task::TaskId;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use crate::task::TaskId;
 
 pub type MinerId = u64;
 
@@ -19,13 +19,27 @@ pub type CpuCores = u16;
 
 /// An enum that is used to differentiate between the different kinds of Miners that are
 /// registered on the cyborg parachain.
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, PartialOrd, Ord, DecodeWithMemTracking)]
+#[derive(
+	PartialEq,
+	Eq,
+	Clone,
+	Decode,
+	Encode,
+	TypeInfo,
+	Debug,
+	MaxEncodedLen,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
+)]
 pub enum MinerType {
 	Cloud,
 	Edge,
 }
 
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
 pub enum MinerStatusType {
 	Active,
 	Busy,
