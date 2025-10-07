@@ -1,16 +1,15 @@
 use crate::{mock::*, Event};
 use crate::{
-	pallet::Config, LastClearedBlock, ProcessStatusPercentages, ResultingMinerStatus,
-	ResultingMinerStatusPercentages, StatusInstance, SubmittedPerPeriod,
-	MinerStatusEntriesPerPeriod,
+	pallet::Config, LastClearedBlock, MinerStatusEntriesPerPeriod, ProcessStatusPercentages,
+	ResultingMinerStatus, ResultingMinerStatusPercentages, StatusInstance, SubmittedPerPeriod,
 };
 
 use frame_support::{assert_ok, pallet_prelude::ConstU32, traits::OnFinalize, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 
 use cyborg_primitives::{
-	oracle::{OracleMinerFormat, ProcessStatus},
 	miner::*,
+	oracle::{OracleMinerFormat, ProcessStatus},
 };
 
 #[test]
@@ -300,18 +299,25 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 			miner_type: MinerType::Cloud,
 		};
 
+		assert_ok!(EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(miner_addrs[1]), // miner owner
+			MinerType::Cloud,
+			miner_ids[0],
+			OperationalStatus::Busy
+		));
+
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
@@ -494,15 +500,16 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Active
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Busy
+				.operational_status,
+			OperationalStatus::Busy
 		);
+
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
 				.unwrap()
@@ -582,18 +589,25 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 			miner_type: MinerType::Edge,
 		};
 
+		assert_ok!(EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(miner_addrs[1]), // worker owner
+			MinerType::Edge,
+			miner_ids[0],
+			OperationalStatus::Busy
+		));
+
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Inactive
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
@@ -776,14 +790,14 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Active
+				.operational_status,
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
 				.unwrap()
-				.status,
-			MinerStatusType::Busy
+				.operational_status,
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)

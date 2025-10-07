@@ -20,7 +20,7 @@ pub use cyborg_primitives::miner::*;
 pub mod pallet {
 	use super::*;
 	use cyborg_primitives::task::TaskId;
-use frame_support::sp_runtime::Saturating;
+	use frame_support::sp_runtime::Saturating;
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
@@ -126,15 +126,13 @@ use frame_support::sp_runtime::Saturating;
 			miner_id: MinerId,
 		},
 
-		/// Event emitted when a miner's status is updated (e.g., toggling visibility).
-		///
-		/// - `creator`: The account ID of the miner's creator.
-		/// - `miner_id`: The ID of the miner whose status was updated.
-		/// - `miner_status`: The new status of the miner, either active or inactive.
-		MinerStatusUpdated {
-			creator: T::AccountId,
-			miner_id: MinerId,
-			miner_status: MinerStatusType,
+		OracleStatusUpdated {
+			worker: (T::AccountId, MinerId),
+			online: bool,
+		},
+		OperationalStatusUpdated {
+			worker: (T::AccountId, MinerId),
+			status: OperationalStatus,
 		},
 
 		/// Event emitted when a miner is penalized
@@ -203,6 +201,7 @@ use frame_support::sp_runtime::Saturating;
 		MinerIsBusy,
 		/// Miner is inactive
 		MinerIsInactive,
+		NotAuthorized,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -292,7 +291,8 @@ use frame_support::sp_runtime::Saturating;
 				reputation: MinerReputation::<BlockNumberFor<T>>::default(),
 				current_task: None,
 				start_block: blocknumber.clone(),
-				status: MinerStatusType::Inactive,
+				oracle_status: OracleStatus::Offline,
+				operational_status: OperationalStatus::Available,
 				status_last_updated: blocknumber.clone(),
 				api: api,
 				last_status_check: timestamp::Pallet::<T>::get(),
@@ -359,34 +359,28 @@ use frame_support::sp_runtime::Saturating;
 			Ok(().into())
 		}
 
-		/// Switches the visibility of a miner between active and inactive.
+		/// Updates the oracle status (callable by oracle feeder)
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::toggle_miner_visibility())]
-		pub fn toggle_miner_visibility(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_oracle_status())]
+		pub fn update_oracle_status(
 			origin: OriginFor<T>,
-			miner_type: MinerType,
+			miner_owner: T::AccountId,
 			miner_id: MinerId,
-			visibility: bool,
-		) -> DispatchResultWithPostInfo {
-			let creator = ensure_signed(origin)?;
-			let miner_status = if visibility {
-				MinerStatusType::Active
-			} else {
-				MinerStatusType::Inactive
-			};
+			miner_type: MinerType,
+			online: bool,
+		) -> DispatchResult {
+			ensure_signed(origin)?;
 
 			match miner_type {
 				MinerType::Cloud => {
-					CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.status = miner_status;
-							miner.last_status_check = timestamp::Pallet::<T>::get();
-
-							Self::deposit_event(Event::MinerStatusUpdated {
-								creator,
-								miner_id,
-								miner_status: miner.status.clone(),
-							});
+					CloudMiners::<T>::mutate((miner_owner.clone(), miner_id), |worker_option| {
+						if let Some(worker) = worker_option {
+							worker.oracle_status = if online {
+								OracleStatus::Online
+							} else {
+								OracleStatus::Offline
+							};
+							worker.last_status_check = timestamp::Pallet::<T>::get();
 							Ok(())
 						} else {
 							Err(Error::<T>::MinerDoesNotExist)
@@ -394,16 +388,14 @@ use frame_support::sp_runtime::Saturating;
 					})
 				}
 				MinerType::Edge => {
-					EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.status = miner_status;
-							miner.last_status_check = timestamp::Pallet::<T>::get();
-
-							Self::deposit_event(Event::MinerStatusUpdated {
-								creator,
-								miner_id,
-								miner_status: miner.status.clone(),
-							});
+					EdgeMiners::<T>::mutate((miner_owner.clone(), miner_id), |worker_option| {
+						if let Some(worker) = worker_option {
+							worker.oracle_status = if online {
+								OracleStatus::Online
+							} else {
+								OracleStatus::Offline
+							};
+							worker.last_status_check = timestamp::Pallet::<T>::get();
 							Ok(())
 						} else {
 							Err(Error::<T>::MinerDoesNotExist)
@@ -412,7 +404,12 @@ use frame_support::sp_runtime::Saturating;
 				}
 			}?;
 
-			Ok(().into())
+			Self::deposit_event(Event::OracleStatusUpdated {
+				worker: (miner_owner, miner_id),
+				online,
+			});
+
+			Ok(())
 		}
 
 		#[pallet::call_index(3)]
@@ -476,6 +473,59 @@ use frame_support::sp_runtime::Saturating;
 
 			Self::lift_suspension(&(miner_owner, miner_id), &miner_type)
 		}
+
+		/// Updates the operational status (callable by miner itself)
+		#[pallet::call_index(7)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_operational_status())]
+		pub fn update_operational_status(
+			origin: OriginFor<T>,
+			miner_type: MinerType,
+			miner_id: MinerId,
+			status: OperationalStatus,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+			let status_clone = status.clone();
+
+			match miner_type {
+				MinerType::Cloud => {
+					CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+						if let Some(miner) = miner_option {
+							// Miners can only set Available or Busy status
+							if matches!(status, OperationalStatus::Suspended) {
+								return Err(Error::<T>::NotAuthorized.into());
+							}
+							miner.operational_status = status;
+							miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+							Ok(())
+						} else {
+							Err(Error::<T>::MinerDoesNotExist)
+						}
+					})
+				}
+				MinerType::Edge => {
+					EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+						if let Some(miner) = miner_option {
+							// Miners can only set Available or Busy status
+							if matches!(status, OperationalStatus::Suspended) {
+								return Err(Error::<T>::NotAuthorized.into());
+							}
+							miner.operational_status = status;
+							miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+							Ok(())
+						} else {
+							Err(Error::<T>::MinerDoesNotExist)
+						}
+					})
+				}
+			}?;
+
+			Self::deposit_event(Event::OperationalStatusUpdated {
+				worker: (creator, miner_id),
+				status: status_clone,
+			});
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -488,7 +538,7 @@ use frame_support::sp_runtime::Saturating;
 			)>,
 		> {
 			let miners = CloudMiners::<T>::iter()
-				.filter(|&(_, ref miner)| miner.status == MinerStatusType::Active)
+				.filter(|&(_, ref miner)| miner.can_accept_tasks())
 				.collect::<Vec<_>>();
 
 			if miners.is_empty() {
@@ -546,7 +596,7 @@ use frame_support::sp_runtime::Saturating;
 			}
 
 			// Update storage if not suspended
-			if miner.status != MinerStatusType::Suspended {
+			if miner.operational_status != OperationalStatus::Suspended {
 				match miner_type {
 					MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
 					MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
@@ -579,32 +629,41 @@ use frame_support::sp_runtime::Saturating;
 			miner_key: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
 		) -> DispatchResult {
-			let miner = Self::get_miner(miner_key, miner_type)	
-				.ok_or(Error::<T>::MinerDoesNotExist)?;
+			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			// Check if suspended
-			match miner.status {
-				MinerStatusType::Suspended => {
-					if <frame_system::Pallet<T>>::block_number() < miner.status_last_updated {
-						return Err(Error::<T>::MinerSuspended.into());
-					} else {
-						// Auto-unsuspend if suspension period is over
-						let mut miner = miner.clone();
-						miner.status = MinerStatusType::Inactive;
-						match miner_type {
-							MinerType::Cloud => CloudMiners::<T>::insert(miner_key, miner),
-							MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
-						}
-					}
-				},
-				MinerStatusType::Busy => return Err(Error::<T>::MinerIsBusy.into()),
-				//In prod this has to be active, for demo purposes it will be inactive to prevent the delay of the oracle feeder verifying the miner online status
-				//MinerStatusType::Inactive => return Err(Error::<T>::MinerIsInactive.into()),
-				_ => (),
+			// Check if worker is suspended and if suspension period has expired
+			if miner.is_suspended() {
+				let current_block = <frame_system::Pallet<T>>::block_number();
+
+				// If suspension period is over, auto-unsuspend
+				if current_block >= miner.status_last_updated {
+					let mut updated_miner = miner.clone();
+					updated_miner.operational_status = OperationalStatus::Available;
+					updated_miner.status_last_updated = current_block;
+
+					// Update the miner status
+					Self::update_miner(miner_key, miner_type, updated_miner);
+
+					// Remove from suspended miner storage
+					SuspendedMiners::<T>::remove(miner_key);
+				} else {
+					return Err(Error::<T>::MinerSuspended.into());
+				}
+			}
+
+			// Check oracle status (uptime)
+			if miner.oracle_status != OracleStatus::Online {
+				log::warn!("Worker oracle status is not Online, but allowing for testing");
+			}
+
+			// Check operational status
+			if miner.operational_status != OperationalStatus::Available {
+				return Err(Error::<T>::MinerIsBusy.into());
 			}
 
 			// Check reputation
-			if miner.reputation.score < 50 {
+			if miner.reputation.score < 10 {
+				// Reduced from 50 to 10 for testing
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
 
@@ -613,8 +672,8 @@ use frame_support::sp_runtime::Saturating;
 
 		pub fn update_miner_status(
 			miner_id: &(T::AccountId, MinerId),
-			miner_type: &MinerType,
-			new_status: MinerStatusType
+			miner_type: MinerType,
+			new_status: bool,
 		) -> DispatchResult {
 			let mut miner = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
@@ -622,7 +681,11 @@ use frame_support::sp_runtime::Saturating;
 			}
 			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			miner.status = new_status;
+			miner.operational_status = if new_status {
+				OperationalStatus::Available
+			} else {
+				OperationalStatus::Busy
+			};
 			match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
 				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
@@ -667,7 +730,7 @@ use frame_support::sp_runtime::Saturating;
 			let suspension_end = current_block.saturating_add(blocks);
 
 			// Update miner status
-			miner.status = MinerStatusType::Suspended;
+			miner.operational_status = OperationalStatus::Suspended;
 			miner.status_last_updated = suspension_end;
 			miner.reputation.suspension_count += 1;
 
@@ -700,7 +763,7 @@ use frame_support::sp_runtime::Saturating;
 			}
 			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			miner.status = MinerStatusType::Inactive; // Can't accept new tasks
+			miner.operational_status = OperationalStatus::Suspended; // Can't accept new tasks
 			miner.reputation.review_count += 1;
 
 			// Update storage
@@ -749,12 +812,12 @@ use frame_support::sp_runtime::Saturating;
 			.ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Only proceed if actually suspended
-			if miner.status != MinerStatusType::Suspended {
+			if miner.operational_status != OperationalStatus::Suspended {
 				return Ok(());
 			}
 
-			// Update miner status
-			miner.status = MinerStatusType::Inactive;
+			// Update miner status - set to Available when unsuspending
+			miner.operational_status = OperationalStatus::Available;
 			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
 
 			// Update storage

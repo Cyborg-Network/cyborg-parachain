@@ -6,8 +6,8 @@ use cyborg_primitives::task::{
 };
 use frame_support::{assert_noop, assert_ok};
 
-pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 pub use cyborg_primitives::miner::*;
+pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -17,17 +17,43 @@ fn register_miner(
 	account: u64,
 	miner_type: MinerType,
 	domain_str: &str,
-) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
-	EdgeConnectModule::register_miner(
+) -> Result<(PostDispatchInfo, MinerId), DispatchErrorWithPostInfo> {
+	let result = EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
-		miner_type,
+		miner_type.clone(),
 		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
 		590000,   // latitude
 		120000,   // longitude
 		10000000, // ram
 		10000000, // storage
 		12,       // cpu
-	)
+	);
+
+	if result.is_ok() {
+		// Get the actual worker ID that was created
+		let miner_id = pallet_edge_connect::AccountMiners::<Test>::get(account).unwrap_or(0);
+
+		// Force set the oracle status to Online for testing
+		let _ = EdgeConnectModule::update_oracle_status(
+			RuntimeOrigin::signed(account),
+			account,
+			miner_id, // Use the actual worker ID
+			miner_type.clone(),
+			true, // online
+		);
+
+		// Set operational status to Available
+		let _ = EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(account),
+			miner_type,
+			miner_id, // Use the actual worker ID
+			OperationalStatus::Available,
+		);
+
+		Ok((result.unwrap(), miner_id))
+	} else {
+		Err(result.err().unwrap())
+	}
 }
 
 fn setup_gatekeeper() {
@@ -42,21 +68,17 @@ fn it_works_for_task_scheduler() {
 		let alice = 1;
 		let executor = 2;
 
-		// Register miners first
-		assert_ok!(register_miner(
-			executor,
-			MinerType::Edge,
-			"docker.miner"
-		));
-		assert_ok!(register_miner(
-			executor,
-			MinerType::Edge,
-			"exec.miner"
-		));
+		// Register workers first
+		assert_ok!(register_miner(executor, MinerType::Edge, "docker.worker"));
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec.worker"));
 
-		// Verify miners are registered
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 1)));
+		// Verify workers are registered
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 0
+		)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 1
+		)));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -89,10 +111,10 @@ fn it_works_for_task_scheduler() {
 		let miner_id_exec = 1;
 
 		// Provide initial compute hours
-		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
+		pallet_payment::ComputeHours::<Test>::insert(alice, 50); // Increased for multiple tasks
 
 		// --------------------------------------------------
-		// ✅ Schedule OpenInference Executable Task (valid)
+		// ✅ Schedule OpenInference Executable Task (valid) - Use first worker
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -124,7 +146,7 @@ fn it_works_for_task_scheduler() {
 		// 	task_data.clone(),
 		// 	None,
 		// 	executor,
-		// 	miner_id_exec,
+		// 	worker_id_exec,
 		// 	Some(10)
 		// ));
 
@@ -144,10 +166,10 @@ fn it_works_for_task_scheduler() {
 			Some(10)
 		));
 
-		let task_id_2 = NextTaskId::<Test>::get() - 1;
-		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
+		let task_id_1 = NextTaskId::<Test>::get() - 1;
+		let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
 		assert_eq!(
-			task_info_2.task_kind,
+			task_info_1.task_kind,
 			TaskKind::NeuroZK(NzkData {
 				location: azure_task,
 				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
@@ -164,6 +186,17 @@ fn it_works_for_task_scheduler() {
 				last_proof_accepted: None
 			})
 		);
+
+		// Verify both tasks are in the system
+		assert_eq!(Tasks::<Test>::iter().count(), 2);
+
+		// Verify both workers are now busy
+		let worker_0 =
+			pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_docker)).unwrap();
+		let worker_1 = pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_exec)).unwrap();
+
+		assert_eq!(worker_0.operational_status, OperationalStatus::Busy);
+		assert_eq!(worker_1.operational_status, OperationalStatus::Busy);
 	});
 }
 
@@ -176,14 +209,12 @@ fn it_works_for_miner_status_updates() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
-		assert_ok!(register_miner(
-			executor,
-			miner_type.clone(),
-			"exec.miner"
-		));
+		assert_ok!(register_miner(executor, MinerType::Edge, "exec.miner"));
 
 		// Verify miners are registered
-		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((executor, 0)));
+		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key((
+			executor, 0
+		)));
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -231,7 +262,7 @@ fn it_works_for_miner_status_updates() {
 				miner_id_exec,
 				Some(10)
 			),
-			pallet_edge_connect::Error::<Test>::MinerIsBusy
+			Error::<Test>::MinerIsBusy
 		);
 
 		// Confirm task reception
@@ -274,11 +305,7 @@ fn it_fails_when_miner_not_registered() {
 		let miner_id = 99;
 
 		// Register an Executable miner to ensure miners exist
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"exec.miner"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "exec.miner"));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -374,11 +401,7 @@ fn it_fails_when_no_computer_hours_available() {
 		}));
 
 		// Register miner first
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"miner.domain"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "miner.domain"));
 
 		// Dispatch a signed extrinsic and expect an error because no miners are available
 		assert_noop!(
@@ -539,7 +562,7 @@ fn it_works_for_confirm_miner_vacation() {
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Register an Executable miner
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -570,7 +593,7 @@ fn it_works_for_confirm_miner_vacation() {
 		assert_ok!(TaskManagementModule::confirm_miner_vacation(
 			RuntimeOrigin::signed(alice),
 			task_id,
-			miner_type,
+			miner_type
 		));
 
 		let updated_task = Tasks::<Test>::get(task_id).unwrap();
@@ -595,7 +618,7 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -643,7 +666,7 @@ fn fails_if_task_not_stopped() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -663,7 +686,11 @@ fn fails_if_task_not_stopped() {
 
 		// ❌ Cannot confirm vacation unless status is Stopped
 		assert_noop!(
-			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(alice), task_id, miner_type),
+			TaskManagementModule::confirm_miner_vacation(
+				RuntimeOrigin::signed(alice),
+				task_id,
+				miner_type
+			),
 			Error::<Test>::InvalidTaskState
 		);
 	});

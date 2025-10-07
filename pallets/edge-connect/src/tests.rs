@@ -22,7 +22,9 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 
 		System::set_block_number(10);
 		let alice = 0;
-		let api_info = MinerAPI { domain: domain };
+		let api_info = MinerAPI {
+			domain: domain.clone(),
+		};
 		let miner_specs = MinerSpecs { ram, storage, cpu };
 		let miner_location = Location {
 			latitude,
@@ -34,7 +36,8 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 			id: 0,
 			owner: alice,
 			start_block: 10,
-			status: MinerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -48,7 +51,8 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 			id: 1,
 			owner: alice,
 			start_block: 10,
-			status: MinerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -111,7 +115,9 @@ fn it_works_for_registering_domain() {
 
 		System::set_block_number(10);
 		let alice = 0;
-		let api_info = MinerAPI { domain: domain };
+		let api_info = MinerAPI {
+			domain: domain.clone(),
+		};
 		let miner_specs = MinerSpecs { ram, storage, cpu };
 		let miner_location = Location {
 			latitude,
@@ -123,7 +129,8 @@ fn it_works_for_registering_domain() {
 			id: 0,
 			owner: alice,
 			start_block: 10,
-			status: MinerStatusType::Inactive,
+			oracle_status: OracleStatus::Offline,
+			operational_status: OperationalStatus::Available,
 			status_last_updated: 10,
 			current_task: current_task.clone(),
 			api: api_info.clone(),
@@ -341,133 +348,6 @@ fn emiting_proper_event_for_registering_miner() {
 			miner: (alice, alice_first_miner_id),
 			domain: domain,
 		}));
-	})
-}
-
-#[test]
-fn it_works_for_changing_visibility() {
-	new_test_ext().execute_with(|| {
-		let alice = 0;
-		let alice_first_miner_id = 0;
-		let alice_second_miner_id = 1;
-		let domain_str = "foobarkoo.com";
-		let domain: BoundedVec<u8, ConstU32<128>> =
-			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
-		let miner_type_0 = MinerType::Cloud;
-		let miner_type_1 = MinerType::Edge;
-		let latitude: Latitude = 590000;
-		let longitude: Longitude = 120000;
-		let ram: RamBytes = 100000000;
-		let storage: StorageBytes = 100000000;
-		let cpu: CpuCores = 12;
-
-		System::set_block_number(10);
-		assert_ok!(EdgeConnectModule::register_miner(
-			RuntimeOrigin::signed(alice),
-			miner_type_0.clone(),
-			domain.clone(),
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu
-		));
-
-		assert_ok!(EdgeConnectModule::register_miner(
-			RuntimeOrigin::signed(alice),
-			miner_type_1.clone(),
-			domain.clone(),
-			latitude,
-			longitude,
-			ram,
-			storage,
-			cpu
-		));
-
-		let _ = EdgeConnectModule::toggle_miner_visibility(
-			RuntimeOrigin::signed(alice),
-			miner_type_0.clone(),
-			alice_first_miner_id,
-			true,
-		);
-
-		let _ = EdgeConnectModule::toggle_miner_visibility(
-			RuntimeOrigin::signed(alice),
-			miner_type_1.clone(),
-			alice_second_miner_id,
-			true,
-		);
-
-		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get((alice, alice_first_miner_id))
-				.unwrap()
-				.status,
-			MinerStatusType::Active
-		);
-
-		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get((alice, alice_second_miner_id))
-				.unwrap()
-				.status,
-			MinerStatusType::Active
-		);
-
-		let _ = EdgeConnectModule::toggle_miner_visibility(
-			RuntimeOrigin::signed(alice),
-			miner_type_0,
-			alice_first_miner_id,
-			false,
-		);
-
-		let _ = EdgeConnectModule::toggle_miner_visibility(
-			RuntimeOrigin::signed(alice),
-			miner_type_1,
-			alice_second_miner_id,
-			false,
-		);
-
-		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get((alice, alice_first_miner_id))
-				.unwrap()
-				.status,
-			MinerStatusType::Inactive
-		);
-
-		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get((alice, alice_second_miner_id))
-				.unwrap()
-				.status,
-			MinerStatusType::Inactive
-		);
-	})
-}
-
-#[test]
-fn it_fails_for_changing_visibility_on_nonexistant_miner() {
-	new_test_ext().execute_with(|| {
-		let alice = 0;
-		let alice_first_miner_id = 0;
-
-		System::set_block_number(10);
-		assert_noop!(
-			EdgeConnectModule::toggle_miner_visibility(
-				RuntimeOrigin::signed(alice),
-				MinerType::Cloud,
-				alice_first_miner_id,
-				true
-			),
-			Error::<Test>::MinerDoesNotExist
-		);
-
-		assert_noop!(
-			EdgeConnectModule::toggle_miner_visibility(
-				RuntimeOrigin::signed(alice),
-				MinerType::Edge,
-				alice_first_miner_id,
-				true
-			),
-			Error::<Test>::MinerDoesNotExist
-		);
 	})
 }
 

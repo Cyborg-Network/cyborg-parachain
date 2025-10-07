@@ -15,10 +15,7 @@ pub mod weights;
 pub use weights::*;
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use cyborg_primitives::{
-	oracle::{OracleMinerFormat, ProcessStatus},
-	miner::{MinerId, MinerInfoHandler, MinerStatusType, MinerType},
-};
+use cyborg_primitives::miner::{MinerId, MinerInfoHandler, MinerType};
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use frame_support::{traits::Get, LOG_TARGET};
 use scale_info::TypeInfo;
@@ -53,8 +50,10 @@ pub struct ProcessStatusPercentages<BlockNumber> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use cyborg_primitives::oracle::{OracleMinerFormat, ProcessStatus};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use pallet_edge_connect::OracleStatus;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -249,19 +248,14 @@ pub mod pallet {
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
 		) {
-			if let Some(mut miner_cluster) =
-				T::MinerInfoHandler::get_miner(&key_miner, &miner_type)
-			{
-				let status = if online {
-					if available {
-						MinerStatusType::Active
-					} else {
-						MinerStatusType::Busy
-					}
+			if let Some(mut miner_cluster) = T::MinerInfoHandler::get_miner(&key_miner, &miner_type) {
+				// Update oracle_status based on online status
+				miner_cluster.oracle_status = if online {
+					OracleStatus::Online
 				} else {
-					MinerStatusType::Inactive
+					OracleStatus::Offline
 				};
-				miner_cluster.status = status;
+
 				miner_cluster.status_last_updated = last_block_processed;
 
 				T::MinerInfoHandler::update_miner(&key_miner, &miner_type, miner_cluster);

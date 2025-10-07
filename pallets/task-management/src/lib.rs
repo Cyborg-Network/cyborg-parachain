@@ -14,8 +14,8 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
+use cyborg_primitives::miner::{MinerId, MinerType};
 pub use cyborg_primitives::task::*;
-use cyborg_primitives::miner::{MinerId, MinerStatusType, MinerType};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
 
@@ -177,6 +177,16 @@ pub mod pallet {
 		ModelAlreadyRegistered,
 		ModelNotFound,
 		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
+		/// Error indicating that the miner does not exist
+		MinerDoesNotExist,
+		/// Error indicating that the miner is busy
+		MinerIsBusy,
+		/// Error indicating insufficient reputation
+		InsufficientReputation,
+		/// Error indicating that the miner is inactive
+		MinerIsInactive,
+		/// Error indicating that the miner is suspended
+		MinerSuspended,
 	}
 
 	#[pallet::hooks]
@@ -212,21 +222,30 @@ where
 
 			// Determine miner type based on task kind
 			let miner_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | 
-				TaskSubmissionData::OpenInference(_) | 
+				TaskSubmissionData::NeuroZK(_) |
+				TaskSubmissionData::OpenInference(_) |
 				TaskSubmissionData::FlashInfer(_) => {
 					MinerType::Edge
 				}
-				TaskSubmissionData::CyCloud => { 
+				TaskSubmissionData::CyCloud => {
 					MinerType::Cloud
 				},
 			};
+
+			// Check if the miner can accept tasks using the new status system
+			let miner_key = (miner_owner.clone(), miner_id);
+			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &miner_type)
+                  .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
+
+			if !miner.is_eligible_for_tasks() {
+				return Err(Error::<T>::MinerIsBusy.into());
+			}
 
 			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_miner_status(
 				&(miner_owner.clone(), miner_id),
 				&miner_type,
-			)?;
+			).map_err(|_| pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
 				if who == gatekeeper {
@@ -280,13 +299,13 @@ where
 
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
 				&selected_miner,
-				&miner_type,
-				MinerStatusType::Busy,
+				miner_type.clone(),
+				false,
 			)?;
 
 			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
 				&selected_miner,
-				&miner_type,
+				&miner_type.clone(),
 				Some(task_id),
 			)?;
 
@@ -315,9 +334,9 @@ where
             // Load task
             let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
 
-            // Check that caller is the assigned miner
-            let assigned_miner = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
-            ensure!(assigned_miner.0 == who, Error::<T>::InvalidTaskOwner);
+            // Check that caller is the assigned worker
+            let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
 
             // If task is already running, return specific error
             if task_info.task_status == TaskStatusType::Running {
@@ -418,14 +437,8 @@ where
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
 				&assigned_miner,
 				// This needs to be changed after the miners have unique IDs
-				&miner_type,
-				MinerStatusType::Active,
-			)?;
-
-			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
-				&assigned_miner,
-				&miner_type,
-				None,
+				miner_type,
+				true,  // set to available
 			)?;
 
 			// Emit event.
