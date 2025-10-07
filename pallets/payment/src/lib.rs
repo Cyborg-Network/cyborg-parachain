@@ -9,11 +9,15 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod types;
+
 pub mod weights;
 use cyborg_primitives::payment::RewardRates;
 use log::info;
 
 pub use weights::*;
+pub use types::*;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -22,7 +26,7 @@ pub mod pallet {
 
 	use frame_support::{
 		pallet_prelude::*,
-		sp_runtime::{traits::CheckedMul, ArithmeticError},
+		sp_runtime::{traits::CheckedMul, ArithmeticError, Saturating},
 		traits::{Currency, ExistenceRequirement},
 	};
 	use sp_std::vec::Vec;
@@ -114,6 +118,22 @@ pub mod pallet {
 		/// Maximum length for payment IDs
 		#[pallet::constant]
 		type MaxPaymentIdLength: Get<u32>;
+        
+        #[pallet::constant]
+        type SubscriptionPeriod: Get<BlockNumberFor<Self>>;
+
+        #[pallet::constant]
+        type OnDemandPeriod: Get<BlockNumberFor<Self>>;
+
+        #[pallet::constant]
+        type GracePeriod: Get<BlockNumberFor<Self>>;
+
+        #[pallet::constant]
+        type OnDemandRate: Get<BalanceOf<Self>>;
+
+        #[pallet::constant]
+        type SubscriptionRate: Get<BalanceOf<Self>>;
+
 	}
 
 	/// Storage for mapping Stripe payment IDs to on-chain accounts
@@ -176,6 +196,10 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
+    #[pallet::storage]
+    pub type ActivePayments<T: Config> =
+        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, PaymentMode, PaymentPeriod<BlockNumberFor<T>>>;
+
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -216,6 +240,11 @@ pub mod pallet {
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
 		RemainingHoursQueried(T::AccountId, u32),
+        PaymentActivated{
+            account: T::AccountId,
+            mode: PaymentMode,
+            period: PaymentPeriod<BlockNumberFor<T>>,
+        },
 	}
 
 	/// Custom pallet errors.
@@ -244,6 +273,7 @@ pub mod pallet {
 		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
+        PaymentAlreadyActive,
 	}
 
 	/// Declare callable extrinsics.
@@ -649,5 +679,62 @@ pub mod pallet {
 			Self::deposit_event(Event::RemainingHoursQueried(who, hours));
 			Ok(())
 		}
-	}
+
+        ///
+        /// Activate Payments for Compute Consumption.
+        #[pallet::call_index(15)]
+        #[pallet::weight(0)]
+        pub fn activate(
+            origin: OriginFor<T>,
+            mode: PaymentMode,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+
+            ensure!(!ActivePayments::<T>::contains_key(&who, &mode), Error::<T>::PaymentAlreadyActive);
+
+            let on_demand_rate = T::OnDemandRate::get();
+
+            let subscription_rate = T::SubscriptionRate::get();
+
+            let on_demand_period = T::OnDemandPeriod::get();
+
+            let subscription_period = T::SubscriptionPeriod::get();
+
+            let current_block = frame_system::Pallet::<T>::block_number();
+
+            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?; // TODO: Replace with config privillaged accounts.
+
+            let (start_block, end_block) = match mode {
+                PaymentMode::OnDemand => {
+                    ensure!(T::Currency::free_balance(&who) > on_demand_rate, Error::<T>::InsufficientBalance);
+
+                    T::Currency::transfer(&who, &provider, on_demand_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage.
+
+                    (current_block, current_block.saturating_add(on_demand_period))
+                },
+                PaymentMode::Subscription => {
+                    ensure!(T::Currency::free_balance(&who) > subscription_rate, Error::<T>::InsufficientBalance);
+
+                    T::Currency::transfer(&who, &provider, subscription_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage
+
+                    (current_block, current_block.saturating_add(subscription_period))
+                },
+            };
+
+            let payment_period = PaymentPeriod {
+                start_block,
+                end_block
+            };
+
+            ActivePayments::<T>::insert(who.clone(), mode.clone(), payment_period.clone());
+
+            Self::deposit_event(Event::PaymentActivated {
+                account: who,
+                mode: mode,
+                period: payment_period
+            });
+
+            Ok(())
+        }
+    }
 }
