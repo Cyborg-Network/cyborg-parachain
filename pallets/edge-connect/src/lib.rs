@@ -43,10 +43,10 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	// A helper function providing a default value for miner IDs.
-	#[pallet::type_value]
-	pub fn MinerCountDefault() -> MinerId {
-		0
-	}
+	// #[pallet::type_value]
+	// pub fn MinerCountDefault() -> MinerId {
+	// 	0
+	// }
 
 	// A helper function providing a default value for miner reputations.
 	#[pallet::type_value]
@@ -91,14 +91,6 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	pub type MaxUuidLen = ConstU32<36>;
-
-	/// Testing the Miner UUID registration
-	/// This is only for testing purposes and will be Modified in production
-	#[pallet::storage]
-	#[pallet::getter(fn miner_uuids)]
-	pub type MinerUUIDs<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, BoundedVec<u8, MaxUuidLen>, OptionQuery>;
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -173,12 +165,7 @@ pub mod pallet {
 		/// Event emitted when a miner is unsuspended
 		MinerUnsuspended { miner: (T::AccountId, MinerId) },
 
-		/// Testing the Miner UUID registration
-		/// This is only for testing purposes and will be Modified in production
-		MinerUUIDRegistered {
-			account: T::AccountId,
-			uuid: Vec<u8>, // event carries a Vec for convenience
-		},
+		
 	}
 
 	#[derive(
@@ -218,7 +205,8 @@ pub mod pallet {
 		MinerIsBusy,
 		/// Miner is inactive
 		MinerIsInactive,
-		UuidTooLong, // Provided UUID exceeded MaxUuidLen
+		// Provided UUID exceeded MaxUuidLen
+		UuidTooLong, 
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -233,6 +221,7 @@ pub mod pallet {
 		pub fn register_miner(
 			origin: OriginFor<T>,
 			miner_type: MinerType,
+			miner_uuid: Vec<u8>,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -243,65 +232,53 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			let api = MinerAPI { domain };
-			let miner_keys = AccountMiners::<T>::get(creator.clone());
 			let miner_location = Location {
 				latitude,
 				longitude,
 			};
 			let miner_specs = MinerSpecs { ram, storage, cpu };
 
-			//TODO: There needs to be a proper id mechanism to avoid loops and the increment id system
-			match miner_keys {
-				Some(keys) => {
-					for id in 0..=keys {
-						// Get the Miner associated with the creator and miner_id
-						if let Some(miner) = CloudMiners::<T>::get((creator.clone(), id)) {
-							if miner_type == cyborg_primitives::miner::MinerType::Cloud {
-								// Check if the API matches and throw an error if it does
-								if api == miner.api {
-									// The event is necessary since the miner still needs it's data if it is already registered
-									Self::deposit_event(Event::MinerAlreadyRegistered {
-										creator: creator.clone(),
-										miner: (creator.clone(), miner.id),
-										domain: miner.api.domain,
-									});
-									return Err(Error::<T>::MinerExists.into());
-								}
-							}
-						}
-						if let Some(miner) = EdgeMiners::<T>::get((creator.clone(), id)) {
-							if miner_type == cyborg_primitives::miner::MinerType::Edge {
-								// Check if the API matches and throw an error if it does
-								if api == miner.api {
-									// The event is necessary since the miner still needs it's data if it is already registered
-									Self::deposit_event(Event::MinerAlreadyRegistered {
-										creator: creator.clone(),
-										miner: (creator.clone(), miner.id),
-										domain: miner.api.domain,
-									});
-									return Err(Error::<T>::MinerExists.into());
-								}
-							}
-						}
-					}
+			//  Add CL(Cloud),ED(Edge) based on miner_type
+			let mut full_uuid = match miner_type {
+				MinerType::Cloud => b"CL-".to_vec(),
+				MinerType::Edge => b"ED-".to_vec(),
+			};
+			full_uuid.extend_from_slice(&miner_uuid);
+			//  Convert to bounded vec
+			let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
+				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
+
+
+			//  Check if the miner already exists
+			let miner_exists = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
+				MinerType::Edge => EdgeMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
+			};
+
+			
+
+			if miner_exists {
+				// Emit an event for re-registration attempt
+				let existing_miner = match miner_type {
+					MinerType::Cloud => CloudMiners::<T>::get((&creator, &bounded_uuid)),
+					MinerType::Edge => EdgeMiners::<T>::get((&creator, &bounded_uuid)),
+				};
+
+				if let Some(miner) = existing_miner {
+					Self::deposit_event(Event::MinerAlreadyRegistered {
+						creator: creator.clone(),
+						miner: (miner.owner.clone(), miner.id.clone()),
+						domain: miner.api.domain.clone(),
+					});
 				}
-				None => {}
+				return Err(Error::<T>::MinerExists.into());
 			}
 
-			let miner_id: MinerId = match AccountMiners::<T>::get(creator.clone()) {
-				Some(id) => {
-					AccountMiners::<T>::insert(creator.clone(), id + 1);
-					id + 1
-				}
-				None => {
-					AccountMiners::<T>::insert(creator.clone(), 0);
-					0
-				}
-			};
+		
 
 			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
-				id: miner_id.clone(),
+				id: bounded_uuid.clone(),
 				owner: creator.clone(),
 				location: miner_location,
 				specs: miner_specs,
@@ -314,23 +291,22 @@ pub mod pallet {
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			// update storage
-			AccountMiners::<T>::insert(creator.clone(), miner_id.clone());
+			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
 
-			match miner_type {
-				cyborg_primitives::miner::MinerType::Cloud => {
-					CloudMiners::<T>::insert((creator.clone(), miner_id.clone()), miner.clone());
-				}
-				cyborg_primitives::miner::MinerType::Edge => {
-					EdgeMiners::<T>::insert((creator.clone(), miner_id.clone()), miner.clone());
-				}
-			}
 
+			//  Store miner efficiently
+				match miner_type {
+					MinerType::Cloud => CloudMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
+					MinerType::Edge => EdgeMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
+				}
+
+
+			
 			// Emit an event.
 			Self::deposit_event(Event::MinerRegistered {
 				creator: creator.clone(),
-				miner: (miner.owner, miner.id),
-				domain: miner.api.domain,
+				miner: (miner.owner.clone(), miner.id.clone()),
+				domain: miner.api.domain.clone(),
 			});
 
 			// Return a successful DispatchResultWithPostInfo
@@ -350,21 +326,21 @@ pub mod pallet {
 			match miner_type {
 				MinerType::Cloud => {
 					ensure!(
-						CloudMiners::<T>::get((creator.clone(), miner_id)) != None,
+						CloudMiners::<T>::get((creator.clone(), &miner_id)) != None,
 						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					CloudMiners::<T>::remove((creator.clone(), miner_id));
+					CloudMiners::<T>::remove((creator.clone(), &miner_id));
 				}
 				MinerType::Edge => {
 					ensure!(
-						EdgeMiners::<T>::get((creator.clone(), miner_id)) != None,
+						EdgeMiners::<T>::get((creator.clone(), &miner_id)) != None,
 						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					EdgeMiners::<T>::remove((creator.clone(), miner_id));
+					EdgeMiners::<T>::remove((creator.clone(), &miner_id));
 				}
 			}
 
@@ -392,7 +368,7 @@ pub mod pallet {
 			};
 
 			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+				MinerType::Cloud => CloudMiners::<T>::mutate((creator.clone(), miner_id.clone()), |miner_option| {
 					if let Some(miner) = miner_option {
 						miner.status = miner_status;
 						miner.last_status_check = timestamp::Pallet::<T>::get();
@@ -407,7 +383,7 @@ pub mod pallet {
 						Err(Error::<T>::MinerDoesNotExist)
 					}
 				}),
-				MinerType::Edge => EdgeMiners::<T>::mutate((creator.clone(), miner_id), |miner_option| {
+				MinerType::Edge => EdgeMiners::<T>::mutate((creator.clone(), miner_id.clone()), |miner_option| {
 					if let Some(miner) = miner_option {
 						miner.status = miner_status;
 						miner.last_status_check = timestamp::Pallet::<T>::get();
@@ -489,38 +465,7 @@ pub mod pallet {
 			Self::lift_suspension(&(miner_owner, miner_id), &miner_type)
 		}
 
-		/// Testing the Miner UUID registration
-		/// This is only for testing purposes and will be Modified in production
-		/// Registers a deterministic miner UUID for the calling account.
-		/// Any account can call this to store its miner UUID.
-		#[pallet::call_index(7)]
-		#[pallet::weight(10_000)]
-		pub fn register_miner_uuid(origin: OriginFor<T>, uuid: Vec<u8>) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			// Convert incoming Vec<u8> -> BoundedVec<u8, MaxUuidLen>
-			let bounded_uuid: BoundedVec<u8, MaxUuidLen> = uuid
-				.clone()
-				.try_into()
-				.map_err(|_| Error::<T>::UuidTooLong)?;
-
-			// Optional: ensure user doesn't already have a UUID
-			ensure!(
-				!MinerUUIDs::<T>::contains_key(&who),
-				Error::<T>::MinerExists
-			);
-
-			// Insert bounded UUID into storage
-			MinerUUIDs::<T>::insert(&who, bounded_uuid.clone());
-
-			// Emit event with Vec<u8> for easier off-chain consumption
-			Self::deposit_event(Event::MinerUUIDRegistered {
-				account: who,
-				uuid: bounded_uuid.to_vec(),
-			});
-
-			Ok(())
-		}
+		
 	}
 
 	impl<T: Config> Pallet<T> {
