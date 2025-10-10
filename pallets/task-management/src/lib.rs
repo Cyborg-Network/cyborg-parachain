@@ -206,7 +206,6 @@ where
 			task_kind: TaskSubmissionData,
 			miner_owner: T::AccountId,
 			miner_id: MinerId,
-			compute_hours_deposit: Option<u32>,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
@@ -238,14 +237,8 @@ where
 				Pays::Yes
 			};
 
-			// Validate deposit
-			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
-			ensure!(deposit > 0, Error::<T>::RequireComputeHoursDeposit);
-
-			let deposit = compute_hours_deposit.ok_or(Error::<T>::RequireComputeHoursDeposit)?;
-
             // Consume compute hours from payment pallet
-			pallet_payment::Pallet::<T>::consume_compute_hours(origin.clone(), deposit)?;
+			pallet_payment::Pallet::<T>::has_active_payment(origin.clone())?; // TODO:Replacewithhelperfunctionthatcanalsobeunedinon_initializepayment.
 
 			// Generate task ID
 			let task_id = NextTaskId::<T>::get();
@@ -261,8 +254,6 @@ where
 				average_cpu_percentage_use: None,
 				task_kind: task_kind.clone(),
 				result: None,
-				compute_hours_deposit: Some(deposit),
-				consume_compute_hours: None,
 				task_status: TaskStatusType::Assigned,
 			};
 
@@ -301,7 +292,7 @@ where
 				actual_weight: None,
 				pays_fee,
 			})
-		}
+		} // Need a shared trait that and an architectural flow.
 
 		/// Miner confirms that it has gathered the data and is starting task execution.
 		///

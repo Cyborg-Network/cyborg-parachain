@@ -114,8 +114,6 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub average_cpu_percentage_use: Option<u8>, // CPU usage.
 	pub task_kind: TaskKind<BlockNumber>,       // New: Logical kind (NeuroZK or OpenInference).
 	pub result: Option<BoundedVec<u8, ConstU32<500>>>, // Final result (optional).
-	pub compute_hours_deposit: Option<u32>,     // Deposit paid upfront.
-	pub consume_compute_hours: Option<u32>,     // How much was actually consumed.
 	pub task_status: TaskStatusType,            // Current lifecycle status.
 }
 

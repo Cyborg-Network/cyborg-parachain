@@ -164,11 +164,11 @@ pub mod pallet {
 	/// Storage for global per-hour subscription fee.
 	#[pallet::storage]
 	#[pallet::getter(fn subscription_fee)]
-	pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+	pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>; // TODO: Deprecate in favour of ActivePayments.
 
 	/// Storage map that tracks the number of compute hours owned by each account.
 	#[pallet::storage]
-	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
+	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>; // TODO: Deprecate in favour of ActivePayments.
 
 	/// Storage that holds the service provider's account ID.
 	#[pallet::storage]
@@ -245,6 +245,7 @@ pub mod pallet {
             mode: PaymentMode,
             period: PaymentPeriod<BlockNumberFor<T>>,
         },
+        HasActivePayment(T::AccountId),
 	}
 
 	/// Custom pallet errors.
@@ -710,20 +711,20 @@ pub mod pallet {
 
                     T::Currency::transfer(&who, &provider, on_demand_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage.
 
-                    (current_block, current_block.saturating_add(on_demand_period))
+                    (current_block, current_block.saturating_add(on_demand_period)) // TODO:
                 },
                 PaymentMode::Subscription => {
                     ensure!(T::Currency::free_balance(&who) > subscription_rate, Error::<T>::InsufficientBalance);
 
                     T::Currency::transfer(&who, &provider, subscription_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage
 
-                    (current_block, current_block.saturating_add(subscription_period))
+                    (current_block, current_block.saturating_add(subscription_period)) // TODO:
                 },
             };
 
             let payment_period = PaymentPeriod {
                 start_block,
-                end_block
+                end_block,
             };
 
             ActivePayments::<T>::insert(who.clone(), mode.clone(), payment_period.clone());
@@ -736,5 +737,52 @@ pub mod pallet {
 
             Ok(())
         }
+
+        #[pallet::call_index(16)]    
+        #[pallet::weight(0)]
+        pub fn has_active_payment(origin: OriginFor<T>) -> DispatchResult {
+            // Ensure the caller is a signed user.
+            let who = ensure_signed(origin)?;
+
+            // Check if user has an active payment (either OnDemand or Subscription)
+            let current_block = frame_system::Pallet::<T>::block_number();
+
+            // Check for active subscription
+            let mut has_active_payment = false;
+
+            if let Some(subscription_period) = ActivePayments::<T>::get(&who, PaymentMode::Subscription) {
+                if current_block <= subscription_period.end_block {
+                    has_active_payment = true;
+                }
+            }
+
+            // If no active subscription, check for active on-demand payment
+            if !has_active_payment {
+                if let Some(on_demand_period) = ActivePayments::<T>::get(&who, PaymentMode::OnDemand) {
+                    if current_block <= on_demand_period.end_block {
+                        has_active_payment = true;
+                    }
+                }
+            }
+
+            // Ensure user has either an active subscription or on-demand payment
+            ensure!(has_active_payment, Error::<T>::InsufficientComputeHours);
+
+            // Emit the event indicating the consumption of compute hours.
+            // Self::deposit_event(Event::HoursConsumed(who, hours));
+            
+            Self::deposit_event(Event::HasActivePayment(who));
+
+            Ok(())
+        }
     }
+
+    /*
+
+    impl<T: Config> Pallet<T> {
+        pub fn process() -> DispatchResult {
+
+        }
+    }
+    */
 }
