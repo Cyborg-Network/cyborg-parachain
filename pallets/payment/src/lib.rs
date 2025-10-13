@@ -246,6 +246,8 @@ pub mod pallet {
             period: PaymentPeriod<BlockNumberFor<T>>,
         },
         HasActivePayment(T::AccountId),
+        PaymentExpired(T::AccountId, PaymentMode),
+        ExpiredPaymentsCleaned(u32),
 	}
 
 	/// Custom pallet errors.
@@ -276,6 +278,18 @@ pub mod pallet {
 		FiatConversionRateNotSet,
         PaymentAlreadyActive,
 	}
+
+     // Add to your pallet's hooks implementation
+     #[pallet::hooks]
+     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {             
+             // Clean expired payments on every block initialization
+             Self::clean_expired_payments();
+
+             // Return actual weight measurement in production
+             T::DbWeight::get().reads_writes(1, 1)
+         }
+     }
 
 	/// Declare callable extrinsics.
 	#[pallet::call]
@@ -737,52 +751,74 @@ pub mod pallet {
 
             Ok(())
         }
+    }
 
-        #[pallet::call_index(16)]    
-        #[pallet::weight(0)]
-        pub fn has_active_payment(origin: OriginFor<T>) -> DispatchResult {
-            // Ensure the caller is a signed user.
-            let who = ensure_signed(origin)?;
+    impl<T: Config> Pallet<T> {
+        pub fn has_active_payment(who: &T::AccountId) -> DispatchResult {
 
-            // Check if user has an active payment (either OnDemand or Subscription)
-            let current_block = frame_system::Pallet::<T>::block_number();
-
-            // Check for active subscription
-            let mut has_active_payment = false;
-
-            if let Some(subscription_period) = ActivePayments::<T>::get(&who, PaymentMode::Subscription) {
-                if current_block <= subscription_period.end_block {
-                    has_active_payment = true;
-                }
-            }
-
-            // If no active subscription, check for active on-demand payment
-            if !has_active_payment {
-                if let Some(on_demand_period) = ActivePayments::<T>::get(&who, PaymentMode::OnDemand) {
-                    if current_block <= on_demand_period.end_block {
-                        has_active_payment = true;
-                    }
-                }
-            }
+            // Check if user has an active payment
+            let has_active_payment = Self::check_and_clean_user_payments(who);
 
             // Ensure user has either an active subscription or on-demand payment
             ensure!(has_active_payment, Error::<T>::InsufficientComputeHours);
 
-            // Emit the event indicating the consumption of compute hours.
-            // Self::deposit_event(Event::HoursConsumed(who, hours));
-            
-            Self::deposit_event(Event::HasActivePayment(who));
+            // Emit the event
+            Self::deposit_event(Event::HasActivePayment(who.clone()));
 
             Ok(())
         }
-    }
 
-    /*
+        fn check_and_clean_user_payments(who: &T::AccountId) -> bool {
+            let current_block = frame_system::Pallet::<T>::block_number();
+            let mut has_active_payment = false;
 
-    impl<T: Config> Pallet<T> {
-        pub fn process() -> DispatchResult {
+            // Check and clean subscription
+            if let Some(subscription_period) = ActivePayments::<T>::get(who, PaymentMode::Subscription) {
+                if current_block <= subscription_period.end_block {
+                    has_active_payment = true;
+                } else {
+                    // Clean expired subscription
+                    ActivePayments::<T>::remove(who, PaymentMode::Subscription);
+                    Self::deposit_event(Event::PaymentExpired(who.clone(), PaymentMode::Subscription));
+                }
+            }
 
+            // Check and clean on-demand payment if no active subscription
+            if !has_active_payment {
+                if let Some(on_demand_period) = ActivePayments::<T>::get(who, PaymentMode::OnDemand) {
+                    if current_block <= on_demand_period.end_block {
+                        has_active_payment = true;
+                    } else {
+                        // Clean expired on-demand payment
+                        ActivePayments::<T>::remove(who, PaymentMode::OnDemand);
+                        Self::deposit_event(Event::PaymentExpired(who.clone(), PaymentMode::OnDemand));
+                    }
+                }
+            }
+
+            has_active_payment
+        }
+
+        /// Clean all expired payments across all users
+        pub fn clean_expired_payments() {
+            let current_block = frame_system::Pallet::<T>::block_number();
+            let mut cleaned_count = 0u32;
+
+            // Iterate through all active payments and remove expired ones
+            // Note: This might be heavy - consider using a bounded iteration or migration pattern
+            // for production use with many users
+            ActivePayments::<T>::iter().for_each(|(who, payment_mode, period)| {
+                if current_block > period.end_block {
+                    ActivePayments::<T>::remove(&who, &payment_mode);
+                    Self::deposit_event(Event::PaymentExpired(who, payment_mode));
+                    cleaned_count += 1;
+                }
+            });
+
+            // Emit event if any cleanups occurred
+            if cleaned_count > 0 {
+                Self::deposit_event(Event::ExpiredPaymentsCleaned(cleaned_count));
+            }
         }
     }
-    */
 }

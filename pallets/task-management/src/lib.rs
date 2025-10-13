@@ -238,7 +238,7 @@ where
 			};
 
             // Consume compute hours from payment pallet
-			pallet_payment::Pallet::<T>::has_active_payment(origin.clone())?; // TODO:Replacewithhelperfunctionthatcanalsobeunedinon_initializepayment.
+			pallet_payment::Pallet::<T>::has_active_payment(&who)?; // TODO:Replacewithhelperfunctionthatcanalsobeunedinon_initializepayment.
 
 			// Generate task ID
 			let task_id = NextTaskId::<T>::get();
