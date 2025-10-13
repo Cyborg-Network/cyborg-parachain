@@ -147,7 +147,7 @@ pub mod pallet {
 		/// Event emitted when a task is manually reset by admin
 		TaskManuallyReset {
 			task_id: TaskId,
-			reset_by: T::AccountId,
+			reset_by: Option<T::AccountId>,
 			previous_status: TaskStatusType,
 			reason: ResetReason,
 		},
@@ -553,17 +553,11 @@ where
            miner_type: MinerType,
            reason: ResetReason,
          ) -> DispatchResult {
-           let caller = if let Ok(signed_caller) = ensure_signed(origin.clone()) {
-                signed_caller
-          } else {
-               return Err(DispatchError::BadOrigin);
-           };
-
-            // Ensure this is actually a root call
-             ensure_root(origin)?;
+			// Only root can call this function
+			ensure_root(origin)?;
 
             // Get task information
-            let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+            let task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
             let previous_status = task.task_status.clone();
 
             // Check if task is in a resettable state
@@ -578,33 +572,33 @@ where
             let assigned_miner = TaskAllocations::<T>::get(task_id)
                .ok_or(Error::<T>::UnassignedTaskId)?;
 
+			// Store the assigned block
+			let assigned_block = TaskAssignmentBlock::<T>::get(task_id);
+
             // Reset miner status
             Self::reset_miner_for_task(&assigned_miner, miner_type.clone(), &task_id)?;
 
-            // Update task status to Vacated to allow cleanup
-            task.task_status = TaskStatusType::Vacated;
-            Tasks::<T>::insert(task_id, task);
-
-            // Clean up task allocations and status
+            // Clean up task storage
+            Tasks::<T>::remove(task_id);
             TaskAllocations::<T>::remove(task_id);
             TaskStatus::<T>::remove(task_id);
             TaskAssignmentBlock::<T>::remove(task_id);
+            ComputeAggregations::<T>::remove(task_id);
 
             // Remove from pending confirmations if present
-            if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
+            if let Some(assigned_block) = assigned_block{
               let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
+
                 PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
-                if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
-                tasks.swap_remove(pos);
+                   if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
+                       tasks.swap_remove(pos);
                }
             });
         }
 
-            // Clean up compute aggregations
-            ComputeAggregations::<T>::remove(task_id);
         Self::deposit_event(Event::TaskManuallyReset {
              task_id,
-             reset_by: caller,
+             reset_by: None,
              previous_status,
              reason,
           });
