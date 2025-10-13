@@ -5,10 +5,12 @@ on:
     branches:
       - main
       - master
+      - dev
   push:
     branches:
       - main
       - master
+      - dev
 
 jobs:
   ci:
@@ -37,7 +39,7 @@ jobs:
 
       # We've run into out-of-disk error when compiling Polkadot in the next step, so we free up some space this way.
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # 1.3.1
+        uses: jlumbroso/free-disk-space@54081f1387842cd2f914a1be # 1.3.1
         with:
           android: true # This alone is a 12 GB save.
           # We disable the rest because it caused some problems. (they're enabled by default)
