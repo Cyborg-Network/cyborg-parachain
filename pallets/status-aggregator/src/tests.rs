@@ -18,11 +18,11 @@ fn prevents_nonexistent_miner_storage() {
 		// initalize test variables
 		let oracle_feeder_1: AccountId = 100;
 		let miner_addrs: Vec<AccountId> = [0].to_vec();
-		let miner_ids: Vec<MinerId> = [0].to_vec();
+	
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], miner_ids[0]),
+			id: (miner_addrs[0], BoundedVec::try_from(vec![0u8]).unwrap()),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -64,8 +64,18 @@ fn on_new_data_works_as_expected() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<MinerId> = [0, 1, 2].to_vec();
+		let miner_ids: Vec<Vec<u8>> = vec![
+			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		];
 
+		// Corresponding BoundedVec<_, 64> for MinerId
+		let bounded_miner_ids: Vec<MinerId> = vec![
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+		];
 		// basic miner spec
 		let miner_type = MinerType::Cloud;
 		let miner_latitude: Latitude = 590000;
@@ -83,6 +93,7 @@ fn on_new_data_works_as_expected() {
 				assert_ok!(EdgeConnectModule::register_miner(
 					RuntimeOrigin::signed(*miner),
 					miner_type.clone(),
+					miner_ids[id].clone(),
 					domain.clone(),
 					miner_latitude,
 					miner_longitude,
@@ -95,7 +106,7 @@ fn on_new_data_works_as_expected() {
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], miner_ids[0]),
+			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -189,11 +200,11 @@ fn on_new_data_works_as_expected() {
 
 		// 5. Allow oracle feeders to submit for a new miners
 		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], miner_ids[2]),
+			id: (miner_addrs[1], bounded_miner_ids[2].clone()),
 			miner_type: MinerType::Cloud,
 		};
 		let key_3: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[2], miner_ids[1]),
+			id: (miner_addrs[2], bounded_miner_ids[1].clone()),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -260,7 +271,20 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<MinerId> = [0, 1, 2].to_vec();
+		let miner_ids: Vec<Vec<u8>> = vec![
+			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		];
+
+		// Corresponding BoundedVec<_, 64> for MinerId
+		let bounded_miner_ids: Vec<MinerId> = vec![
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+		];
+
+
 
 		// basic miner spec
 		let miner_latitude: Latitude = 590000;
@@ -279,6 +303,7 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 				assert_ok!(EdgeConnectModule::register_miner(
 					RuntimeOrigin::signed(*miner),
 					miner_type.clone(),
+					miner_ids[id].clone(),
 					domain.clone(),
 					miner_latitude,
 					miner_longitude,
@@ -291,42 +316,42 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], miner_ids[0]),
+			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
 			miner_type: MinerType::Cloud,
 		};
 		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], miner_ids[0]),
+			id: (miner_addrs[1], bounded_miner_ids[0].clone()),
 			miner_type: MinerType::Cloud,
 		};
 
 		assert_ok!(EdgeConnectModule::update_operational_status(
-			RuntimeOrigin::signed(miner_addrs[1]), // miner owner
+			RuntimeOrigin::signed(miner_addrs[1]), 
 			MinerType::Cloud,
-			miner_ids[0],
+			bounded_miner_ids[0].clone(),
 			OperationalStatus::Busy
 		));
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Available
 		);
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Busy
 		);
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.status_last_updated,
 			inital_block
 		);
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.status_last_updated,
 			inital_block
@@ -480,7 +505,7 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedMinerInfo {
-				miner: key_1.id,
+				miner: key_1.id.clone(),
 				online: true,
 				available: true,
 				last_block_processed: 5,
@@ -489,7 +514,7 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedMinerInfo {
-				miner: key_2.id,
+				miner: key_2.id.clone(),
 				online: true,
 				available: false,
 				last_block_processed: 5,
@@ -498,26 +523,26 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		// 5. Ensure pallet edge connect properly updates
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Available
 		);
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Busy
 		);
 
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.status_last_updated,
 			5
 		);
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.status_last_updated,
 			5
@@ -550,7 +575,18 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<MinerId> = [0, 1, 2].to_vec();
+		let miner_ids: Vec<Vec<u8>> = vec![
+			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		];
+
+		// Corresponding BoundedVec<_, 64> for MinerId
+		let bounded_miner_ids: Vec<MinerId> = vec![
+			b"ED-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
+			b"ED-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+		];
 
 		// basic miner spec
 		let miner_latitude: Latitude = 590000;
@@ -569,6 +605,7 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 				assert_ok!(EdgeConnectModule::register_miner(
 					RuntimeOrigin::signed(*miner),
 					miner_type.clone(),
+					miner_ids[id].clone(),
 					domain.clone(),
 					miner_latitude,
 					miner_longitude,
@@ -581,42 +618,42 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], miner_ids[0]),
+			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
 			miner_type: MinerType::Edge,
 		};
 		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], miner_ids[0]),
+			id: (miner_addrs[1], bounded_miner_ids[0].clone()),
 			miner_type: MinerType::Edge,
 		};
 
 		assert_ok!(EdgeConnectModule::update_operational_status(
 			RuntimeOrigin::signed(miner_addrs[1]), // worker owner
 			MinerType::Edge,
-			miner_ids[0],
+			bounded_miner_ids[0].clone(),
 			OperationalStatus::Busy
 		));
 
 		// pallet edge connect inital storage sanity check
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Available
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Busy
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.status_last_updated,
 			inital_block
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.status_last_updated,
 			inital_block
@@ -770,7 +807,7 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedMinerInfo {
-				miner: key_1.id,
+				miner: key_1.id.clone(),
 				online: true,
 				available: true,
 				last_block_processed: 5,
@@ -779,7 +816,7 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		System::assert_has_event(RuntimeEvent::StatusAggregator(
 			Event::UpdateFromAggregatedMinerInfo {
-				miner: key_2.id,
+				miner: key_2.id.clone(),
 				online: true,
 				available: false,
 				last_block_processed: 5,
@@ -788,25 +825,25 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		// 5. Ensure pallet edge connect properly updates
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Available
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
 			OperationalStatus::Busy
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.status_last_updated,
 			5
 		);
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id)
+			pallet_edge_connect::EdgeMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.status_last_updated,
 			5

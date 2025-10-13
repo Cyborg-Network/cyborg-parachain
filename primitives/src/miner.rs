@@ -3,7 +3,12 @@ use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedV
 use scale_info::TypeInfo;
 use crate::task::TaskId;
 
-pub type MinerId = u64;
+
+// pub type MinerId = u64;
+
+pub type MaxUuidLen = ConstU32<64>;
+
+pub type MinerId = BoundedVec<u8, MaxUuidLen>;
 
 pub type Domain = BoundedVec<u8, ConstU32<128>>;
 
