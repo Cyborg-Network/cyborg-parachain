@@ -801,7 +801,7 @@ pub mod pallet {
 		}
 
 		/// Lift suspension from a miner
-		fn lift_suspension(
+		pub fn lift_suspension(
 			miner_key: &(T::AccountId, MinerId),
 			miner_type: &MinerType,
 		) -> DispatchResult {
