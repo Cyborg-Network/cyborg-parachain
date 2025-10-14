@@ -5,10 +5,16 @@ on:
     branches:
       - main
       - master
+      - dev
+      - 'release/**'
+      - 'v*'
   push:
     branches:
       - main
       - master
+      - dev
+      - 'release/**'
+      - 'v*'
 
 jobs:
   ci:
