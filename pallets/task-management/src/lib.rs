@@ -265,7 +265,7 @@ where
 			};
 
 			// Check if the miner can accept tasks using the new status system
-			let miner_key = (miner_owner.clone(), miner_id);
+			let miner_key = (miner_owner.clone(), miner_id.clone());
 			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &miner_type)
                   .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
 
@@ -275,7 +275,7 @@ where
 
 			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_miner_status(
-				&(miner_owner.clone(), miner_id),
+				&(miner_owner.clone(), miner_id.clone()),
 				&miner_type,
 			).map_err(|_| pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
 
@@ -302,7 +302,7 @@ where
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-			let selected_miner = (miner_owner, miner_id);
+			let selected_miner = (miner_owner, miner_id.clone());
 			let task_kind = TaskKind::from_submission(task_kind);
 
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
@@ -651,14 +651,14 @@ where
 						// Get assigned miner and penalize
 						if let Some((miner_account, miner_id)) = TaskAllocations::<T>::get(task_id) {
 							pallet_edge_connect::Pallet::<T>::apply_penalty(
-								&(miner_account.clone(), miner_id),
+								&(miner_account.clone(), miner_id.clone()),
 								&MinerType::Edge,
 								20,
 								PenaltyReason::LateResponse,
 							)?;
 
 							pallet_edge_connect::Pallet::<T>::suspend_miners(
-								&(miner_account.clone(), miner_id),
+								&(miner_account.clone(), miner_id.clone()),
 								&MinerType::Edge,
 								1000u32.into(),
 								SuspensionReason::TaskConfirmationTimeout,
