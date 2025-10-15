@@ -162,7 +162,6 @@ pub mod pallet {
 		UnexpectedZkFiles,
 		InvalidModelIdLength,
 		NotGatekeeper,
-		TaskNotFound,
 		InvalidModelId,
 		NotAssignedMiner,
 		// Scheduling errors
@@ -170,7 +169,7 @@ pub mod pallet {
 		ZkFilesMissing, // The user submitted a ZK task, but has not provided the required files for proof generation
 
 		// General task errors
-		UnassignedTaskId,         // The provided task ID does not exist.
+		TaskNotFound,         // The provided task ID does not exist.
 		InvalidTaskOwner,         // The caller is not the task owner.
 		TaskVerificationNotFound, // The task verification process cannot be found.
 
@@ -364,10 +363,10 @@ where
             let who = ensure_signed(origin)?;
 
             // Load task
-            let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
             // Check that caller is the assigned worker
-            let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::UnassignedTaskId)?;
+            let assigned_worker = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
             ensure!(assigned_worker.0 == who, Error::<T>::InvalidTaskOwner);
 
             // If task is already running, return specific error
@@ -570,7 +569,7 @@ where
 
             // Get assigned miner
             let assigned_miner = TaskAllocations::<T>::get(task_id)
-               .ok_or(Error::<T>::UnassignedTaskId)?;
+               .ok_or(Error::<T>::TaskNotFound)?;
 
 			// Store the assigned block
 			let assigned_block = TaskAssignmentBlock::<T>::get(task_id);

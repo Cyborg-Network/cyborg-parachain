@@ -6,16 +6,14 @@ use crate::{
 pub use cyborg_primitives::miner::*;
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
 use cyborg_primitives::task::{
-	AzureTask, NzkData, OnnxTask, OpenInferenceTask, TaskId, TaskSubmissionData,
+	AzureTask, OnnxTask, OpenInferenceTask, TaskId, TaskSubmissionData,
 };
 use frame_support::{assert_noop, assert_ok};
 use sp_core::ConstU32;
 
-pub use cyborg_primitives::miner::*;
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::BoundedVec;
-use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::DispatchError;
 use sp_runtime::DispatchResult;
@@ -938,12 +936,15 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0, // miner_id
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -954,7 +955,7 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		assert_eq!(task.task_status, TaskStatusType::Assigned);
 
 		// Verify miner is busy
-		let miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(miner.operational_status, OperationalStatus::Busy);
 		assert_eq!(miner.current_task, Some(task_id));
 
@@ -972,7 +973,7 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		assert!(ComputeAggregations::<Test>::get(task_id).is_none());
 
 		// Verify miner is reset to available
-		let updated_miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(
 			updated_miner.operational_status,
 			OperationalStatus::Available
@@ -1014,12 +1015,15 @@ fn reset_task_should_work_for_stuck_running_task() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Schedule task and confirm reception
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1046,7 +1050,7 @@ fn reset_task_should_work_for_stuck_running_task() {
 		assert!(TaskAllocations::<Test>::get(task_id).is_none());
 
 		// Verify miner is reset
-		let updated_miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(
 			updated_miner.operational_status,
 			OperationalStatus::Available
@@ -1078,12 +1082,15 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Schedule task and go through full lifecycle to Stopped state
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1116,7 +1123,7 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 		assert!(TaskAllocations::<Test>::get(task_id).is_none());
 
 		// Verify miner is reset
-		let updated_miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(
 			updated_miner.operational_status,
 			OperationalStatus::Available
@@ -1146,11 +1153,14 @@ fn reset_task_should_fail_for_non_root_caller() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1207,12 +1217,15 @@ fn reset_task_should_fail_for_non_resettable_states() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Create task and go through full lifecycle to Vacated state
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1269,12 +1282,15 @@ fn reset_task_should_handle_suspended_miner() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1284,14 +1300,14 @@ fn reset_task_should_handle_suspended_miner() {
 		assert_ok!(EdgeConnectModule::suspend_miner(
 			RuntimeOrigin::root(),
 			executor,
-			0,
+			miner_id.clone(),
 			miner_type.clone(),
 			1000, // blocks
 			SuspensionReason::TaskConfirmationTimeout
 		));
 
 		// Verify miner is suspended
-		let miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(miner.operational_status, OperationalStatus::Suspended);
 
 		// Reset the task - should unsuspend the miner using root
@@ -1302,7 +1318,7 @@ fn reset_task_should_handle_suspended_miner() {
 		));
 
 		// Verify miner is no longer suspended and is available
-		let updated_miner = EdgeConnectModule::get_miner(&(executor, 0), &miner_type).unwrap();
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
 		assert_eq!(
 			updated_miner.operational_status,
 			OperationalStatus::Available
@@ -1332,12 +1348,15 @@ fn reset_task_should_clean_up_pending_confirmations() {
 			triton_config: None,
 		}));
 
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
 			executor,
-			0,
+			miner_id.clone(),
 			Some(10),
 		));
 
@@ -1373,7 +1392,4 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		);
 	});
 }
-//         let stored_hash = ModelHashes::<Test>::get(model_id_fixed);
-//         assert_eq!(stored_hash, Some(model_hash));
-//     });
-// }
+
