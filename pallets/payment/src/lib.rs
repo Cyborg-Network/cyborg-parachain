@@ -27,7 +27,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{traits::CheckedMul, ArithmeticError, Saturating},
-		traits::{Currency, ExistenceRequirement},
+		traits::{ReservableCurrency, Currency, ExistenceRequirement},
 	};
 	use sp_std::vec::Vec;
 
@@ -84,7 +84,7 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Abstraction over the chain's currency system, allowing this pallet to interact with balances.
-		type Currency: Currency<Self::AccountId>;
+		type Currency: ReservableCurrency<Self::AccountId>;
 
 		/// A type representing the weights required by the dispatchable functions of this pallet.
 		type WeightInfo: WeightInfo;
@@ -279,6 +279,9 @@ pub mod pallet {
         PaymentAlreadyActive,
 	}
 
+
+
+     /*
      // Add to your pallet's hooks implementation
      #[pallet::hooks]
      impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -290,6 +293,7 @@ pub mod pallet {
              T::DbWeight::get().reads_writes(1, 1)
          }
      }
+     */
 
 	/// Declare callable extrinsics.
 	#[pallet::call]
@@ -717,22 +721,22 @@ pub mod pallet {
 
             let current_block = frame_system::Pallet::<T>::block_number();
 
-            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?; // TODO: Replace with config privillaged accounts.
+            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
 
             let (start_block, end_block) = match mode {
                 PaymentMode::OnDemand => {
                     ensure!(T::Currency::free_balance(&who) > on_demand_rate, Error::<T>::InsufficientBalance);
 
-                    T::Currency::transfer(&who, &provider, on_demand_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage.
+                    T::Currency::transfer(&who, &provider, on_demand_rate, ExistenceRequirement::KeepAlive)?;
 
-                    (current_block, current_block.saturating_add(on_demand_period)) // TODO:
+                    (current_block, current_block.saturating_add(on_demand_period))
                 },
                 PaymentMode::Subscription => {
                     ensure!(T::Currency::free_balance(&who) > subscription_rate, Error::<T>::InsufficientBalance);
 
-                    T::Currency::transfer(&who, &provider, subscription_rate, ExistenceRequirement::KeepAlive)?; // TODO: Reserve a balance by ID and deduct by Task usage
+                    T::Currency::transfer(&who, &provider, subscription_rate, ExistenceRequirement::KeepAlive)?;
 
-                    (current_block, current_block.saturating_add(subscription_period)) // TODO:
+                    (current_block, current_block.saturating_add(subscription_period))
                 },
             };
 
@@ -768,7 +772,7 @@ pub mod pallet {
             Ok(())
         }
 
-        fn check_and_clean_user_payments(who: &T::AccountId) -> bool {
+        pub fn check_and_clean_user_payments(who: &T::AccountId) -> bool {
             let current_block = frame_system::Pallet::<T>::block_number();
             let mut has_active_payment = false;
 
@@ -799,6 +803,8 @@ pub mod pallet {
             has_active_payment
         }
 
+        /*
+
         /// Clean all expired payments across all users
         pub fn clean_expired_payments() {
             let current_block = frame_system::Pallet::<T>::block_number();
@@ -820,5 +826,6 @@ pub mod pallet {
                 Self::deposit_event(Event::ExpiredPaymentsCleaned(cleaned_count));
             }
         }
+        */
     }
 }
