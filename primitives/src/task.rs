@@ -4,7 +4,9 @@ use scale_info::TypeInfo;
 
 pub type TaskId = u64;
 
-#[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen)]
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
 pub enum TaskStatusType {
 	/// Task has been assigned to a worker, but miner hasn't confirmed reception yet.
 	Assigned,

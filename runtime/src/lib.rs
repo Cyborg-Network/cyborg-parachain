@@ -47,9 +47,9 @@ use weights::ExtrinsicBaseWeight;
 pub use frame_system::EnsureRoot;
 
 pub use cyborg_primitives::{
-	oracle::{DummyCombineData, OracleKey, OracleValue, OracleMinerFormat, ProcessStatus},
-	task::TaskId,
 	miner::{MinerId, MinerType},
+	oracle::{DummyCombineData, OracleKey, OracleMinerFormat, OracleValue, ProcessStatus},
+	task::TaskId,
 };
 
 pub use pallet_edge_connect;

@@ -1,7 +1,7 @@
+use crate::task::TaskId;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use crate::task::TaskId;
 
 
 // pub type MinerId = u64;

@@ -1,5 +1,5 @@
-use crate::task::TaskId;
 use crate::miner::{MinerId, MinerType};
+use crate::task::TaskId;
 use frame_support::{pallet_prelude::*, traits::Time};
 use orml_oracle::Config;
 use orml_traits;
@@ -74,7 +74,19 @@ pub enum OracleValue {
 	ZkProofResult(bool),
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, Debug, PartialEq, Eq, TypeInfo, PartialOrd, Ord, DecodeWithMemTracking)]
+#[derive(
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	Clone,
+	Debug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	PartialOrd,
+	Ord,
+	DecodeWithMemTracking,
+)]
 pub struct OracleMinerFormat<AccoundId> {
 	pub id: (AccoundId, MinerId),
 	pub miner_type: MinerType,
