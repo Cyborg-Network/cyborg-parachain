@@ -98,12 +98,12 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get((alice, bounded_uuid_cloud)),
+			pallet_edge_connect::CloudMiners::<Test>::get(bounded_uuid_cloud),
 			Some(miner_0)
 		);
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get((alice, bounded_uuid_edge)),
+			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge),
 			Some(miner_1)
 		);
 	});
@@ -173,7 +173,7 @@ fn it_works_for_registering_domain() {
 		));
 		// Read pallet storage and assert an expected result.
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get((alice, bounded_uuid_cloud.clone())),
+			pallet_edge_connect::CloudMiners::<Test>::get(bounded_uuid_cloud.clone()),
 			Some(miner)
 		);
 	});
@@ -333,12 +333,12 @@ fn it_works_for_removing_miner() {
 
 		// Assert that the miner no longer exists
 		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get((alice, bounded_uuid_cloud.clone())),
+			pallet_edge_connect::CloudMiners::<Test>::get(bounded_uuid_cloud.clone()),
 			None
 		);
 		// Assert that the miner no longer exists
 		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get((alice, bounded_uuid_edge.clone())),
+			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge.clone()),
 			None
 		);
 	});
