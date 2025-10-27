@@ -42,7 +42,7 @@ pub trait WeightInfo {
 	fn set_gatekeeper() -> Weight;
 	fn register_model_hash()-> Weight;
 	fn get_model_hash()->Weight;
-
+	fn reset_task() -> Weight;
 }
 
 /// Weights for `pallet_task_management` using the Substrate node and recommended hardware.
@@ -217,6 +217,31 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 	}
 
+	/// Storage: `TaskManagement::Tasks` (r:1 w:1)
+    /// Proof: `TaskManagement::Tasks` (`max_values`: None, `max_size`: Some(182), added: 2657, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskAllocations` (r:1 w:1)
+    /// Proof: `TaskManagement::TaskAllocations` (`max_values`: None, `max_size`: Some(56), added: 2531, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskStatus` (r:1 w:1)
+    /// Proof: `TaskManagement::TaskStatus` (`max_values`: None, `max_size`: Some(17), added: 2492, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::TaskAssignmentBlock` (r:1 w:1)
+    /// Proof: `TaskManagement::TaskAssignmentBlock` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::ComputeAggregations` (r:1 w:1)
+    /// Proof: `TaskManagement::ComputeAggregations` (`max_values`: None, `max_size`: Some(40), added: 2515, mode: `MaxEncodedLen`)
+    /// Storage: `TaskManagement::PendingTaskConfirmations` (r:1 w:1)
+    /// Proof: `TaskManagement::PendingTaskConfirmations` (`max_values`: None, `max_size`: Some(412), added: 2887, mode: `MaxEncodedLen`)
+    /// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
+    /// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+    /// Storage: `EdgeConnect::EdgeMiners` (r:1 w:1)
+    /// Proof: `EdgeConnect::EdgeMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+    fn reset_task() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `450`
+        //  Estimated: `7845`
+        // Minimum execution time: 45_000_000 picoseconds.
+        Weight::from_parts(50_000_000, 7845)
+            .saturating_add(T::DbWeight::get().reads(8_u64))
+            .saturating_add(T::DbWeight::get().writes(8_u64))
+    }
 
 }
 
@@ -388,4 +413,14 @@ impl WeightInfo for () {
 		Weight::from_parts(6_500_000, 2560)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 	}
+
+	fn reset_task() -> Weight {
+        // Proof Size summary in bytes:
+        //  Measured:  `450`
+        //  Estimated: `7845`
+        // Minimum execution time: 45_000_000 picoseconds.
+        Weight::from_parts(50_000_000, 7845)
+            .saturating_add(RocksDbWeight::get().reads(8_u64))
+            .saturating_add(RocksDbWeight::get().writes(8_u64))
+    }
 }

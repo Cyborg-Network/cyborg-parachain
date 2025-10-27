@@ -31,10 +31,11 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn register_miner() -> Weight;
 	fn remove_miner() -> Weight;
-	fn toggle_miner_visibility() -> Weight;
+	fn update_oracle_status() -> Weight;
 	fn penalize_miner() -> Weight;
 	fn suspend_miner() -> Weight;
     fn ban_miner() -> Weight;
+	fn update_operational_status() -> Weight;
     fn unsuspend_miner() -> Weight;
 }
 
@@ -65,17 +66,7 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
-	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_miner_visibility() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `260`
-		//  Estimated: `3688`
-		// Minimum execution time: 9_000_000 picoseconds.
-		Weight::from_parts(10_000_000, 3688)
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
+
 
 	fn penalize_miner() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
@@ -94,14 +85,36 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
+
+	/// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn update_operational_status() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `260`
+		//  Estimated: `3688`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+
+	  /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn update_oracle_status() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `260`
+		//  Estimated: `3688`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
     
     fn unsuspend_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(T::DbWeight::get().reads(1_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
-
-
 }
 
 // For backwards compatibility and tests.
@@ -130,18 +143,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	/// Storage: `EdgeConnect::CloudMiners` (r:1 w:1)
-	/// Proof: `EdgeConnect::CloudMiners` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
-	fn toggle_miner_visibility() -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `260`
-		//  Estimated: `3688`
-		// Minimum execution time: 9_000_000 picoseconds.
-		Weight::from_parts(10_000_000, 3688)
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	
 
 	fn penalize_miner() -> Weight {
 		Weight::from_parts(10_000_000, 3688)
@@ -160,12 +161,28 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
+
+	 /// Storage: `EdgeConnect::WorkerClusters` (r:1 w:1)
+	/// Proof: `EdgeConnect::WorkerClusters` (`max_values`: None, `max_size`: Some(223), added: 2698, mode: `MaxEncodedLen`)
+	fn update_oracle_status() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `260`
+		//  Estimated: `3688`
+		// Minimum execution time: 9_000_000 picoseconds.
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+
+	fn update_operational_status() -> Weight {
+		Weight::from_parts(10_000_000, 3688)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
     
     fn unsuspend_miner() -> Weight {
         Weight::from_parts(10_000_000, 3688)
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
-
-
 }

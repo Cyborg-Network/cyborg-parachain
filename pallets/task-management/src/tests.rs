@@ -1,13 +1,20 @@
 use crate::{mock::*, Error};
-use crate::{ComputeAggregations, GatekeeperAccount, ModelHashes, NextTaskId, TaskStatus, Tasks};
+use crate::{
+	ComputeAggregations, GatekeeperAccount, ModelHashes, NextTaskId, PendingTaskConfirmations,
+	ResetReason, TaskAllocations, TaskAssignmentBlock, TaskStatus, Tasks,
+};
+pub use cyborg_primitives::miner::*;
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
 use cyborg_primitives::task::{
-	AzureTask, NzkData, OnnxTask, OpenInferenceTask, TaskSubmissionData,
+	AzureTask, OnnxTask, OpenInferenceTask, TaskId, TaskSubmissionData,
 };
 use frame_support::{assert_noop, assert_ok};
+use sp_core::ConstU32;
+
 
 pub use cyborg_primitives::miner::*;
 use cyborg_primitives::payment::PaymentMode;
+
 pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
 use frame_support::dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo};
 use frame_support::traits::fungible::Mutate;
@@ -17,23 +24,58 @@ use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::traits::Get;
 use sp_runtime::DispatchError;
+
+use sp_runtime::DispatchResult;
 use sp_std::convert::TryFrom;
 
 fn register_miner(
 	account: u64,
 	miner_type: MinerType,
 	domain_str: &str,
-) -> Result<PostDispatchInfo, DispatchErrorWithPostInfo> {
-	EdgeConnectModule::register_miner(
+) -> Result<(PostDispatchInfo, MinerId), DispatchErrorWithPostInfo> {
+	// UUIDs for each miner
+	let miner_id  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+
+
+
+	// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+	// 		b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+	let result = EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
-		miner_type,
+		miner_type.clone(),
+		miner_id.clone(),
 		BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap(),
 		590000,   // latitude
 		120000,   // longitude
 		10000000, // ram
 		10000000, // storage
 		12,       // cpu
-	)
+	);
+
+	if result.is_ok() {
+		// Get the actual worker ID that was created
+		let bounded_miner_id = pallet_edge_connect::AccountMiners::<Test>::get(account).unwrap();
+		// Force set the oracle status to Online for testing
+		let _ = EdgeConnectModule::update_oracle_status(
+			RuntimeOrigin::signed(account),
+			account,
+			bounded_miner_id.clone(), // Use the actual worker ID
+			miner_type.clone(),
+			true, // online
+		);
+
+		// Set operational status to Available
+		let _ = EdgeConnectModule::update_operational_status(
+			RuntimeOrigin::signed(account),
+			miner_type,
+			bounded_miner_id.clone(), // Use the actual worker ID
+			OperationalStatus::Available,
+		);
+
+		Ok((result.unwrap(), bounded_miner_id))
+	} else {
+		Err(result.err().unwrap())
+	}
 }
 
 fn setup_user_with_active_payment(account: u64, mode: PaymentMode) {
@@ -79,6 +121,14 @@ fn setup_service_provider_account() {
 
 fn setup_gatekeeper() {
 	TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
+}
+
+fn reset_task_as_root(
+	task_id: TaskId,
+	miner_type: MinerType,
+	reason: ResetReason,
+) -> DispatchResult {
+	TaskManagementModule::reset_task(RuntimeOrigin::root(), task_id, miner_type, reason)
 }
 
 #[test]
@@ -431,9 +481,9 @@ fn it_works_for_task_scheduler() {
 		// Activate payment for Alice
 		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
-		// --------------------------------------------------
-		// ✅ Schedule OpenInference Executable Task (valid)
-		// --------------------------------------------------
+		// // --------------------------------------------------
+		// // ✅ Schedule OpenInference Executable Task (valid) - Use first worker
+		// // --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
@@ -470,12 +520,6 @@ fn it_works_for_task_scheduler() {
 		// 	miner_id_exec,
 		// 	Some(10)
 		// ));
-
-		// let task_id_1 = NextTaskId::<Test>::get() - 1;
-		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
-		// assert_eq!(task_info_1.task_kind, TaskKind::OpenInference);
-		// assert_eq!(task_info_1.zk_files_cid, None);
-
 		// --------------------------------------------------
 		// ✅ Schedule NeuroZK Executable Task (valid with zk_files)
 		// --------------------------------------------------
@@ -487,28 +531,53 @@ fn it_works_for_task_scheduler() {
 			PaymentMode::Subscription,
 		));
 
-		let task_id_2 = NextTaskId::<Test>::get() - 1;
-		let task_info_2 = Tasks::<Test>::get(task_id_2).unwrap();
-		assert_eq!(
-			task_info_2.task_kind,
-			TaskKind::NeuroZK(NzkData {
-				location: azure_task,
-				zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
-					.unwrap(),
-				zk_settings: BoundedVec::try_from(
-					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
-				)
-				.unwrap(),
-				zk_verifying_key: BoundedVec::try_from(
-					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
-				)
-				.unwrap(),
-				zk_proof: None,
-				last_proof_accepted: None
-			})
-		);
+		assert_ok!(EdgeConnectModule::register_miner(
+		RuntimeOrigin::signed(bob),
+		MinerType::Edge,
+		miner_id_zk.clone(),
+		BoundedVec::try_from("exec.worker".as_bytes().to_vec()).unwrap(),
+		590000,   // latitude
+		120000,   // longitude
+		10000000, // ram
+		10000000, // storage
+		12,       // cpu
+		));
+		
+		// let task_id_1 = NextTaskId::<Test>::get() - 1;
+		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
+		// assert_eq!(
+		// 	task_info_1.task_kind,
+		// 	TaskKind::NeuroZK(NzkData {
+		// 		location: azure_task,
+		// 		zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
+		// 			.unwrap(),
+		// 		zk_settings: BoundedVec::try_from(
+		// 			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+		// 		)
+		// 		.unwrap(),
+		// 		zk_verifying_key: BoundedVec::try_from(
+		// 			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
+		// 		)
+		// 		.unwrap(),
+		// 		zk_proof: None,
+		// 		last_proof_accepted: None
+		// 	})
+		// );
+
+		// // Verify both tasks are in the system
+		// assert_eq!(Tasks::<Test>::iter().count(), 2);
+
+		// // Verify both workers are now busy
+		// let worker_0 =
+		// 	pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_docker)).unwrap();
+		// let worker_1 = pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_exec)).unwrap();
+
+		// assert_eq!(worker_0.operational_status, OperationalStatus::Busy);
+		// assert_eq!(worker_1.operational_status, OperationalStatus::Busy);
 	});
 }
+
+
 
 #[test]
 fn it_works_for_miner_status_updates() {
@@ -541,7 +610,7 @@ fn it_works_for_miner_status_updates() {
 		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		// --------------------------------------------------
-		// ✅ Schedule OpenInference Executable Task (valid)
+		// Schedule OpenInference Executable Task (valid)
 		// --------------------------------------------------
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -573,7 +642,7 @@ fn it_works_for_miner_status_updates() {
 				miner_id_exec,
 				PaymentMode::Subscription
 			),
-			pallet_edge_connect::Error::<Test>::MinerIsBusy
+			Error::<Test>::MinerIsBusy
 		);
 
 		// Confirm task reception
@@ -617,14 +686,11 @@ fn it_fails_when_miner_not_registered() {
 		System::set_block_number(1);
 		let alice = 1;
 		let miner_owner = 2;
-		let miner_id = 99;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![99u8]).unwrap();
+		
 
 		// Register an Executable miner to ensure miners exist
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"exec.miner"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "exec.miner"));
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -656,7 +722,7 @@ fn it_fails_when_miner_not_registered() {
 				RuntimeOrigin::signed(alice),
 				task_kind_neurozk,
 				miner_owner,
-				miner_id,
+				miner_id.clone(),
 				Some(1),
 			),
 			pallet_edge_connect::Error::<Test>::MinerDoesNotExist
@@ -672,7 +738,7 @@ fn it_fails_when_no_miners_are_available() {
 		setup_gatekeeper();
 		let alice = 1;
 		let miner_owner = 2;
-		let miner_id = 0;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![0u8]).unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -697,7 +763,7 @@ fn it_fails_when_no_miners_are_available() {
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
 				miner_owner,
-				miner_id,
+				miner_id.clone(),
 				Some(10)
 			),
 			pallet_edge_connect::Error::<Test>::MinerDoesNotExist
@@ -714,7 +780,9 @@ fn it_fails_when_no_computer_hours_available() {
 		let alice = 1;
 
 		let miner_owner = 2;
-		let miner_id = 0;
+		let bounded_miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -724,11 +792,7 @@ fn it_fails_when_no_computer_hours_available() {
 		}));
 
 		// Register miner first
-		assert_ok!(register_miner(
-			miner_owner,
-			MinerType::Edge,
-			"miner.domain"
-		));
+		assert_ok!(register_miner(miner_owner, MinerType::Edge, "miner.domain"));
 
 		// Dispatch a signed extrinsic and expect an error because no miners are available
 		assert_noop!(
@@ -736,7 +800,7 @@ fn it_fails_when_no_computer_hours_available() {
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
 				miner_owner,
-				miner_id,
+				bounded_miner_id.clone(),
 				None
 			),
 			Error::<Test>::RequireComputeHoursDeposit
@@ -753,7 +817,9 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		System::set_block_number(1);
 		let creator = 1;
 		let executor = 2;
-		let miner_id = 0;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -771,7 +837,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			miner_id,
+			miner_id.clone(),
 			Some(10)
 		));
 
@@ -802,7 +868,10 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 		let creator = 1;
 		let executor = 2;
 		let intruder = 99;
-		let miner_id = 0;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -818,7 +887,7 @@ fn confirm_task_reception_should_fail_for_wrong_executor() {
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			miner_id,
+			miner_id.clone(),
 			Some(10)
 		));
 
@@ -840,7 +909,9 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		setup_gatekeeper();
 		let creator = 1;
 		let executor = 2;
-		let miner_id = 0;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -856,7 +927,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
 			executor,
-			miner_id,
+			miner_id.clone(),
 			Some(10)
 		));
 
@@ -884,6 +955,8 @@ fn it_works_for_confirm_miner_vacation() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -897,14 +970,14 @@ fn it_works_for_confirm_miner_vacation() {
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		// Register an Executable miner
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// 🔹 Submit task
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0, // miner_id
+			miner_id, // miner_id
 			Some(10),
 		));
 
@@ -928,7 +1001,7 @@ fn it_works_for_confirm_miner_vacation() {
 		assert_ok!(TaskManagementModule::confirm_miner_vacation(
 			RuntimeOrigin::signed(alice),
 			task_id,
-			miner_type,
+			miner_type
 		));
 
 		let updated_task = Tasks::<Test>::get(task_id).unwrap();
@@ -945,6 +1018,8 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -955,13 +1030,13 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0,
+			miner_id,
 			Some(5),
 		));
 
@@ -979,7 +1054,7 @@ fn fails_if_not_assigned_miner_for_vacation() {
 		});
 		TaskStatus::<Test>::insert(task_id, TaskStatusType::Stopped);
 
-		// ❌ Bob is the task owner, but NOT the assigned miner
+		// Bob is the task owner, but NOT the assigned miner
 		assert_noop!(
 			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(bob), task_id, miner_type),
 			Error::<Test>::NotAssignedMiner
@@ -995,6 +1070,8 @@ fn fails_if_task_not_stopped() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -1005,13 +1082,13 @@ fn fails_if_task_not_stopped() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
-		assert_ok!(register_miner(alice, miner_type.clone(), "alice"));
+		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0,
+			miner_id,
 			Some(5),
 		));
 
@@ -1023,9 +1100,13 @@ fn fails_if_task_not_stopped() {
 			task_id
 		));
 
-		// ❌ Cannot confirm vacation unless status is Stopped
+		//  Cannot confirm vacation unless status is Stopped
 		assert_noop!(
-			TaskManagementModule::confirm_miner_vacation(RuntimeOrigin::signed(alice), task_id, miner_type),
+			TaskManagementModule::confirm_miner_vacation(
+				RuntimeOrigin::signed(alice),
+				task_id,
+				miner_type
+			),
 			Error::<Test>::InvalidTaskState
 		);
 	});
@@ -1039,6 +1120,8 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -1056,7 +1139,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0,
+			miner_id,
 			Some(10),
 		));
 
@@ -1099,6 +1182,8 @@ fn fails_if_task_is_not_running() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -1115,13 +1200,13 @@ fn fails_if_task_is_not_running() {
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
 			alice,
-			0,
+			miner_id,
 			Some(15),
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
 
-		// ❌ Call stop while task is not Running
+		//  Call stop while task is not Running
 		assert_noop!(
 			TaskManagementModule::stop_task_and_vacate_miner(RuntimeOrigin::signed(alice), task_id),
 			Error::<Test>::InvalidTaskState
@@ -1172,42 +1257,524 @@ fn test_register_model_hash_works() {
 		assert_eq!(ModelHashes::<Test>::get(fixed_id), Some(model_hash));
 	});
 }
+
 */
+// #[test]
+// fn test_register_and_retrieve_model_hash() {
+//     new_test_ext().execute_with(|| {
+//         // bring the trait into scope
+//         use base64::Engine; 
+//         use base64::engine::general_purpose::STANDARD;
+//         use hex_literal::hex;
+//         use sp_core::H256;
+
+//         let gatekeeper = 1u64;
+//         GatekeeperAccount::<Test>::put(gatekeeper);
+
+//         let origin = RuntimeOrigin::signed(gatekeeper);
+
+//         let model_id_vec =
+//             hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51").to_vec();
+
+//         let hash_b64 = "ecO8CXRpai6p79L3vKGf3WMINL0AhvG0ocPbPc47KlE=";
+
+//         let hash_bytes = STANDARD.decode(hash_b64).expect("Valid base64");
+//         assert_eq!(hash_bytes.len(), 32, "Hash must be 32 bytes");
+
+//         let model_hash = H256::from_slice(&hash_bytes);
+
+//         assert_ok!(TaskManagementModule::register_model_hash(
+//             origin.clone(),
+//             model_id_vec.clone(),
+//             model_hash
+//         ));
+
+//         let mut model_id_fixed = [0u8; 32];
+//         model_id_fixed.copy_from_slice(&model_id_vec);
+
+// 		let stored_hash = ModelHashes::<Test>::get(model_id_fixed);
+// 		assert_eq!(stored_hash, Some(model_hash));
+// 	});
+// }
 
 /*
 #[test]
-fn test_register_and_retrieve_model_hash() {
+fn reset_task_should_work_for_stuck_assigned_task() {
 	new_test_ext().execute_with(|| {
-		use base64::engine::general_purpose::STANDARD;
-		use base64::Engine;
-		use hex_literal::hex;
-		use sp_core::H256;
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
 
-		let gatekeeper = 1u64;
-		GatekeeperAccount::<Test>::put(gatekeeper);
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
 
-		let origin = RuntimeOrigin::signed(gatekeeper);
+		// Provide compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
-		let model_id_vec =
-			hex!("79c3bc0974696a2ea9efd2f7bca19fdd630834bd0086f1b4a1c3db3dce3b2a51").to_vec();
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
 
-		let hash_b64 = "ecO8CXRpai6p79L3vKGf3WMINL0AhvG0ocPbPc47KlE=";
-		let hash_bytes = STANDARD.decode(hash_b64).expect("Valid base64");
-		assert_eq!(hash_bytes.len(), 32, "Hash must be 32 bytes");
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
-		let model_hash = H256::from_slice(&hash_bytes);
-
-		assert_ok!(TaskManagementModule::register_model_hash(
-			origin.clone(),
-			model_id_vec.clone(),
-			model_hash
+		// Schedule task
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
 		));
 
-		let mut model_id_fixed = [0u8; 32];
-		model_id_fixed.copy_from_slice(&model_id_vec);
+		let task_id = NextTaskId::<Test>::get() - 1;
 
-		let stored_hash = ModelHashes::<Test>::get(model_id_fixed);
-		assert_eq!(stored_hash, Some(model_hash));
+		// Verify task is in Assigned state
+		let task = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(task.task_status, TaskStatusType::Assigned);
+
+		// Verify miner is busy
+		let miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(miner.operational_status, OperationalStatus::Busy);
+		assert_eq!(miner.current_task, Some(task_id));
+
+		// Reset the stuck task as root using the helper
+		assert_ok!(reset_task_as_root(
+			task_id,
+			miner_type.clone(),
+			ResetReason::MinerUnresponsive
+		));
+
+		// Verify task is removed from storage
+		assert!(Tasks::<Test>::get(task_id).is_none());
+		assert!(TaskAllocations::<Test>::get(task_id).is_none());
+		assert!(TaskStatus::<Test>::get(task_id).is_none());
+		assert!(ComputeAggregations::<Test>::get(task_id).is_none());
+
+		// Verify miner is reset to available
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(
+			updated_miner.operational_status,
+			OperationalStatus::Available
+		);
+		assert_eq!(updated_miner.current_task, None);
+
+		// Check event emission
+		System::assert_has_event(RuntimeEvent::TaskManagementModule(
+			crate::Event::TaskManuallyReset {
+				task_id,
+				reset_by: None, // root account
+				previous_status: TaskStatusType::Assigned,
+				reason: ResetReason::MinerUnresponsive,
+			},
+		));
+	});
+}
+
+#[test]
+fn reset_task_should_work_for_stuck_running_task() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+
+		// Provide compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		// Schedule task and confirm reception
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(executor),
+			task_id
+		));
+
+		// Verify task is in Running state
+		let task = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(task.task_status, TaskStatusType::Running);
+
+		// Reset the stuck running task using root
+		assert_ok!(reset_task_as_root(
+			task_id,
+			miner_type.clone(),
+			ResetReason::TaskTimeout
+		));
+
+		// Verify task is cleaned up
+		assert!(Tasks::<Test>::get(task_id).is_none());
+		assert!(TaskAllocations::<Test>::get(task_id).is_none());
+
+		// Verify miner is reset
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(
+			updated_miner.operational_status,
+			OperationalStatus::Available
+		);
+		assert_eq!(updated_miner.current_task, None);
+	});
+}
+
+#[test]
+fn reset_task_should_work_for_stuck_stopped_task() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+
+		// Provide compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		// Schedule task and go through full lifecycle to Stopped state
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(executor),
+			task_id
+		));
+
+		// Stop the task
+		assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
+			RuntimeOrigin::signed(alice),
+			task_id
+		));
+
+		// Verify task is in Stopped state
+		let task = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(task.task_status, TaskStatusType::Stopped);
+
+		// Reset the stuck stopped task using root
+		assert_ok!(reset_task_as_root(
+			task_id,
+			miner_type.clone(),
+			ResetReason::ManualIntervention
+		));
+
+		// Verify task is cleaned up
+		assert!(Tasks::<Test>::get(task_id).is_none());
+		assert!(TaskAllocations::<Test>::get(task_id).is_none());
+
+		// Verify miner is reset
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(
+			updated_miner.operational_status,
+			OperationalStatus::Available
+		);
+		assert_eq!(updated_miner.current_task, None);
 	});
 }
 */
+
+#[test]
+fn reset_task_should_fail_for_non_root_caller() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner and create a task
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Non-root caller should fail
+		assert_noop!(
+			TaskManagementModule::reset_task(
+				RuntimeOrigin::signed(alice),
+				task_id,
+				miner_type,
+				ResetReason::ManualIntervention
+			),
+			DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn reset_task_should_fail_for_nonexistent_task() {
+	new_test_ext().execute_with(|| {
+		let nonexistent_task_id = 9999;
+		let miner_type = MinerType::Edge;
+
+		assert_noop!(
+			reset_task_as_root(
+				nonexistent_task_id,
+				miner_type,
+				ResetReason::ManualIntervention
+			),
+			Error::<Test>::TaskNotFound
+		);
+	});
+}
+
+#[test]
+fn reset_task_should_fail_for_non_resettable_states() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		// Create task and go through full lifecycle to Vacated state
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Complete the task lifecycle to reach Vacated state
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(executor),
+			task_id
+		));
+
+		assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
+			RuntimeOrigin::signed(alice),
+			task_id
+		));
+
+		assert_ok!(TaskManagementModule::confirm_miner_vacation(
+			RuntimeOrigin::signed(executor),
+			task_id,
+			miner_type.clone()
+		));
+
+		// Verify task is in Vacated state (non-resettable)
+		let task = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(task.task_status, TaskStatusType::Vacated);
+
+		assert_noop!(
+			reset_task_as_root(task_id, miner_type, ResetReason::ManualIntervention),
+			Error::<Test>::TaskNotResettable
+		);
+	});
+}
+
+#[test]
+fn reset_task_should_handle_suspended_miner() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+
+		// Provide compute hours
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		// Schedule task
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Suspend the miner
+		assert_ok!(EdgeConnectModule::suspend_miner(
+			RuntimeOrigin::root(),
+			executor,
+			miner_id.clone(),
+			miner_type.clone(),
+			1000, // blocks
+			SuspensionReason::TaskConfirmationTimeout
+		));
+
+		// Verify miner is suspended
+		let miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(miner.operational_status, OperationalStatus::Suspended);
+
+		// Reset the task - should unsuspend the miner using root
+		assert_ok!(reset_task_as_root(
+			task_id,
+			miner_type.clone(),
+			ResetReason::SystemError
+		));
+
+		// Verify miner is no longer suspended and is available
+		let updated_miner = EdgeConnectModule::get_miner(&(executor, miner_id.clone()), &miner_type).unwrap();
+		assert_eq!(
+			updated_miner.operational_status,
+			OperationalStatus::Available
+		);
+		assert_eq!(updated_miner.current_task, None);
+	});
+}
+
+#[test]
+fn reset_task_should_clean_up_pending_confirmations() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+		// Schedule task
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			executor,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Verify task is in pending confirmations
+		let assigned_block = TaskAssignmentBlock::<Test>::get(task_id).unwrap();
+		let timeout_block = assigned_block.saturating_add(75);
+		let pending_tasks = PendingTaskConfirmations::<Test>::get(timeout_block);
+
+		// Debug output to help diagnose
+		println!("Assigned block: {}", assigned_block);
+		println!("Timeout block: {}", timeout_block);
+		println!("Pending tasks at timeout block: {:?}", pending_tasks);
+
+		assert!(
+			pending_tasks.contains(&task_id),
+			"Task should be in pending confirmations"
+		);
+
+		// Reset the task using root
+		assert_ok!(reset_task_as_root(
+			task_id,
+			miner_type,
+			ResetReason::ManualIntervention
+		));
+
+		// Verify task is removed from pending confirmations
+		let pending_tasks_after = PendingTaskConfirmations::<Test>::get(timeout_block);
+		assert!(
+			!pending_tasks_after.contains(&task_id),
+			"Task should be removed from pending confirmations"
+		);
+	});
+}

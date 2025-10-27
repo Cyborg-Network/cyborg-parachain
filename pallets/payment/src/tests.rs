@@ -3,7 +3,7 @@ use crate::BalanceOf;
 use cyborg_primitives::payment::*;
 use frame_support::traits::fungible::Mutate;
 use frame_support::traits::Currency;
-use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
 use sp_runtime::traits::Get;
 
 // Test to ensure consuming zero hours fails
@@ -77,7 +77,7 @@ fn non_admin_cannot_set_service_provider_account() {
 fn it_records_usage_successfully() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
-		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, BoundedVec::try_from(vec![0u8]).unwrap());
 
 		assert_ok!(PaymentModule::record_usage(
 			RuntimeOrigin::signed(USER2),
@@ -103,7 +103,7 @@ fn it_fails_when_usage_input_is_invalid() {
 		System::set_block_number(1);
 
 		// Usage above 100% should fail
-		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, BoundedVec::try_from(vec![0u8]).unwrap());
 
 		assert_noop!(
 			PaymentModule::record_usage(RuntimeOrigin::signed(USER2), 120, 50, 80),
@@ -175,7 +175,7 @@ fn it_fails_to_distribute_if_provider_not_set() {
 #[test]
 fn it_overwrites_existing_usage() {
 	new_test_ext().execute_with(|| {
-		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, 0);
+		pallet_edge_connect::AccountMiners::<Test>::insert(USER2, BoundedVec::try_from(vec![0u8]).unwrap());
 
 		assert_ok!(PaymentModule::record_usage(
 			RuntimeOrigin::signed(USER2),
