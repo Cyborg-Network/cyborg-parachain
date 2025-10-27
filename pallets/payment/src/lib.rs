@@ -10,6 +10,8 @@ mod mock;
 mod tests;
 
 pub mod weights;
+use cyborg_primitives::payment::AssetConfig;
+use cyborg_primitives::payment::PaymentAsset;
 use cyborg_primitives::payment::RewardRates;
 use log::info;
 
@@ -73,7 +75,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_edge_connect::Config + scale_info::TypeInfo
+		frame_system::Config
+		+ pallet_edge_connect::Config
+		+ pallet_asset_adapter::Config
+		+ scale_info::TypeInfo
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
@@ -81,6 +86,8 @@ pub mod pallet {
 
 		/// Abstraction over the chain's currency system, allowing this pallet to interact with balances.
 		type Currency: Currency<Self::AccountId>;
+
+		type TreasuryAccount: Get<Self::AccountId>;
 
 		/// A type representing the weights required by the dispatchable functions of this pallet.
 		type WeightInfo: WeightInfo;
@@ -176,6 +183,21 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
+	/// Storage for asset configurations (USDT, USDC, BORG)
+	#[pallet::storage]
+	pub type AssetConfigs<T: Config> =
+		StorageMap<_, Blake2_128Concat, PaymentAsset, AssetConfig, OptionQuery>;
+
+	/// Storage for subscription fees in different assets
+	#[pallet::storage]
+	pub type AssetSubscriptionFees<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		PaymentAsset,
+		u128, // Fee amount in asset's native decimals
+		OptionQuery,
+	>;
+
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -216,6 +238,21 @@ pub mod pallet {
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
 		RemainingHoursQueried(T::AccountId, u32),
+		AssetConfigUpdated {
+			asset: PaymentAsset,
+			asset_id: u32,
+			decimals: u8,
+		},
+		AssetSubscriptionFeeSet {
+			asset: PaymentAsset,
+			fee: u128,
+		},
+		AssetPaymentProcessed {
+			account: T::AccountId,
+			asset: PaymentAsset,
+			amount: u128,
+			hours: u32,
+		},
 	}
 
 	/// Custom pallet errors.
@@ -244,6 +281,8 @@ pub mod pallet {
 		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
+		AssetConfigNotFound,
+		InvalidAssetAmount,
 	}
 
 	/// Declare callable extrinsics.
@@ -252,6 +291,9 @@ pub mod pallet {
 	where
 		<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
 			TryFrom<u64>,
+		<T as frame_system::Config>::AccountId: Clone,
+		<T as pallet_assets::Config>::AssetId: From<u32>,
+		<T as pallet_assets::Config>::Balance: From<u128>,
 	{
 		/// Set the account that receives all payments.
 		/// Can only be set by root user
@@ -394,7 +436,12 @@ pub mod pallet {
 				if reward.is_zero() {
 					continue;
 				}
-				T::Currency::transfer(&provider, &miner, reward, ExistenceRequirement::KeepAlive)?;
+				<T as pallet::Config>::Currency::transfer(
+					&provider,
+					&miner,
+					reward,
+					ExistenceRequirement::KeepAlive,
+				)?;
 				info!("{:?} rewarded with {:?} Native Coin", miner, reward);
 				Self::deposit_event(Event::MinerRewarded(miner, reward));
 			}
@@ -415,11 +462,16 @@ pub mod pallet {
 				.checked_mul(&hours.into())
 				.ok_or(Error::<T>::InvalidFee)?;
 			ensure!(
-				T::Currency::free_balance(&who) >= total_fee,
+				<T as pallet::Config>::Currency::free_balance(&who) >= total_fee,
 				Error::<T>::InsufficientBalance
 			);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
-			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
+			<T as pallet::Config>::Currency::transfer(
+				&who,
+				&provider,
+				total_fee,
+				ExistenceRequirement::KeepAlive,
+			)?;
 			ComputeHours::<T>::insert(&who, hours);
 			Self::deposit_event(Event::ConsumerSubscribed(who, total_fee, hours));
 			Ok(())
@@ -439,11 +491,16 @@ pub mod pallet {
 				.checked_mul(&extra_hours.into())
 				.ok_or(Error::<T>::InvalidFee)?;
 			ensure!(
-				T::Currency::free_balance(&who) >= total_fee,
+				<T as pallet::Config>::Currency::free_balance(&who) >= total_fee,
 				Error::<T>::InsufficientBalance
 			);
 			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
-			T::Currency::transfer(&who, &provider, total_fee, ExistenceRequirement::KeepAlive)?;
+			<T as pallet::Config>::Currency::transfer(
+				&who,
+				&provider,
+				total_fee,
+				ExistenceRequirement::KeepAlive,
+			)?;
 			ComputeHours::<T>::mutate(&who, |hours| {
 				*hours += extra_hours;
 			});
@@ -605,7 +662,7 @@ pub mod pallet {
 
 			let provider =
 				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
-			T::Currency::transfer(
+			<T as pallet::Config>::Currency::transfer(
 				&provider,
 				&account,
 				native_value,
@@ -647,6 +704,161 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let hours = ComputeHours::<T>::get(&who);
 			Self::deposit_event(Event::RemainingHoursQueried(who, hours));
+			Ok(())
+		}
+
+		/// Admin sets asset configuration for supported payment assets
+		#[pallet::call_index(15)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_asset_config())]
+		pub fn set_asset_config(
+			origin: OriginFor<T>,
+			asset: PaymentAsset,
+			asset_id: u32,
+			decimals: u8,
+			min_amount: u128,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			let config = AssetConfig {
+				asset_id,
+				decimals,
+				min_amount,
+			};
+
+			AssetConfigs::<T>::insert(asset, config.clone());
+
+			Self::deposit_event(Event::AssetConfigUpdated {
+				asset,
+				asset_id,
+				decimals,
+			});
+
+			Ok(())
+		}
+
+		/// Admin sets subscription fee for a specific asset
+		#[pallet::call_index(16)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_asset_subscription_fee())]
+		pub fn set_asset_subscription_fee(
+			origin: OriginFor<T>,
+			asset: PaymentAsset,
+			fee: u128,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			ensure!(fee > 0, Error::<T>::InvalidFee);
+
+			AssetSubscriptionFees::<T>::insert(asset, fee);
+
+			Self::deposit_event(Event::AssetSubscriptionFeeSet { asset, fee });
+
+			Ok(())
+		}
+
+		/// Subscribe using a specific asset (USDT, USDC, BORG)
+		#[pallet::call_index(17)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::subscribe_with_asset())]
+		pub fn subscribe_with_asset(
+			origin: OriginFor<T>,
+			asset: PaymentAsset,
+			hours: u32,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				ComputeHours::<T>::get(&who) == 0,
+				Error::<T>::AlreadySubscribed
+			);
+
+			let asset_config = AssetConfigs::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+			let asset_fee =
+				AssetSubscriptionFees::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+
+			let total_fee = asset_fee
+				.checked_mul(hours as u128)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				total_fee >= asset_config.min_amount,
+				Error::<T>::InvalidAssetAmount
+			);
+
+			let treasury_account = T::TreasuryAccount::get();
+
+			// Use the asset adapter for transfer
+			pallet_asset_adapter::Pallet::<T>::transfer(
+				who.clone(),
+				treasury_account.clone(),
+				asset_config.asset_id,
+				total_fee,
+			)?;
+
+			ComputeHours::<T>::insert(&who, hours);
+
+			Self::deposit_event(Event::AssetPaymentProcessed {
+				account: who.clone(),
+				asset,
+				amount: total_fee,
+				hours,
+			});
+
+			// Convert total_fee to native balance for the event
+			let native_balance_fee: BalanceOf<T> = total_fee.try_into().unwrap_or_default();
+			Self::deposit_event(Event::ConsumerSubscribed(who, native_balance_fee, hours));
+
+			Ok(())
+		}
+
+		/// Add hours using a specific asset
+		#[pallet::call_index(18)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_hours_with_asset())]
+		pub fn add_hours_with_asset(
+			origin: OriginFor<T>,
+			asset: PaymentAsset,
+			extra_hours: u32,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(
+				ComputeHours::<T>::contains_key(&who),
+				Error::<T>::SubscriptionExpired
+			);
+
+			let asset_config = AssetConfigs::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+			let asset_fee =
+				AssetSubscriptionFees::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+
+			let total_fee = asset_fee
+				.checked_mul(extra_hours as u128)
+				.ok_or(ArithmeticError::Overflow)?;
+
+			ensure!(
+				total_fee >= asset_config.min_amount,
+				Error::<T>::InvalidAssetAmount
+			);
+
+			let treasury_account = T::TreasuryAccount::get();
+
+			// Use the asset adapter for transfer
+			pallet_asset_adapter::Pallet::<T>::transfer(
+				who.clone(),
+				treasury_account.clone(),
+				asset_config.asset_id,
+				total_fee,
+			)?;
+
+			ComputeHours::<T>::mutate(&who, |hours| {
+				*hours += extra_hours;
+			});
+
+			Self::deposit_event(Event::AssetPaymentProcessed {
+				account: who.clone(),
+				asset,
+				amount: total_fee,
+				hours: extra_hours,
+			});
+
+			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
+
 			Ok(())
 		}
 	}

@@ -20,6 +20,9 @@ frame-system = { workspace = true }
 log = { workspace = true }
 orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
+pallet-asset-adapter = { workspace = true }
+pallet-assets = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
 pallet-payment = { workspace = true }

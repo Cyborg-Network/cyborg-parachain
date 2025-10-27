@@ -13,11 +13,23 @@ name = "bob"
 validator = true
 rpc_port = 9955
 
+# Asset Hub parachain
 [[parachains]]
 id = 1000
+chain = "asset-hub-rococo-local"
 
 [parachains.collator]
-name = "alice"
-rpc_port = 9988
+name = "asset-hub"
+command = "/Users/nathanielbajo/polkadot-sdk/target/release/polkadot-parachain"
+args = ["-lparachain=debug"]
+rpc_port = 9911
+
+# Cyborg parachain
+[[parachains]]
+id = 2000
+
+[parachains.collator]
+name = "cyborg-alice"
 command = "cyborg-node"
 args = ["-lparachain=debug"]
+rpc_port = 9933

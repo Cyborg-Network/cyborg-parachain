@@ -1,14 +1,20 @@
 pub use crate as pallet_task_management;
 use frame_support::traits::ConstU32;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
+use frame_system::EnsureRoot;
+use frame_system::EnsureRootWithSuccess;
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
 use sp_runtime::{traits::ConstU64, BuildStorage};
 
+pub type AccountId = u64;
+
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
 mod test_runtime {
+	use super::AccountId;
+
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
@@ -40,16 +46,56 @@ mod test_runtime {
 
 	#[runtime::pallet_index(5)]
 	pub type Balances = pallet_balances;
+
+	#[runtime::pallet_index(6)]
+	pub type Assets = pallet_assets;
 }
+
+pub type Balance = u128;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
 	type Block = MockBlock<Test>;
+	type AccountId = AccountId;
 	type Nonce = u64;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = RocksDbWeight;
 	type AccountData = pallet_balances::AccountData<u128>;
+	type Lookup = sp_runtime::traits::IdentityLookup<Self::AccountId>;
 }
+
+parameter_types! {
+		pub const AssetDeposit: u128 = 100;
+		pub const AssetAccountDeposit: u128 = 10;
+		pub const ApprovalDeposit: u128 = 1;
+		pub const AssetsStringLimit: u32 = 50;
+		pub const MetadataDepositBase: u128 = 10;
+		pub const MetadataDepositPerByte: u128 = 1;
+}
+
+impl pallet_assets::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = codec::Compact<u32>;
+	type Currency = Balances;
+	type CreateOrigin = EnsureRootWithSuccess<AccountId, ConstU64<12345>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+	type RemoveItemsLimit = ConstU32<1000>;
+	type CallbackHandle = ();
+	type Holder = ();
+}
+
+impl pallet_asset_adapter::Config for Test {}
 
 impl pallet_task_management::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
@@ -58,7 +104,7 @@ impl pallet_task_management::Config for Test {
 }
 
 parameter_types! {
-	pub const TaskConfirmationTimeout: u64 = 75; // ~7.5 minutes at 6s/block
+		pub const TaskConfirmationTimeout: u64 = 75;
 }
 
 impl pallet_edge_connect::Config for Test {
@@ -75,10 +121,15 @@ parameter_types! {
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+	type TreasuryAccount = TreasuryAccount;
 	type WeightInfo = ();
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+}
+
+parameter_types! {
+		pub const TreasuryAccount: AccountId = 999; // Use AccountId type here
 }
 
 impl pallet_timestamp::Config for Test {

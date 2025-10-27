@@ -2755,6 +2755,8 @@ dependencies = [
  "log",
  "orml-oracle",
  "orml-traits",
+ "pallet-asset-adapter",
+ "pallet-assets",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -2771,6 +2773,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
  "pallet-xcm",
  "pallet-zk-verifier",
  "parachains-common",
@@ -7049,6 +7052,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-adapter"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime 41.1.0",
+ "sp-std 14.0.0 (git+https://github.com/Cyborg-Network/polkadot-sdk?rev=1530a8826416514c3326597338b3511a55040663)",
+]
+
+[[package]]
 name = "pallet-asset-conversion"
 version = "22.0.0"
 source = "git+https://github.com/Cyborg-Network/polkadot-sdk?rev=1530a8826416514c3326597338b3511a55040663#1530a8826416514c3326597338b3511a55040663"
@@ -7648,6 +7664,9 @@ dependencies = [
  "log",
  "orml-oracle",
  "orml-traits",
+ "pallet-asset-adapter",
+ "pallet-assets",
+ "pallet-balances",
  "pallet-edge-connect",
  "pallet-payment",
  "pallet-task-management",
@@ -7782,6 +7801,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-asset-adapter",
+ "pallet-assets",
  "pallet-balances",
  "pallet-edge-connect",
  "pallet-sudo",
@@ -7792,6 +7813,9 @@ dependencies = [
  "sp-io 40.0.1",
  "sp-runtime 41.1.0",
  "sp-std 14.0.0 (git+https://github.com/Cyborg-Network/polkadot-sdk?rev=1530a8826416514c3326597338b3511a55040663)",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
 ]
 
 [[package]]
@@ -8059,6 +8083,8 @@ dependencies = [
  "frame-system",
  "hex-literal 1.0.0",
  "log",
+ "pallet-asset-adapter",
+ "pallet-assets",
  "pallet-balances",
  "pallet-edge-connect",
  "pallet-payment",

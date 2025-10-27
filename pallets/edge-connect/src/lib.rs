@@ -203,7 +203,7 @@ pub mod pallet {
 		MinerIsInactive,
 		NotAuthorized,
 		// Provided UUID exceeded MaxUuidLen
-		UuidTooLong, 
+		UuidTooLong,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -244,10 +244,12 @@ pub mod pallet {
 
 			full_uuid.extend_from_slice(&miner_uuid);
 			//  Convert to bounded vec
-			let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
-				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
+			let bounded_uuid: BoundedVec<u8, ConstU32<64>> = full_uuid
+				.clone()
+				.try_into()
+				.map_err(|_| Error::<T>::UuidTooLong)?;
 
-				//  Check if the miner already exists
+			//  Check if the miner already exists
 			let miner_exists = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
 				MinerType::Edge => EdgeMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
@@ -270,7 +272,7 @@ pub mod pallet {
 				return Err(Error::<T>::MinerExists.into());
 			}
 
-let blocknumber = <frame_system::Pallet<T>>::block_number();
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
 				id: bounded_uuid.clone(),
 				owner: creator.clone(),
@@ -288,15 +290,12 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
 
-
 			//  Store miner efficiently
-				match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
-					MinerType::Edge => EdgeMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
-				}
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
+				MinerType::Edge => EdgeMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
+			}
 
-
-			
 			// Emit an event.
 			Self::deposit_event(Event::MinerRegistered {
 				creator: creator.clone(),
@@ -345,7 +344,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
- 
+
 		/// Updates the oracle status (callable by oracle feeder)
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_oracle_status())]

@@ -18,7 +18,6 @@ fn prevents_nonexistent_miner_storage() {
 		// initalize test variables
 		let oracle_feeder_1: AccountId = 100;
 		let miner_addrs: Vec<AccountId> = [0].to_vec();
-	
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
@@ -72,9 +71,18 @@ fn on_new_data_works_as_expected() {
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
 		// basic miner spec
 		let miner_type = MinerType::Cloud;
@@ -279,12 +287,19 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
-
-
 
 		// basic miner spec
 		let miner_latitude: Latitude = 590000;
@@ -325,7 +340,7 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		};
 
 		assert_ok!(EdgeConnectModule::update_operational_status(
-			RuntimeOrigin::signed(miner_addrs[1]), 
+			RuntimeOrigin::signed(miner_addrs[1]),
 			MinerType::Cloud,
 			bounded_miner_ids[0].clone(),
 			OperationalStatus::Busy
@@ -583,9 +598,18 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"ED-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"ED-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"ED-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"ED-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
 
 		// basic miner spec
