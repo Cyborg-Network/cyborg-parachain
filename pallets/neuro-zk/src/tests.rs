@@ -1,6 +1,6 @@
 use crate::{mock::*, Error};
 use crate::{RequestedProofs, SubmittedPerProof, VerificationResultsPerProof};
-
+use cyborg_primitives::payment::PaymentMode;
 use frame_support::{assert_noop, assert_ok, pallet_prelude::ConstU32, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -36,9 +36,8 @@ fn create_neurozk_task(task_id: TaskId) {
 		average_cpu_percentage_use: None,
 		task_kind: task_kind_neurozk,
 		result: None,
-		compute_hours_deposit: Some(deposit),
-		consume_compute_hours: None,
 		task_status: TaskStatusType::Assigned,
+        payment_mode: PaymentMode::Subscription,
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
@@ -62,9 +61,8 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		average_cpu_percentage_use: None,
 		task_kind: task_kind_infer,
 		result: None,
-		compute_hours_deposit: Some(deposit),
-		consume_compute_hours: None,
 		task_status: TaskStatusType::Assigned,
+        payment_mode: PaymentMode::OnDemand,
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)

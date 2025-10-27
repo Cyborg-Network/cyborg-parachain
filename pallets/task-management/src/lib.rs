@@ -15,11 +15,20 @@ pub mod weights;
 pub use weights::*;
 
 pub use cyborg_primitives::task::*;
-use cyborg_primitives::miner::{MinerId, MinerStatusType, MinerType};
+use cyborg_primitives::{
+	miner::{MinerId, MinerStatusType, MinerType},
+	payment::PaymentMode,
+};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
 
 use scale_info::prelude::vec::Vec;
+
+#[derive(Clone, Debug)]
+enum StopReason {
+	NoActivePayments,
+	SpecificModeExpired(PaymentMode),
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -143,6 +152,10 @@ pub mod pallet {
 		},
 		ModelHashRegistered(Vec<u8>, T::Hash),
 		ModelHashQueried(Vec<u8>, T::Hash),
+		TasksStoppedForExpiredPayments {
+			count: u32,
+			stopped_tasks: Vec<(TaskId, PaymentMode)>,
+		},
 	}
 
 	/// Errors inform users that something went wrong.
@@ -177,6 +190,8 @@ pub mod pallet {
 		ModelAlreadyRegistered,
 		ModelNotFound,
 		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
+		RequireActivePayment,          // user must have an active payment.
+		InvalidPaymentMode,            // selected payment mode for desired task must be active.
 	}
 
 	#[pallet::hooks]
@@ -186,16 +201,16 @@ pub mod pallet {
 				log::error!("Error checking task confirmation timeouts: {:?}", e);
 			}
 
-            let mut weight = T::DbWeight::get().reads_writes(1, 1);
+			let mut weight = T::DbWeight::get().reads_writes(1, 1);
 
-            // Stop tasks for users with expired payments
-            if let Err(e) = Self::stop_tasks_for_expired_payments() {
-                log::error!("Error stopping tasks for expired payments: {:?}", e);
-            }
-            
-            weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+			// Stop tasks for users with expired payments
+			if let Err(e) = Self::stop_tasks_for_expired_payments() {
+				log::error!("Error stopping tasks for expired payments: {:?}", e);
+			}
 
-            weight
+			weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+
+			weight
 		}
 	}
 
@@ -216,20 +231,15 @@ where
 			task_kind: TaskSubmissionData,
 			miner_owner: T::AccountId,
 			miner_id: MinerId,
+            payment_mode: PaymentMode,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
 			// Determine miner type based on task kind
 			let miner_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) | 
-				TaskSubmissionData::OpenInference(_) | 
-				TaskSubmissionData::FlashInfer(_) => {
-					MinerType::Edge
-				}
-				TaskSubmissionData::CyCloud => { 
-					MinerType::Cloud
-				},
-			};
+            TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { MinerType::Edge },
+            TaskSubmissionData::CyCloud => { MinerType::Cloud },
+            };
 
 			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_miner_status(
@@ -247,8 +257,24 @@ where
 				Pays::Yes
 			};
 
+
+            // Check and clean user payments, get active modes
+            let (has_active_payment, active_modes) = pallet_payment::Pallet::<T>::check_and_clean_user_payments(&who);
+
+            // Ensure user has an active payment
+            ensure!(has_active_payment, Error::<T>::RequireActivePayment);
+
+            // Validate that the requested payment mode is currently active
+            ensure!(
+                active_modes.contains(&payment_mode),
+                Error::<T>::InvalidPaymentMode
+            );
+
             // Consume compute hours from payment pallet
-			pallet_payment::Pallet::<T>::has_active_payment(&who)?;
+			//pallet_payment::Pallet::<T>::has_active_payment(&who)?;
+
+            // Assert the modes to choose
+            //let (_, active_modes) = Self::check_and_clean_user_payments(who);
 
 			// Generate task ID
 			let task_id = NextTaskId::<T>::get();
@@ -265,6 +291,7 @@ where
 				task_kind: task_kind.clone(),
 				result: None,
 				task_status: TaskStatusType::Assigned,
+                payment_mode,
 			};
 
 			let timeout_block = <frame_system::Pallet<T>>::block_number()
@@ -571,102 +598,128 @@ where
 			Ok(())
 		}
 
-        fn stop_tasks_for_expired_payments() -> DispatchResult {
-            let current_block = frame_system::Pallet::<T>::block_number();
-            let mut stopped_tasks = 0u32;
+		fn stop_tasks_for_expired_payments() -> DispatchResult {
+			let mut stopped_tasks = 0u32;
+			let mut stopped_details: Vec<(TaskId, PaymentMode)> = Vec::new();
 
-            for (task_id, task_info) in Tasks::<T>::iter() { // Maybe use iter_keys()?
-                // Only process running tasks
-                if task_info.task_status != TaskStatusType::Running {
-                    continue;
-                }
+			for (task_id, task_info) in Tasks::<T>::iter() {
+				// Only process running tasks
+				if task_info.task_status != TaskStatusType::Running {
+					continue;
+				}
 
-                let task_owner = task_info.task_owner.clone();
+				let task_owner = task_info.task_owner.clone();
+				let task_payment_mode = task_info.payment_mode.clone();
 
-                let has_active_payment = pallet_payment::Pallet::<T>::check_and_clean_user_payments(&task_owner);
+				let (has_active_payment, active_modes) =
+					pallet_payment::Pallet::<T>::check_and_clean_user_payments(&task_owner);
 
-                if !has_active_payment {
-                    if let Err(e) = Self::force_stop_task_and_vacate_miner(task_id) {
-                        
-                        log::error!("Failed to stop task {} for expired payment: {:?}", task_id, e);
-                        
-                        continue;
-                    }
+				let should_stop = if !has_active_payment {
+					true
+				} else if !active_modes.contains(&task_payment_mode) {
+					// TODO: Edge case, removing
+					// causes users with
+					// multiple payments to keep
+					// running?
+					true
+				} else {
+					false // dummy value, won't be used
+				};
 
-                    stopped_tasks += 1;
+				if should_stop {
+					if let Err(e) = Self::force_stop_task_and_vacate_miner(task_id) {
+						log::error!("Failed to stop task {}: {:?}", task_id, e);
+						continue;
+					}
 
-                    log::info!("Stopped task {} due to expired payment for user {:?}", task_id, task_owner);
-                }
-            }
+					stopped_tasks += 1;
+					stopped_details.push((task_id, task_payment_mode.clone()));
+				}
+			}
 
-            if stopped_tasks > 0 {
-                log::info!("Stopped {} tasks due to expired payments", stopped_tasks);
-            }
+			if stopped_tasks > 0 {
+				log::info!("Stopped {} tasks due to expired payments", stopped_tasks);
 
-            Ok(())
-        }
+				Self::deposit_event(Event::TasksStoppedForExpiredPayments {
+					count: stopped_tasks,
+					stopped_tasks: stopped_details,
+				});
+			}
 
-        fn force_stop_task_and_vacate_miner(task_id: TaskId) -> DispatchResult {
+			Ok(())
+		}
 
-            let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+		fn force_stop_task_and_vacate_miner(task_id: TaskId) -> DispatchResult {
+			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-            // Ensure task is running
-            if task.task_status != TaskStatusType::Running {
-                return Ok(());
-            }
+			// Ensure task is running
+			if task.task_status != TaskStatusType::Running {
+				return Ok(());
+			}
 
-            // Update task status to Stopped
-            task.task_status = TaskStatusType::Stopped;
-            Tasks::<T>::insert(task_id, task);
+			// Update task status to Stopped
+			task.task_status = TaskStatusType::Stopped; // Make functional.
+			Tasks::<T>::insert(task_id, task);
 
-            // Mark end of compute aggregation
-            ComputeAggregations::<T>::mutate(task_id, |record| {
-                if let Some((start, _)) = record {
-                    *record = Some((*start, Some(frame_system::Pallet::<T>::block_number())));
-                }
-            });
+			// Mark end of compute aggregation
+			ComputeAggregations::<T>::mutate(task_id, |record| {
+				if let Some((start, _)) = record {
+					*record = Some((*start, Some(frame_system::Pallet::<T>::block_number())));
+				}
+			});
 
-            // Get assigned miner and update their status
-            if let Some(assigned_miner) = TaskAllocations::<T>::get(task_id) {
-                // Determine miner type from task kind
-                let miner_type = if let Some(task_info) = Tasks::<T>::get(task_id) {
-                    match task_info.task_kind {
-                        TaskKind::NeuroZK(_) | TaskKind::OpenInference(_) | TaskKind::FlashInferInfer(_) => {
-                            MinerType::Edge
-                        }
-                        TaskKind::CyCloud => MinerType::Cloud,
-                    }
-                } else {
-                    MinerType::Edge // Default to Edge if task info not found
-                };
+			// Get assigned miner and update their status
+			if let Some(assigned_miner) = TaskAllocations::<T>::get(task_id) {
+				// Determine miner type from task kind
+				let miner_type = if let Some(task_info) = Tasks::<T>::get(task_id) {
+					match task_info.task_kind {
+						TaskKind::NeuroZK(_) | TaskKind::OpenInference(_) | TaskKind::FlashInferInfer(_) => {
+							MinerType::Edge
+						}
+						TaskKind::CyCloud => MinerType::Cloud,
+					}
+				} else {
+					MinerType::Edge // Default to Edge if task info not found
+				};
 
-                // Update miner status back to Active
-                if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_status(
-                    &assigned_miner,
-                    &miner_type,
-                    MinerStatusType::Active,
-                ) {
-                    log::error!("Failed to update miner status for task {}: {:?}", task_id, e);
-                }
+				// Update miner status back to Active
+				if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_status(
+					&assigned_miner,
+					&miner_type,
+					MinerStatusType::Active,
+				) {
+					log::error!(
+						"Failed to update miner status for task {}: {:?}",
+						task_id,
+						e
+					);
+				}
 
-                // Clear miner's current task assignment
-                if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_current_task(
-                    &assigned_miner,
-                    &miner_type,
-                    None,
-                ) {
-                    log::error!("Failed to clear miner task assignment for task {}: {:?}", task_id, e);
-                }
+				// Clear miner's current task assignment
+				if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_current_task(
+					&assigned_miner,
+					&miner_type,
+					None,
+				) {
+					log::error!(
+						"Failed to clear miner task assignment for task {}: {:?}",
+						task_id,
+						e
+					);
+				}
 
-                // Emit both stop and vacation events since we're forcing vacation
-                Self::deposit_event(Event::TaskStopRequested { task_id });
-                Self::deposit_event(Event::MinerVacated { task_id });
+				// Emit both stop and vacation events since we're forcing vacation
+				Self::deposit_event(Event::TaskStopRequested { task_id });
+				Self::deposit_event(Event::MinerVacated { task_id });
 
-                log::info!("Force vacated miner for task {} due to payment expiration", task_id);
-            }
+				log::info!(
+					"Force vacated miner for task {} due to payment expiration",
+					task_id
+				);
+			}
 
-            Ok(())
-        }
+			Ok(())
+		}
 	}
 
 	impl<T: Config + timestamp::Config> NzkTaskInfoHandler<T::AccountId, TaskId, BlockNumberFor<T>>

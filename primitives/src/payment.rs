@@ -11,3 +11,15 @@ pub struct RewardRates<Balance> {
 	pub ram: Balance,
 	pub storage: Balance,
 }
+
+#[derive(Clone, Encode, Decode, TypeInfo, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
+pub enum PaymentMode {
+    OnDemand,   // Pay as you go
+    Subscription, // Monthly subscription
+}
+
+#[derive(Clone, Encode, Decode, TypeInfo, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
+pub struct PaymentPeriod<BlockNumber> {
+    pub start_block: BlockNumber,
+    pub end_block: BlockNumber,
+}

@@ -1,10 +1,13 @@
 pub use crate as pallet_task_management;
+use cyborg_primitives::constants::{DAYS, HOURS};
 use frame_support::traits::ConstU32;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
 use sp_runtime::{traits::ConstU64, BuildStorage};
+
+pub type Balance = u128;
 
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
@@ -70,6 +73,8 @@ parameter_types! {
 		pub const MaxPaymentIdLength: u32 = 128;
 		pub const ExistentialDeposit: u128 = 10;
 		pub const MaxUserIdLength: u32 = 128;
+				pub const OnDemandRate: Balance = 2;
+				pub const SubscriptionRate: Balance = 10;
 }
 
 impl pallet_payment::Config for Test {
@@ -79,6 +84,11 @@ impl pallet_payment::Config for Test {
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+	type SubscriptionPeriod = ConstU64<{ 30 * DAYS }>;
+	type OnDemandPeriod = ConstU64<{ HOURS }>;
+	type GracePeriod = ConstU64<{ 4 * DAYS }>;
+	type OnDemandRate = OnDemandRate;
+	type SubscriptionRate = SubscriptionRate;
 }
 
 impl pallet_timestamp::Config for Test {

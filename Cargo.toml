@@ -134,6 +134,7 @@ sp-version = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "15
 
 # Polkadot
 polkadot-primitives = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
+polkadot-core-primitives = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 polkadot-parachain-primitives = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 polkadot-runtime-common = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }
 polkadot-runtime-parachains = { git = "https://github.com/Cyborg-Network/polkadot-sdk", rev = "1530a8826416514c3326597338b3511a55040663", default-features = false }

@@ -1,6 +1,7 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
+use crate::payment::PaymentMode;
 
 pub type TaskId = u64;
 
@@ -115,6 +116,7 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_kind: TaskKind<BlockNumber>,       // New: Logical kind (NeuroZK or OpenInference).
 	pub result: Option<BoundedVec<u8, ConstU32<500>>>, // Final result (optional).
 	pub task_status: TaskStatusType,            // Current lifecycle status.
+    pub payment_mode: PaymentMode,
 }
 
 pub type ZkInput = BoundedVec<u8, ConstU32<5000>>;

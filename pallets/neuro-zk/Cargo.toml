@@ -22,6 +22,7 @@ orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
 pallet-edge-connect = { workspace = true }
 pallet-task-management = { workspace = true }
+pallet-balances = { workspace = true }
 pallet-payment = { workspace = true }
 pallet-timestamp = { workspace = true }
 scale-info = { workspace = true }
@@ -43,6 +44,7 @@ std = [
 	"codec/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
+    "pallet-balances/std",
 	"frame-system/std",
 	"orml-traits/std",
 	"scale-info/std",

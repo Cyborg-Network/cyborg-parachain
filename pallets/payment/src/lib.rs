@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use cyborg_primitives::payment::*;
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 
@@ -9,14 +10,11 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-mod types;
-
 pub mod weights;
 use cyborg_primitives::payment::RewardRates;
 use log::info;
 
 pub use weights::*;
-pub use types::*;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -27,7 +25,7 @@ pub mod pallet {
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{traits::CheckedMul, ArithmeticError, Saturating},
-		traits::{ReservableCurrency, Currency, ExistenceRequirement},
+		traits::{Currency, ExistenceRequirement, ReservableCurrency},
 	};
 	use sp_std::vec::Vec;
 
@@ -118,22 +116,21 @@ pub mod pallet {
 		/// Maximum length for payment IDs
 		#[pallet::constant]
 		type MaxPaymentIdLength: Get<u32>;
-        
-        #[pallet::constant]
-        type SubscriptionPeriod: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant]
-        type OnDemandPeriod: Get<BlockNumberFor<Self>>;
+		#[pallet::constant]
+		type SubscriptionPeriod: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant]
-        type GracePeriod: Get<BlockNumberFor<Self>>;
+		#[pallet::constant]
+		type OnDemandPeriod: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant]
-        type OnDemandRate: Get<BalanceOf<Self>>;
+		#[pallet::constant]
+		type GracePeriod: Get<BlockNumberFor<Self>>;
 
-        #[pallet::constant]
-        type SubscriptionRate: Get<BalanceOf<Self>>;
+		#[pallet::constant]
+		type OnDemandRate: Get<BalanceOf<Self>>;
 
+		#[pallet::constant]
+		type SubscriptionRate: Get<BalanceOf<Self>>;
 	}
 
 	/// Storage for mapping Stripe payment IDs to on-chain accounts
@@ -196,9 +193,15 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
-    #[pallet::storage]
-    pub type ActivePayments<T: Config> =
-        StorageDoubleMap<_, Blake2_128Concat, T::AccountId, Blake2_128Concat, PaymentMode, PaymentPeriod<BlockNumberFor<T>>>;
+	#[pallet::storage]
+	pub type ActivePayments<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::AccountId,
+		Blake2_128Concat,
+		PaymentMode,
+		PaymentPeriod<BlockNumberFor<T>>,
+	>;
 
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
@@ -240,14 +243,23 @@ pub mod pallet {
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
 		RemainingHoursQueried(T::AccountId, u32),
-        PaymentActivated{
-            account: T::AccountId,
-            mode: PaymentMode,
-            period: PaymentPeriod<BlockNumberFor<T>>,
-        },
-        HasActivePayment(T::AccountId),
-        PaymentExpired(T::AccountId, PaymentMode),
-        ExpiredPaymentsCleaned(u32),
+		PaymentActivated {
+			account: T::AccountId,
+			mode: PaymentMode,
+			period: PaymentPeriod<BlockNumberFor<T>>,
+		},
+		HasActivePayment {
+			account: T::AccountId,
+			active_modes: Vec<PaymentMode>,
+		},
+		PaymentExpired(T::AccountId, PaymentMode),
+		ExpiredPaymentsCleaned(u32),
+		PaymentToppedUp {
+			account: T::AccountId,
+			mode: PaymentMode,
+			extended_from: BlockNumberFor<T>,
+			extended_to: BlockNumberFor<T>,
+		},
 	}
 
 	/// Custom pallet errors.
@@ -276,24 +288,10 @@ pub mod pallet {
 		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
-        PaymentAlreadyActive,
+		PaymentAlreadyActive,
+		NoActivePayments,
+		InvalidPaymentMode,
 	}
-
-
-
-     /*
-     // Add to your pallet's hooks implementation
-     #[pallet::hooks]
-     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-         fn on_initialize(_n: BlockNumberFor<T>) -> Weight {             
-             // Clean expired payments on every block initialization
-             Self::clean_expired_payments();
-
-             // Return actual weight measurement in production
-             T::DbWeight::get().reads_writes(1, 1)
-         }
-     }
-     */
 
 	/// Declare callable extrinsics.
 	#[pallet::call]
@@ -500,6 +498,74 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::call_index(20)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_hours())]
+		pub fn top_up(origin: OriginFor<T>, mode: PaymentMode) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
+			let mut new_end_block: BlockNumberFor<T> = Zero::zero();
+			let mut previous_end_block: BlockNumberFor<T> = Zero::zero();
+
+			// Check and clean user payments
+			let (has_active_payment, active_modes) = Self::check_and_clean_user_payments(&who);
+
+			// Ensure user has an active payment
+			ensure!(has_active_payment, Error::<T>::NoActivePayments);
+
+			// Ensure the requested payment mode is actually active
+			ensure!(active_modes.contains(&mode), Error::<T>::InvalidPaymentMode);
+
+			match mode {
+				PaymentMode::OnDemand => {
+					T::Currency::transfer(
+						&who,
+						&provider,
+						T::OnDemandRate::get(),
+						ExistenceRequirement::KeepAlive,
+					)?;
+
+					ActivePayments::<T>::mutate(&who, &mode, |existing_period| {
+						if let Some(period) = existing_period {
+							// Extend the end block by the extension period
+							previous_end_block = period.end_block;
+							new_end_block = period.end_block.saturating_add(T::OnDemandPeriod::get());
+							period.end_block = new_end_block;
+						}
+					});
+				}
+				PaymentMode::Subscription => {
+					T::Currency::transfer(
+						&who,
+						&provider,
+						T::SubscriptionRate::get(),
+						ExistenceRequirement::KeepAlive,
+					)?;
+
+					ActivePayments::<T>::mutate(&who, &mode, |existing_period| {
+						if let Some(period) = existing_period {
+							// Extend the end block by the extension period
+							previous_end_block = period.end_block;
+							new_end_block = period
+								.end_block
+								.saturating_add(T::SubscriptionPeriod::get());
+							period.end_block = new_end_block;
+						}
+					});
+				}
+			};
+
+			Self::deposit_event(Event::PaymentToppedUp {
+				account: who,
+				mode,
+				extended_from: previous_end_block,
+				extended_to: new_end_block,
+			});
+
+			Ok(())
+		}
+
 		/// Admin sets the global subscription cost per compute hour.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_subscription_fee_per_hour())]
@@ -699,133 +765,135 @@ pub mod pallet {
 			Ok(())
 		}
 
-        ///
-        /// Activate Payments for Compute Consumption.
-        #[pallet::call_index(15)]
-        #[pallet::weight(0)]
-        pub fn activate(
-            origin: OriginFor<T>,
-            mode: PaymentMode,
-        ) -> DispatchResult {
-            let who = ensure_signed(origin)?;
+		///
+		/// Activate Payments for Compute Consumption.
+		#[pallet::call_index(15)]
+		#[pallet::weight(0)]
+		pub fn activate(origin: OriginFor<T>, mode: PaymentMode) -> DispatchResult {
+			let who = ensure_signed(origin)?;
 
-            ensure!(!ActivePayments::<T>::contains_key(&who, &mode), Error::<T>::PaymentAlreadyActive);
+			ensure!(
+				!ActivePayments::<T>::contains_key(&who, &mode),
+				Error::<T>::PaymentAlreadyActive
+			);
 
-            let on_demand_rate = T::OnDemandRate::get();
+			//let on_demand_rate = T::OnDemandRate::get();
 
-            let subscription_rate = T::SubscriptionRate::get();
+			//let subscription_rate = T::SubscriptionRate::get();
 
-            let on_demand_period = T::OnDemandPeriod::get();
+			// let on_demand_period = T::OnDemandPeriod::get();
 
-            let subscription_period = T::SubscriptionPeriod::get();
+			//let subscription_period = T::SubscriptionPeriod::get();
 
-            let current_block = frame_system::Pallet::<T>::block_number();
+			let current_block = frame_system::Pallet::<T>::block_number();
 
-            let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 
-            let (start_block, end_block) = match mode {
-                PaymentMode::OnDemand => {
-                    ensure!(T::Currency::free_balance(&who) > on_demand_rate, Error::<T>::InsufficientBalance);
+			let (start_block, end_block) = match mode {
+				PaymentMode::OnDemand => {
+					T::Currency::transfer(
+						&who,
+						&provider,
+						T::OnDemandRate::get(),
+						ExistenceRequirement::KeepAlive,
+					)?;
 
-                    T::Currency::transfer(&who, &provider, on_demand_rate, ExistenceRequirement::KeepAlive)?;
+					(
+						current_block,
+						current_block.saturating_add(T::OnDemandPeriod::get()),
+					)
+				}
+				PaymentMode::Subscription => {
+					T::Currency::transfer(
+						&who,
+						&provider,
+						T::SubscriptionRate::get(),
+						ExistenceRequirement::KeepAlive,
+					)?;
 
-                    (current_block, current_block.saturating_add(on_demand_period))
-                },
-                PaymentMode::Subscription => {
-                    ensure!(T::Currency::free_balance(&who) > subscription_rate, Error::<T>::InsufficientBalance);
+					(
+						current_block,
+						current_block.saturating_add(T::SubscriptionPeriod::get()),
+					)
+				}
+			};
 
-                    T::Currency::transfer(&who, &provider, subscription_rate, ExistenceRequirement::KeepAlive)?;
+			let payment_period = PaymentPeriod {
+				start_block,
+				end_block,
+			};
 
-                    (current_block, current_block.saturating_add(subscription_period))
-                },
-            };
+			ActivePayments::<T>::insert(who.clone(), mode.clone(), payment_period.clone());
 
-            let payment_period = PaymentPeriod {
-                start_block,
-                end_block,
-            };
+			Self::deposit_event(Event::PaymentActivated {
+				account: who,
+				mode: mode,
+				period: payment_period,
+			});
 
-            ActivePayments::<T>::insert(who.clone(), mode.clone(), payment_period.clone());
+			Ok(())
+		}
+	}
 
-            Self::deposit_event(Event::PaymentActivated {
-                account: who,
-                mode: mode,
-                period: payment_period
-            });
+	impl<T: Config> Pallet<T> {
+		/*
+		pub fn has_active_payment(who: &T::AccountId) -> DispatchResult {
 
-            Ok(())
-        }
-    }
+				// Check if user has an active payment
+				let (has_active_payment, active_modes) = Self::check_and_clean_user_payments(who);
+				// let has_active_payment = Self::check_and_clean_user_payments(who).0;
 
-    impl<T: Config> Pallet<T> {
-        pub fn has_active_payment(who: &T::AccountId) -> DispatchResult {
+				// Ensure user has either an active subscription or on-demand payment
+				ensure!(has_active_payment, Error::<T>::InsufficientComputeHours);
 
-            // Check if user has an active payment
-            let has_active_payment = Self::check_and_clean_user_payments(who);
+				// Emit the event
+				Self::deposit_event(
+						Event::HasActivePayment(
+								who.clone(),
+								active_modes,
+						)
+				);
 
-            // Ensure user has either an active subscription or on-demand payment
-            ensure!(has_active_payment, Error::<T>::InsufficientComputeHours);
+				Ok(())
+		}
+		*/
 
-            // Emit the event
-            Self::deposit_event(Event::HasActivePayment(who.clone()));
+		pub fn check_and_clean_user_payments(who: &T::AccountId) -> (bool, Vec<PaymentMode>) {
+			let current_block = frame_system::Pallet::<T>::block_number();
+			let mut active_modes = Vec::new();
 
-            Ok(())
-        }
+			// Check and clean subscription
+			if let Some(subscription_period) = ActivePayments::<T>::get(who, PaymentMode::Subscription) {
+				if current_block
+					<= subscription_period
+						.end_block
+						.saturating_add(T::GracePeriod::get())
+				{
+					active_modes.push(PaymentMode::Subscription);
+				} else {
+					// Clean expired subscription
+					ActivePayments::<T>::remove(who, PaymentMode::Subscription);
+					Self::deposit_event(Event::PaymentExpired(
+						who.clone(),
+						PaymentMode::Subscription,
+					));
+				}
+			}
 
-        pub fn check_and_clean_user_payments(who: &T::AccountId) -> bool {
-            let current_block = frame_system::Pallet::<T>::block_number();
-            let mut has_active_payment = false;
+			// Check and clean on-demand payment if no active subscription
+			if let Some(on_demand_period) = ActivePayments::<T>::get(who, PaymentMode::OnDemand) {
+				if current_block <= on_demand_period.end_block {
+					active_modes.push(PaymentMode::OnDemand);
+				} else {
+					// Clean expired on-demand payment
+					ActivePayments::<T>::remove(who, PaymentMode::OnDemand);
+					Self::deposit_event(Event::PaymentExpired(who.clone(), PaymentMode::OnDemand));
+				}
+			}
 
-            // Check and clean subscription
-            if let Some(subscription_period) = ActivePayments::<T>::get(who, PaymentMode::Subscription) {
-                if current_block <= subscription_period.end_block {
-                    has_active_payment = true;
-                } else {
-                    // Clean expired subscription
-                    ActivePayments::<T>::remove(who, PaymentMode::Subscription);
-                    Self::deposit_event(Event::PaymentExpired(who.clone(), PaymentMode::Subscription));
-                }
-            }
-
-            // Check and clean on-demand payment if no active subscription
-            if !has_active_payment {
-                if let Some(on_demand_period) = ActivePayments::<T>::get(who, PaymentMode::OnDemand) {
-                    if current_block <= on_demand_period.end_block {
-                        has_active_payment = true;
-                    } else {
-                        // Clean expired on-demand payment
-                        ActivePayments::<T>::remove(who, PaymentMode::OnDemand);
-                        Self::deposit_event(Event::PaymentExpired(who.clone(), PaymentMode::OnDemand));
-                    }
-                }
-            }
-
-            has_active_payment
-        }
-
-        /*
-
-        /// Clean all expired payments across all users
-        pub fn clean_expired_payments() {
-            let current_block = frame_system::Pallet::<T>::block_number();
-            let mut cleaned_count = 0u32;
-
-            // Iterate through all active payments and remove expired ones
-            // Note: This might be heavy - consider using a bounded iteration or migration pattern
-            // for production use with many users
-            ActivePayments::<T>::iter().for_each(|(who, payment_mode, period)| {
-                if current_block > period.end_block {
-                    ActivePayments::<T>::remove(&who, &payment_mode);
-                    Self::deposit_event(Event::PaymentExpired(who, payment_mode));
-                    cleaned_count += 1;
-                }
-            });
-
-            // Emit event if any cleanups occurred
-            if cleaned_count > 0 {
-                Self::deposit_event(Event::ExpiredPaymentsCleaned(cleaned_count));
-            }
-        }
-        */
-    }
+			let has_active_payment = !active_modes.is_empty();
+			(has_active_payment, active_modes)
+		}
+	}
 }

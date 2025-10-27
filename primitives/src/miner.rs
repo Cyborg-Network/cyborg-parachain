@@ -25,6 +25,7 @@ pub enum MinerType {
 	Edge,
 }
 
+/// TODO:
 #[derive(PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum MinerStatusType {
 	Active,
@@ -33,17 +34,20 @@ pub enum MinerStatusType {
 	Suspended,
 }
 
+/// TODO:
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct MinerAPI {
 	pub domain: Domain,
 }
 
+/// TODO:
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Location {
 	pub latitude: Latitude,
 	pub longitude: Longitude,
 }
 
+/// TODO:
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct MinerSpecs {
 	pub ram: RamBytes,
@@ -51,6 +55,7 @@ pub struct MinerSpecs {
 	pub cpu: CpuCores,
 }
 
+/// TODO:
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct Miner<AccountId, BlockNumber, TimeStamp> {
 	pub id: MinerId,
@@ -66,6 +71,7 @@ pub struct Miner<AccountId, BlockNumber, TimeStamp> {
 	pub last_status_check: TimeStamp,
 }
 
+/// TODO:
 pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	fn get_miner(
 		miner_key: &(AccountId, MinerId),
@@ -78,6 +84,7 @@ pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	);
 }
 
+/// TODO:
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, Copy)]
 pub struct MinerReputation<BlockNumber> {
 	pub score: i32,
@@ -101,6 +108,7 @@ impl<BlockNumber> Default for MinerReputation<BlockNumber> {
 	}
 }
 
+/// TODO:
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum SuspicionLevel {
 	Review,
@@ -108,6 +116,7 @@ pub enum SuspicionLevel {
 	Ban,
 }
 
+/// TODO:
 #[derive(
 	PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking,
 )]

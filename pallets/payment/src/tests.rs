@@ -1,7 +1,10 @@
 use crate::mock::*;
 use crate::BalanceOf;
+use cyborg_primitives::payment::*;
 use frame_support::traits::fungible::Mutate;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::traits::Currency;
+use frame_support::{assert_err, assert_noop, assert_ok};
+use sp_runtime::traits::Get;
 
 // Test to ensure consuming zero hours fails
 #[test]
@@ -423,4 +426,175 @@ fn reward_miner_new_fails_when_rates_not_set() {
 			pallet_payment::Error::<Test>::RewardRateNotSet
 		);
 	});
+}
+
+#[test]
+fn activate_on_demand_payment_works() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let on_demand_rate = <Test as pallet_payment::Config>::OnDemandRate::get();
+		let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
+		let on_demand_period: cyborg_primitives::constants::BlockNumber =
+			<Test as pallet_payment::Config>::OnDemandPeriod::get();
+		let user = 5;
+		let provider = 99;
+
+		// Set service provider account
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+		// Set account balances
+		let on_demand_balance = on_demand_rate + existential_deposit;
+		Balances::make_free_balance_be(&user, on_demand_balance);
+		Balances::make_free_balance_be(&provider, existential_deposit);
+
+		assert_ok!(PaymentModule::activate(
+			RuntimeOrigin::signed(user),
+			PaymentMode::OnDemand
+		));
+
+		// Check OnDemand period.
+		let payment_period = pallet_payment::ActivePayments::<Test>::get(&user, PaymentMode::OnDemand);
+		assert!(payment_period.is_some());
+
+		let period = payment_period.unwrap();
+		assert_eq!(period.start_block, 1);
+		assert_eq!(period.end_block, 1 + on_demand_period);
+
+		assert_eq!(Balances::free_balance(&user), existential_deposit);
+		assert_eq!(Balances::free_balance(provider), on_demand_balance);
+
+		let expected_event = RuntimeEvent::PaymentModule(crate::Event::PaymentActivated {
+			account: user,
+			mode: PaymentMode::OnDemand,
+			period: PaymentPeriod {
+				start_block: 1,
+				end_block: 1 + on_demand_period,
+			},
+		});
+		assert!(System::events().iter().any(|e| e.event == expected_event));
+	})
+}
+
+#[test]
+fn activate_subscription_payment_works() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let subscription_rate = <Test as pallet_payment::Config>::SubscriptionRate::get();
+		let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
+		let subscription_period: cyborg_primitives::constants::BlockNumber =
+			<Test as pallet_payment::Config>::SubscriptionPeriod::get();
+		let user = 5;
+		let provider = 99;
+
+		// Set service provider account
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+		let subscription_balance = subscription_rate + existential_deposit;
+		Balances::make_free_balance_be(&user, subscription_balance);
+		Balances::make_free_balance_be(&provider, existential_deposit);
+
+		assert_ok!(PaymentModule::activate(
+			RuntimeOrigin::signed(user),
+			PaymentMode::Subscription
+		));
+
+		let payment_period =
+			pallet_payment::ActivePayments::<Test>::get(&user, PaymentMode::Subscription);
+		assert!(payment_period.is_some());
+
+		let period = payment_period.unwrap();
+		assert_eq!(period.start_block, 1);
+		assert_eq!(period.end_block, 1 + subscription_period);
+
+		assert_eq!(Balances::free_balance(&user), existential_deposit);
+		assert_eq!(Balances::free_balance(provider), subscription_balance);
+
+		let expected_event = RuntimeEvent::PaymentModule(crate::Event::PaymentActivated {
+			account: user,
+			mode: PaymentMode::Subscription,
+			period: PaymentPeriod {
+				start_block: 1,
+				end_block: 1 + subscription_period,
+			},
+		});
+		assert!(System::events().iter().any(|e| e.event == expected_event));
+	})
+}
+
+#[test]
+fn payment_activation_fails_with_insufficient_balance() {
+	new_test_ext().execute_with(|| {
+		use sp_runtime::TokenError;
+		System::set_block_number(1);
+
+		let on_demand_rate = <Test as pallet_payment::Config>::OnDemandRate::get();
+		let subscription_rate = <Test as pallet_payment::Config>::SubscriptionRate::get();
+		let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
+		let on_demand_user = 5;
+		let subscription_user = 6;
+		let provider = 99;
+
+		// Set service provider account
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+		Balances::make_free_balance_be(&on_demand_user, on_demand_rate);
+		Balances::make_free_balance_be(&subscription_user, subscription_rate);
+		Balances::make_free_balance_be(&provider, existential_deposit);
+
+		// Token Error
+		assert_err!(
+			PaymentModule::activate(RuntimeOrigin::signed(on_demand_user), PaymentMode::OnDemand,),
+			TokenError::FundsUnavailable
+		);
+
+		assert_err!(
+			PaymentModule::activate(
+				RuntimeOrigin::signed(subscription_user),
+				PaymentMode::Subscription,
+			),
+			TokenError::NotExpendable
+		);
+	})
+}
+
+#[test]
+fn activate_payment_fails_when_already_active() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		let on_demand_rate = <Test as pallet_payment::Config>::OnDemandRate::get();
+		let subscription_rate = <Test as pallet_payment::Config>::SubscriptionRate::get();
+		let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
+		let user = 5;
+		let provider = 99;
+
+		// Set service provider account
+		pallet_payment::ServiceProviderAccount::<Test>::put(provider);
+
+		Balances::make_free_balance_be(
+			&user,
+			on_demand_rate + subscription_rate + existential_deposit,
+		);
+		Balances::make_free_balance_be(&provider, existential_deposit);
+
+		// Activate payment first time
+		assert_ok!(PaymentModule::activate(
+			RuntimeOrigin::signed(user),
+			PaymentMode::OnDemand
+		));
+
+		// Attempt to activate again
+		assert_noop!(
+			PaymentModule::activate(RuntimeOrigin::signed(user), PaymentMode::OnDemand),
+			pallet_payment::Error::<Test>::PaymentAlreadyActive
+		);
+
+		// Activate subscription payment on the same account
+		assert_ok!(PaymentModule::activate(
+			RuntimeOrigin::signed(user),
+			PaymentMode::Subscription
+		));
+	})
 }

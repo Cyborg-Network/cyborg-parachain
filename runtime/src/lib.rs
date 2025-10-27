@@ -367,6 +367,8 @@ parameter_types! {
 	pub const MaxKycHashLength: u32 = 64;
 	pub const MaxPaymentIdLength: u32 = 128;
 	pub const MaxUserIdLength: u32 = 128;
+    pub const OnDemandRate: Balance = 2;
+    pub const SubscriptionRate: Balance = 10;
 }
 
 impl pallet_payment::Config for Runtime {
@@ -376,6 +378,11 @@ impl pallet_payment::Config for Runtime {
 	type MaxKycHashLength = MaxKycHashLength;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+    type SubscriptionPeriod = ConstU32<{ 30 * DAYS }>;
+    type OnDemandPeriod = ConstU32<{ HOURS }>;
+    type GracePeriod = ConstU32<{ 4 * DAYS }>;
+    type OnDemandRate = OnDemandRate;
+    type SubscriptionRate = SubscriptionRate;
 }
 
 parameter_types! {
