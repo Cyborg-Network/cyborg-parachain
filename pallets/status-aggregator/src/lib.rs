@@ -106,7 +106,7 @@ pub mod pallet {
 	pub type MinerStatusEntriesPerPeriod<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		OracleMinerFormat<T::AccountId>,
+		OracleMinerFormat,
 		BoundedVec<StatusInstance<BlockNumberFor<T>>, T::MaxAggregateParamLength>,
 		ValueQuery,
 	>;
@@ -118,7 +118,7 @@ pub mod pallet {
 	/// - The value is a boolean indicating whether the oracle has already submitted data.
 	#[pallet::storage]
 	pub type SubmittedPerPeriod<T: Config> =
-		StorageMap<_, Twox64Concat, (T::AccountId, OracleMinerFormat<T::AccountId>), bool, ValueQuery>;
+		StorageMap<_, Twox64Concat, (T::AccountId, OracleMinerFormat), bool, ValueQuery>;
 
 	/// Stores the resulting percentage status (online and available) for each miner after aggregation.
 	/// This is calculated by taking the status data submitted during the period and determining the
@@ -130,7 +130,7 @@ pub mod pallet {
 	pub type ResultingMinerStatusPercentages<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		OracleMinerFormat<T::AccountId>,
+		OracleMinerFormat,
 		ProcessStatusPercentages<BlockNumberFor<T>>,
 		ValueQuery,
 	>;
@@ -142,7 +142,7 @@ pub mod pallet {
 	/// - The value is `ProcessStatus`, which contains the final online and available status for the miner.
 	#[pallet::storage]
 	pub type ResultingMinerStatus<T: Config> =
-		StorageMap<_, Twox64Concat, OracleMinerFormat<T::AccountId>, ProcessStatus, ValueQuery>;
+		StorageMap<_, Twox64Concat, OracleMinerFormat, ProcessStatus, ValueQuery>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
@@ -157,7 +157,7 @@ pub mod pallet {
 		/// - `available`: A boolean indicating whether the miner is available.
 		/// - `last_block_processed`: The block number at which the miner's status was last updated.
 		UpdateFromAggregatedMinerInfo {
-			miner: (T::AccountId, MinerId),
+			miner: MinerId,
 			online: bool,
 			available: bool,
 			last_block_processed: BlockNumberFor<T>,
@@ -242,7 +242,7 @@ pub mod pallet {
 		}
 		/// sends updated miner info to pallets that implement T::MinerClusterHandler and emits an event
 		fn update_miner_clusters(
-			key_miner: (T::AccountId, MinerId),
+			key_miner: MinerId,
 			miner_type: MinerType,
 			online: bool,
 			available: bool,
@@ -273,7 +273,7 @@ pub mod pallet {
 
 		pub fn on_new_data(
 			who: &T::AccountId,
-			key: &OracleMinerFormat<T::AccountId>,
+			key: &OracleMinerFormat,
 			value: &ProcessStatus,
 		) {
 			if T::MinerInfoHandler::get_miner(&key.id, &key.miner_type).is_none() {
