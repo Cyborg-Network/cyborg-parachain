@@ -146,11 +146,11 @@ impl<AccountId, BlockNumber, TimeStamp> Miner<AccountId, BlockNumber, TimeStamp>
 
 pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	fn get_miner(
-		miner_key: &(AccountId, MinerId),
+		miner_key: &MinerId,
 		miner_type: &MinerType,
 	) -> Option<Miner<AccountId, BlockNumber, TimeStamp>>;
 	fn update_miner(
-		miner_key: &(AccountId, MinerId),
+		miner_key: &MinerId,
 		miner_type: &MinerType,
 		miner: Miner<AccountId, BlockNumber, TimeStamp>,
 	);

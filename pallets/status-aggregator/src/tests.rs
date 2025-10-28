@@ -20,8 +20,8 @@ fn prevents_nonexistent_miner_storage() {
 		let miner_addrs: Vec<AccountId> = [0].to_vec();
 
 		// miner for which status is to be updated
-		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], BoundedVec::try_from(vec![0u8]).unwrap()),
+		let key_1: OracleMinerFormat = OracleMinerFormat {
+			id: BoundedVec::try_from(vec![0u8]).unwrap(),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -93,28 +93,27 @@ fn on_new_data_works_as_expected() {
 		let miner_cpu: CpuCores = 12;
 
 		// register miners
-		for miner in miner_addrs.iter() {
-			for id in 0..miner_ids.len() {
-				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
-				let domain_vec = domain_str.as_bytes().to_vec();
-				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-				assert_ok!(EdgeConnectModule::register_miner(
-					RuntimeOrigin::signed(*miner),
-					miner_type.clone(),
-					miner_ids[id].clone(),
-					domain.clone(),
-					miner_latitude,
-					miner_longitude,
-					miner_ram,
-					miner_storage,
-					miner_cpu
-				));
-			}
+		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
+			let domain_vec = domain_str.as_bytes().to_vec();
+			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+			assert_ok!(EdgeConnectModule::register_miner(
+				RuntimeOrigin::signed(*miner),
+				miner_type.clone(),
+				id_bytes.clone(),
+				domain.clone(),
+				miner_latitude,
+				miner_longitude,
+				miner_ram,
+				miner_storage,
+				miner_cpu
+			));
 		}
 
 		// miner for which status is to be updated
-		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
+		let key_1: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[0].clone(),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -207,12 +206,12 @@ fn on_new_data_works_as_expected() {
 		assert_eq!(MinerStatusEntriesPerPeriod::<Test>::get(&key_1), entries,);
 
 		// 5. Allow oracle feeders to submit for a new miners
-		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], bounded_miner_ids[2].clone()),
+		let key_2: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[2].clone(),
 			miner_type: MinerType::Cloud,
 		};
-		let key_3: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[2], bounded_miner_ids[1].clone()),
+		let key_3: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[1].clone(),
 			miner_type: MinerType::Cloud,
 		};
 
@@ -310,32 +309,31 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		let miner_type = MinerType::Cloud;
 
 		// register miners
-		for miner in miner_addrs.iter() {
-			for id in 0..miner_ids.len() {
-				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
-				let domain_vec = domain_str.as_bytes().to_vec();
-				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-				assert_ok!(EdgeConnectModule::register_miner(
-					RuntimeOrigin::signed(*miner),
-					miner_type.clone(),
-					miner_ids[id].clone(),
-					domain.clone(),
-					miner_latitude,
-					miner_longitude,
-					miner_ram,
-					miner_storage,
-					miner_cpu
-				));
-			}
+		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
+			let domain_vec = domain_str.as_bytes().to_vec();
+			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+			assert_ok!(EdgeConnectModule::register_miner(
+				RuntimeOrigin::signed(*miner),
+				miner_type.clone(),
+				id_bytes.clone(),
+				domain.clone(),
+				miner_latitude,
+				miner_longitude,
+				miner_ram,
+				miner_storage,
+				miner_cpu
+			));
 		}
 
 		// miner for which status is to be updated
-		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
+		let key_1: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[0].clone(),
 			miner_type: MinerType::Cloud,
 		};
-		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], bounded_miner_ids[0].clone()),
+		let key_2: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[1].clone(), 
 			miner_type: MinerType::Cloud,
 		};
 
@@ -351,13 +349,13 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
-			OperationalStatus::Available
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
-			OperationalStatus::Busy
+			OperationalStatus::Available
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
@@ -541,13 +539,13 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 			pallet_edge_connect::CloudMiners::<Test>::get(key_1.id.clone())
 				.unwrap()
 				.operational_status,
-			OperationalStatus::Available
+			OperationalStatus::Busy
 		);
 		assert_eq!(
 			pallet_edge_connect::CloudMiners::<Test>::get(key_2.id.clone())
 				.unwrap()
 				.operational_status,
-			OperationalStatus::Busy
+			OperationalStatus::Available
 		);
 
 		assert_eq!(
@@ -621,39 +619,39 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 		let miner_type = MinerType::Edge;
 
 		// register miners
-		for miner in miner_addrs.iter() {
-			for id in 0..miner_ids.len() {
-				let domain_str = "some_api_domain.".to_owned() + &id.to_string() + ".com";
-				let domain_vec = domain_str.as_bytes().to_vec();
-				let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
-				assert_ok!(EdgeConnectModule::register_miner(
-					RuntimeOrigin::signed(*miner),
-					miner_type.clone(),
-					miner_ids[id].clone(),
-					domain.clone(),
-					miner_latitude,
-					miner_longitude,
-					miner_ram,
-					miner_storage,
-					miner_cpu
-				));
-			}
+		// register miners — one-to-one mapping
+		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
+			let domain_vec = domain_str.as_bytes().to_vec();
+			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+			assert_ok!(EdgeConnectModule::register_miner(
+				RuntimeOrigin::signed(*miner),
+				miner_type.clone(),
+				id_bytes.clone(),
+				domain.clone(),
+				miner_latitude,
+				miner_longitude,
+				miner_ram,
+				miner_storage,
+				miner_cpu
+			));
 		}
 
 		// miner for which status is to be updated
-		let key_1: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[0], bounded_miner_ids[0].clone()),
+		let key_1: OracleMinerFormat= OracleMinerFormat {
+			id: bounded_miner_ids[0].clone(),
 			miner_type: MinerType::Edge,
 		};
-		let key_2: OracleMinerFormat<AccountId> = OracleMinerFormat {
-			id: (miner_addrs[1], bounded_miner_ids[0].clone()),
+		let key_2: OracleMinerFormat = OracleMinerFormat {
+			id: bounded_miner_ids[1].clone(),
 			miner_type: MinerType::Edge,
 		};
 
 		assert_ok!(EdgeConnectModule::update_operational_status(
-			RuntimeOrigin::signed(miner_addrs[1]), // worker owner
+			RuntimeOrigin::signed(miner_addrs[1]), 
 			MinerType::Edge,
-			bounded_miner_ids[0].clone(),
+			bounded_miner_ids[1].clone(),
 			OperationalStatus::Busy
 		));
 

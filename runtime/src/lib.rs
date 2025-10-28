@@ -311,7 +311,7 @@ impl orml_oracle::Config for Runtime {
 	type OnNewData = OracleRouter;
 	type CombineData = DummyCombineData<Runtime>;
 	type Time = Timestamp;
-	type OracleKey = OracleKey<Self::AccountId>;
+	type OracleKey = OracleKey;
 	type OracleValue = OracleValue;
 	type RootOperatorAccountId = RootOperatorAccountId;
 	#[cfg(not(feature = "runtime-benchmarks"))]

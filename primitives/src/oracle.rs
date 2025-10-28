@@ -51,8 +51,8 @@ pub struct ProcessStatus {
 	Ord,
 	DecodeWithMemTracking,
 )]
-pub enum OracleKey<AccountId> {
-	Miner(OracleMinerFormat<AccountId>),
+pub enum OracleKey {
+	Miner(OracleMinerFormat),
 	NzkProofResult(TaskId),
 }
 
@@ -87,8 +87,8 @@ pub enum OracleValue {
 	Ord,
 	DecodeWithMemTracking,
 )]
-pub struct OracleMinerFormat<AccoundId> {
-	pub id: (AccoundId, MinerId),
+pub struct OracleMinerFormat {
+	pub id:  MinerId,
 	pub miner_type: MinerType,
 }
 
@@ -107,13 +107,13 @@ pub type TimestampedValue<T, I = ()> =
 
 /// A dummy implementation of `CombineData` trait that does nothing.
 pub struct DummyCombineData<T, I = ()>(PhantomData<(T, I)>);
-impl<T: Config<I>, I> orml_traits::CombineData<OracleKey<T::AccountId>, TimestampedValue<T, I>>
+impl<T: Config<I>, I> orml_traits::CombineData<OracleKey, TimestampedValue<T, I>>
 	for DummyCombineData<T, I>
 where
 	<T as Config<I>>::Time: frame_support::traits::Time,
 {
 	fn combine_data(
-		_key: &OracleKey<T::AccountId>,
+		_key: &OracleKey,
 		_values: Vec<TimestampedValue<T, I>>,
 		_prev_value: Option<TimestampedValue<T, I>>,
 	) -> Option<TimestampedValue<T, I>> {
