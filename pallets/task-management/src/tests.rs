@@ -157,18 +157,18 @@ fn task_scheduler_works() {
         );
 
         // Verify miners are registered using the actual bounded_miner_id
-        assert!(EdgeMiners::<Test>::contains_key((
-            executor, bounded_id_0.clone()
-        )));
-        assert!(EdgeMiners::<Test>::contains_key((
-            executor, bounded_id_1.clone()
-        )));
-        assert!(EdgeMiners::<Test>::contains_key((
-            executor, bounded_id_2.clone()
-        )));
-        assert!(EdgeMiners::<Test>::contains_key((
-            executor, bounded_id_3.clone()
-        )));    
+        assert!(EdgeMiners::<Test>::contains_key(
+            bounded_id_0.clone()
+        ));
+        assert!(EdgeMiners::<Test>::contains_key(
+            bounded_id_1.clone()
+        ));
+        assert!(EdgeMiners::<Test>::contains_key(
+            bounded_id_2.clone()
+        ));
+        assert!(EdgeMiners::<Test>::contains_key(
+            bounded_id_3.clone()
+        ));    
 
 		let azure_task = AzureTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -206,10 +206,10 @@ fn task_scheduler_works() {
 
         
 
-        let miner_status = EdgeMiners::<Test>::get((executor, bounded_id_0.clone()));
+        let miner_status = EdgeMiners::<Test>::get(bounded_id_0.clone());
         println!("Miner 0 status before scheduling: {:?}", miner_status);
 
-        let miner_status = EdgeMiners::<Test>::get((executor, bounded_id_1.clone()));
+        let miner_status = EdgeMiners::<Test>::get(bounded_id_1.clone());
         println!("Miner 1 status just before scheduling: {:?}", miner_status);
 
 		// --------------------------------------------------
@@ -236,7 +236,7 @@ fn task_scheduler_works() {
 			}))
 		);
 
-        let miner_status = EdgeMiners::<Test>::get((executor, bounded_id_1.clone()));
+        let miner_status = EdgeMiners::<Test>::get(bounded_id_1.clone());
         println!("Miner 1 status before scheduling: {:?}", miner_status);
 
 		// --------------------------------------------------
@@ -357,7 +357,7 @@ fn task_scheduler_works() {
 
 		// Verify miners were vacated for on-demand tasks
 		let miner_info_docker =
-			pallet_edge_connect::EdgeMiners::<Test>::get((executor, bounded_id_0.clone())).unwrap();
+			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_id_0.clone()).unwrap();
 		assert_eq!(miner_info_docker.operational_status, OperationalStatus::Available);
 		assert_eq!(miner_info_docker.current_task, None);
 
@@ -365,12 +365,12 @@ fn task_scheduler_works() {
 		// subscription payment based miner is busy.
 		// Note: A task per miner
 		let miner_info_robust_on_demand =
-			pallet_edge_connect::EdgeMiners::<Test>::get((executor, bounded_id_2.clone())).unwrap();
+			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_id_2.clone()).unwrap();
 		assert_eq!(miner_info_robust_on_demand.operational_status, OperationalStatus::Available);
 		assert_eq!(miner_info_robust_on_demand.current_task, None);
 
 		let miner_info_robust_subscription =
-			pallet_edge_connect::EdgeMiners::<Test>::get((executor, bounded_id_3.clone()))
+			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_id_3.clone())
 				.unwrap();
 		assert_eq!(miner_info_robust_subscription.operational_status, OperationalStatus::Busy);
 		assert_eq!(miner_info_robust_subscription.current_task, Some(task_id_3));
@@ -397,7 +397,7 @@ fn task_scheduler_works() {
 			bounded_id_2.clone(),
 			bounded_id_3.clone(),
 		] {
-			let miner_info = pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id.clone())).unwrap();
+			let miner_info = pallet_edge_connect::EdgeMiners::<Test>::get(miner_id.clone()).unwrap();
 			assert_eq!(miner_info.operational_status, OperationalStatus::Available);
 			assert_eq!(miner_info.current_task, None);
 		}

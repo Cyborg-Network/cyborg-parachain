@@ -250,15 +250,15 @@ pub mod pallet {
 			let bounded_uuid: BoundedVec<u8, MaxUuidLen> =
 				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
 
-            let miner_key = (creator.clone(), bounded_uuid.clone());
+            // let miner_key = (creator.clone(), bounded_uuid.clone());
             let miner_exists = match miner_type {
-                MinerType::Cloud => CloudMiners::<T>::contains_key(&miner_key),
-                MinerType::Edge => EdgeMiners::<T>::contains_key(&miner_key),
+                MinerType::Cloud => CloudMiners::<T>::contains_key(&bounded_uuid),
+                MinerType::Edge => EdgeMiners::<T>::contains_key(&bounded_uuid),
             };
 
             if miner_exists {
                 // Emit an event for re-registration attempt
-                if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(&miner_key, &miner_type) {
+                if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(&bounded_uuid, &miner_type) {
                     Self::deposit_event(Event::MinerAlreadyRegistered {
                         creator: creator.clone(),
                         miner: (miner.owner.clone(), miner.id.clone()),
