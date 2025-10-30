@@ -69,7 +69,7 @@ pub mod pallet {
 	pub type SuspendedMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, MinerId),
+		MinerId,
 		(BlockNumberFor<T>, SuspensionReason),
 		OptionQuery,
 	>;
@@ -79,7 +79,7 @@ pub mod pallet {
 	pub type CloudMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, MinerId),
+		MinerId,
 		Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
@@ -89,7 +89,7 @@ pub mod pallet {
 	pub type EdgeMiners<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
-		(T::AccountId, MinerId),
+		MinerId,
 		Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
 	>;
@@ -140,31 +140,31 @@ pub mod pallet {
 
 		/// Event emitted when a miner is penalized
 		MinerPenalized {
-			miner: (T::AccountId, MinerId),
+			miner: MinerId,
 			penalty: i32,
 			reason: PenaltyReason,
 		},
 
 		/// Event emitted when a miner is suspended
 		MinerSuspended {
-			miner: (T::AccountId, MinerId),
+			miner:  MinerId,
 			until_block: BlockNumberFor<T>,
 		},
 
 		/// Event emitted when a miner is put under review
 		MinerUnderReview {
-			miner: (T::AccountId, MinerId),
+			miner: MinerId,
 			reason: SuspensionReason,
 		},
 
 		/// Event emitted when a miner is banned
 		MinerBanned {
-			miner: (T::AccountId, MinerId),
+			miner: MinerId,
 			reason: SuspensionReason,
 		},
 
 		/// Event emitted when a miner is unsuspended
-		MinerUnsuspended { miner: (T::AccountId, MinerId) },
+		MinerUnsuspended { miner: MinerId },
 	}
 
 	#[derive(
@@ -286,8 +286,8 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 			//  Store miner efficiently
 				match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
-					MinerType::Edge => EdgeMiners::<T>::insert((&creator, &bounded_uuid), miner.clone()),
+					MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
+					MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
 				}
 
 
@@ -316,21 +316,21 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			match miner_type {
 				MinerType::Cloud => {
 					ensure!(
-						CloudMiners::<T>::get((creator.clone(), &miner_id)) != None,
+						CloudMiners::<T>::get(&miner_id) != None,
 						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					CloudMiners::<T>::remove((creator.clone(), &miner_id));
+					CloudMiners::<T>::remove(&miner_id);
 				}
 				MinerType::Edge => {
 					ensure!(
-						EdgeMiners::<T>::get((creator.clone(), &miner_id)) != None,
+						EdgeMiners::<T>::get(&miner_id) != None,
 						Error::<T>::MinerDoesNotExist
 					);
 
 					// update storage
-					EdgeMiners::<T>::remove((creator.clone(), &miner_id));
+					EdgeMiners::<T>::remove(&miner_id);
 				}
 			}
 
@@ -355,7 +355,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 			match miner_type {
 				MinerType::Cloud => {
-					CloudMiners::<T>::mutate((miner_owner.clone(), miner_id.clone()), |miner_option| {
+					CloudMiners::<T>::mutate(miner_id.clone(), |miner_option| {
 						if let Some(miner) = miner_option {
 							miner.oracle_status = if online {
 								OracleStatus::Online
@@ -370,7 +370,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 					})
 				}
 				MinerType::Edge => {
-					EdgeMiners::<T>::mutate((miner_owner.clone(), miner_id.clone()), |miner_option| {
+					EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
 						if let Some(miner) = miner_option {
 							miner.oracle_status = if online {
 								OracleStatus::Online
@@ -398,7 +398,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::penalize_miner())]
 		pub fn penalize_miner(
 			origin: OriginFor<T>,
-			miner_owner: T::AccountId,
 			miner_id: MinerId,
 			miner_type: MinerType,
 			penalty: i32,
@@ -406,7 +405,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::apply_penalty(&(miner_owner, miner_id), &miner_type, penalty, reason)?;
+			Self::apply_penalty(&miner_id, &miner_type, penalty, reason)?;
 
 			Ok(())
 		}
@@ -416,7 +415,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::suspend_miner())]
 		pub fn suspend_miner(
 			origin: OriginFor<T>,
-			miner_owner: T::AccountId,
 			miner_id: MinerId,
 			miner_type: MinerType,
 			blocks: BlockNumberFor<T>,
@@ -424,7 +422,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::suspend_miners(&(miner_owner, miner_id), &miner_type, blocks, reason)
+			Self::suspend_miners(&miner_id, &miner_type, blocks, reason)
 		}
 
 		/// Manually ban a miner (root only)
@@ -432,14 +430,13 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::ban_miner())]
 		pub fn ban_miner(
 			origin: OriginFor<T>,
-			miner_owner: T::AccountId,
 			miner_id: MinerId,
 			miner_type: MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::ban_miners(&(miner_owner, miner_id), miner_type, reason)
+			Self::ban_miners(&miner_id, miner_type, reason)
 		}
 
 		/// Lift suspension from a miner (root only)
@@ -447,13 +444,12 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::unsuspend_miner())]
 		pub fn unsuspend_miner(
 			origin: OriginFor<T>,
-			miner_owner: T::AccountId,
 			miner_id: MinerId,
 			miner_type: MinerType,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			Self::lift_suspension(&(miner_owner, miner_id), &miner_type)
+			Self::lift_suspension(&miner_id, &miner_type)
 		}
 
 		/// Updates the operational status (callable by miner itself)
@@ -470,7 +466,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 			match miner_type {
 				MinerType::Cloud => {
-					CloudMiners::<T>::mutate((creator.clone(), miner_id.clone()), |miner_option| {
+					CloudMiners::<T>::mutate(miner_id.clone(), |miner_option| {
 						if let Some(miner) = miner_option {
 							// Miners can only set Available or Busy status
 							if matches!(status, OperationalStatus::Suspended) {
@@ -485,7 +481,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 					})
 				}
 				MinerType::Edge => {
-					EdgeMiners::<T>::mutate((creator.clone(), miner_id.clone()), |miner_option| {
+					EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
 						if let Some(miner) = miner_option {
 							// Miners can only set Available or Busy status
 							if matches!(status, OperationalStatus::Suspended) {
@@ -515,7 +511,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		// Filters miners based on their status (active or inactive).
 		pub fn get_active_miners() -> Option<
 			Vec<(
-				(T::AccountId, MinerId),
+				MinerId,
 				Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 			)>,
 		> {
@@ -532,7 +528,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Apply penalty to a miner's reputation
 		pub fn apply_penalty(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 			penalty: i32,
 			reason: PenaltyReason,
@@ -591,7 +587,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		}
 
 		pub fn get_miner(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			let miner = match miner_type {
@@ -604,7 +600,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Check if miner can perform actions
 		pub fn check_miner_status(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 		) -> DispatchResult {
 			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
@@ -649,7 +645,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		}
 
 		pub fn update_miner_status(
-			miner_id: &(T::AccountId, MinerId),
+			miner_id: &MinerId,
 			miner_type: MinerType,
 			new_status: bool,
 		) -> DispatchResult {
@@ -673,7 +669,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Updates the current task of the miner in question
 		pub fn update_miner_current_task(
-			miner_id: &(T::AccountId, MinerId),
+			miner_id: &MinerId,
 			miner_type: &MinerType,
 			current_task: Option<TaskId>,
 		) -> DispatchResult {
@@ -693,7 +689,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Suspend a miner with a specific reason and duration
 		pub fn suspend_miners(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 			blocks: BlockNumberFor<T>,
 			reason: SuspensionReason,
@@ -731,7 +727,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Put miner under review
 		fn put_miner_under_review(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
@@ -760,7 +756,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Ban a miner permanently
 		fn ban_miners(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: MinerType,
 			reason: SuspensionReason,
 		) -> DispatchResult {
@@ -780,7 +776,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		/// Lift suspension from a miner
 		pub fn lift_suspension(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 		) -> DispatchResult {
 			let mut miner = match miner_type {
@@ -820,7 +816,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 	{
 		// Implementation of the MinerInfoHandler trait, which provides methods for accessing miner cluster information.
 		fn get_miner(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			match miner_type {
@@ -831,7 +827,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 		// Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
 		fn update_miner(
-			miner_key: &(T::AccountId, MinerId),
+			miner_key: &MinerId,
 			miner_type: &MinerType,
 			miner: Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		) {
