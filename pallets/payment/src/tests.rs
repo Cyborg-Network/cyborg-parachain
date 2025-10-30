@@ -73,6 +73,7 @@ fn non_admin_cannot_set_service_provider_account() {
 	});
 }
 
+/*
 #[test]
 fn it_records_usage_successfully() {
 	new_test_ext().execute_with(|| {
@@ -96,7 +97,9 @@ fn it_records_usage_successfully() {
 		assert!(System::events().iter().any(|e| e.event == expected_event));
 	});
 }
+*/
 
+/*
 #[test]
 fn it_fails_when_usage_input_is_invalid() {
 	new_test_ext().execute_with(|| {
@@ -111,6 +114,7 @@ fn it_fails_when_usage_input_is_invalid() {
 		);
 	});
 }
+*/
 
 #[test]
 fn it_distributes_rewards_to_miners() {
@@ -171,6 +175,7 @@ fn it_fails_to_distribute_if_provider_not_set() {
 	});
 }
 
+/*
 //Record usage overwrite behavior
 #[test]
 fn it_overwrites_existing_usage() {
@@ -201,6 +206,7 @@ fn it_overwrites_existing_usage() {
 		);
 	});
 }
+*/
 
 // No transfer if reward is zero during distribution
 #[test]
@@ -228,6 +234,7 @@ fn it_skips_distribution_for_zero_rewards() {
 	});
 }
 
+/*
 #[test]
 fn it_fails_to_record_usage_if_not_a_miner() {
 	new_test_ext().execute_with(|| {
@@ -240,6 +247,7 @@ fn it_fails_to_record_usage_if_not_a_miner() {
 		);
 	});
 }
+*/
 
 #[test]
 fn subscribe_works() {

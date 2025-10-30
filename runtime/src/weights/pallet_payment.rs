@@ -38,7 +38,7 @@ pub trait WeightInfo {
 	fn consume_compute_hours() -> Weight;
 
 	// New extrinsics
-	fn record_usage() -> Weight;
+	// fn record_usage() -> Weight;
 	fn reward_miner() -> Weight;
 	fn distribute_rewards() -> Weight;
 	fn submit_kyc() -> Weight;
@@ -102,10 +102,12 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+    /*
 	fn record_usage() -> Weight {
 		Weight::from_parts(2_000_000_000, 0)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+    */
 	fn reward_miner() -> Weight {
 		Weight::from_parts(4_000_000_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
@@ -222,10 +224,12 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+    /*
 	fn record_usage() -> Weight {
 		Weight::from_parts(2_000_000_000, 0)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
+    */
 	fn reward_miner() -> Weight {
 		Weight::from_parts(4_000_000_000, 0)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))

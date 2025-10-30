@@ -14,22 +14,15 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
-use cyborg_primitives::miner::{MinerId, MinerType};
 pub use cyborg_primitives::task::*;
 use cyborg_primitives::{
-	miner::{MinerId, MinerStatusType, MinerType},
+	miner::{MinerId, MinerType},
 	payment::PaymentMode,
 };
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
 
 use scale_info::prelude::vec::Vec;
-
-#[derive(Clone, Debug)]
-enum StopReason {
-	NoActivePayments,
-	SpecificModeExpired(PaymentMode),
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -282,7 +275,6 @@ where
             TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { MinerType::Edge },
             TaskSubmissionData::CyCloud => { MinerType::Cloud },
             };
-			};
 
 			// Check if the miner can accept tasks using the new status system
 			let miner_key = (miner_owner.clone(), miner_id.clone());
@@ -577,12 +569,12 @@ where
         #[pallet::call_index(9)]
         #[pallet::weight(<T as pallet::Config>::WeightInfo::reset_task())]
         pub fn reset_task(
-           origin: OriginFor<T>,
-           task_id: TaskId,
-           miner_type: MinerType,
-           reason: ResetReason,
-         ) -> DispatchResult {
-			// Only root can call this function
+            origin: OriginFor<T>,
+            task_id: TaskId,
+            miner_type: MinerType,
+            reason: ResetReason,
+        ) -> DispatchResult {
+            // Only root can call this function
 			ensure_root(origin)?;
 
             // Get task information
@@ -615,26 +607,28 @@ where
             ComputeAggregations::<T>::remove(task_id);
 
             // Remove from pending confirmations if present
-            if let Some(assigned_block) = assigned_block{
-              let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
+            if let Some(assigned_block) = assigned_block {
+                let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
 
                 PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
-                   if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
-                       tasks.swap_remove(pos);
-               }
-            });
-        }
+                    if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
+                        tasks.swap_remove(pos);
+                    }
+                });
+            }
 
-        Self::deposit_event(Event::TaskManuallyReset {
-             task_id,
-             reset_by: None,
-             previous_status,
-             reason,
-          });
-
-       Ok(())
+            Self::deposit_event(
+                Event::TaskManuallyReset {
+                    task_id,
+                    reset_by: None,
+                    previous_status,
+                    reason,
+                }
+            );
+            
+            Ok(())
         }
-	}
+    }
 
 	impl<T: Config> Pallet<T> {
 		#[allow(dead_code)]
@@ -794,8 +788,8 @@ where
 				// Update miner status back to Active
 				if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_status(
 					&assigned_miner,
-					&miner_type,
-					MinerStatusType::Active,
+					miner_type.clone(),
+					true,
 				) {
 					log::error!(
 						"Failed to update miner status for task {}: {:?}",
@@ -828,7 +822,7 @@ where
 			}
 
 			Ok(())
-    }
+        }
     
 		/// Reset miner associated with a task
 		fn reset_miner_for_task(

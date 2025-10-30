@@ -54,6 +54,8 @@ pub mod pallet {
 		MinerReputation::default()
 	}
 
+    /*
+
 	/// AccountMiners Information, Storage map for associating an account ID with a miner ID. If no miner exists, the query returns None.
 	/// Keeps track of MinerIds per account if any
 	#[pallet::storage]
@@ -61,6 +63,7 @@ pub mod pallet {
 	pub type AccountMiners<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, MinerId, OptionQuery>;
 
+    */
 	#[pallet::storage]
 	#[pallet::getter(fn suspended_miners)]
 	pub type SuspendedMiners<T: Config> = StorageMap<
@@ -229,7 +232,7 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			let api = MinerAPI { domain };
-			let miner_keys = AccountMiners::<T>::get(creator.clone());
+			// let miner_keys = AccountMiners::<T>::get(creator.clone());
 			let miner_location = Location {
 				latitude,
 				longitude,
@@ -244,31 +247,26 @@ pub mod pallet {
 
 			full_uuid.extend_from_slice(&miner_uuid);
 			//  Convert to bounded vec
-			let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
+			let bounded_uuid: BoundedVec<u8, MaxUuidLen> =
 				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
 
-				//  Check if the miner already exists
-			let miner_exists = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
-				MinerType::Edge => EdgeMiners::<T>::contains_key((creator.clone(), bounded_uuid.clone())),
-			};
+            let miner_key = (creator.clone(), bounded_uuid.clone());
+            let miner_exists = match miner_type {
+                MinerType::Cloud => CloudMiners::<T>::contains_key(&miner_key),
+                MinerType::Edge => EdgeMiners::<T>::contains_key(&miner_key),
+            };
 
-			if miner_exists {
-				// Emit an event for re-registration attempt
-				let existing_miner = match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::get((&creator, &bounded_uuid)),
-					MinerType::Edge => EdgeMiners::<T>::get((&creator, &bounded_uuid)),
-				};
-
-				if let Some(miner) = existing_miner {
-					Self::deposit_event(Event::MinerAlreadyRegistered {
-						creator: creator.clone(),
-						miner: (miner.owner.clone(), miner.id.clone()),
-						domain: miner.api.domain.clone(),
-					});
-				}
-				return Err(Error::<T>::MinerExists.into());
-			}
+            if miner_exists {
+                // Emit an event for re-registration attempt
+                if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(&miner_key, &miner_type) {
+                    Self::deposit_event(Event::MinerAlreadyRegistered {
+                        creator: creator.clone(),
+                        miner: (miner.owner.clone(), miner.id.clone()),
+                        domain: miner.api.domain.clone(),
+                    });
+                }
+                return Err(Error::<T>::MinerExists.into());
+            }
 
 let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
@@ -285,9 +283,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				api: api,
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
-
-			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
-
 
 			//  Store miner efficiently
 				match miner_type {
@@ -533,10 +528,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			} else {
 				Some(miners)
 			}
-		}
-
-		pub fn is_registered_miner(account: &T::AccountId) -> bool {
-			AccountMiners::<T>::contains_key(account)
 		}
 
 		/// Apply penalty to a miner's reputation
@@ -853,5 +844,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				}
 			}
 		}
+
 	}
 }

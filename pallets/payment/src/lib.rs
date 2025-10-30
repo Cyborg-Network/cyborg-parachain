@@ -369,6 +369,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+        /*
 		/// Called by a registered miner to report their usage.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::record_usage() )]
@@ -386,6 +387,7 @@ pub mod pallet {
 			Self::deposit_event(Event::MinerUsageRecorded(who, cpu, ram, storage));
 			Ok(())
 		}
+        */
 
 		/// Reward a miner for a given number of active and idle hours.
 		#[pallet::call_index(4)]
@@ -740,6 +742,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+        /*
 		/// Create a FIAT payout request for a miner
 		#[pallet::call_index(13)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_fiat_payout())]
@@ -755,6 +758,7 @@ pub mod pallet {
 
 			Ok(())
 		}
+        */
 
 		#[pallet::call_index(14)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_remaining_hours())]
@@ -837,28 +841,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/*
-		pub fn has_active_payment(who: &T::AccountId) -> DispatchResult {
-
-				// Check if user has an active payment
-				let (has_active_payment, active_modes) = Self::check_and_clean_user_payments(who);
-				// let has_active_payment = Self::check_and_clean_user_payments(who).0;
-
-				// Ensure user has either an active subscription or on-demand payment
-				ensure!(has_active_payment, Error::<T>::InsufficientComputeHours);
-
-				// Emit the event
-				Self::deposit_event(
-						Event::HasActivePayment(
-								who.clone(),
-								active_modes,
-						)
-				);
-
-				Ok(())
-		}
-		*/
-
 		pub fn check_and_clean_user_payments(who: &T::AccountId) -> (bool, Vec<PaymentMode>) {
 			let current_block = frame_system::Pallet::<T>::block_number();
 			let mut active_modes = Vec::new();

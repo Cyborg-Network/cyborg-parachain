@@ -366,7 +366,7 @@ fn it_fails_for_removing_non_existent_miner() {
 		);
 	});
 }
-
+// TODO: standard helper function for registring miner
 #[test]
 fn emiting_proper_event_for_registering_miner() {
 	new_test_ext().execute_with(|| {
