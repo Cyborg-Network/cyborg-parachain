@@ -27,7 +27,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
-
+use sp_runtime::DispatchError;
 pub use crate::configs::xcm_config::TreasuryAccount;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -388,6 +388,10 @@ impl pallet_payment::Config for Runtime {
 	type MaxKycHashLength = MaxKycHashLength;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+	type AssetRegistry = Assets;
+	type AssetId = AssetId;
+	type AssetBalance = Balance;
+	type AssetAuthority = EnsureRootWithAccount;
 }
 
 parameter_types! {

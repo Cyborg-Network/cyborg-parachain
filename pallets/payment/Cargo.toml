@@ -30,6 +30,7 @@ log={ workspace = true }
 xcm = { workspace = true }
 xcm-executor = { workspace = true }
 xcm-builder = { workspace = true }
+orml-traits = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }

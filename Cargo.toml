@@ -39,6 +39,11 @@ base64 = { version = "0.21", default-features = false }
 # ORML
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
+orml-tokens = { path = "orml/tokens", default-features = false }
+orml-xcm = { path = "orml/xcm", default-features = false }
+orml-xcm-support = { path = "orml/xcm-support", default-features = false }
+orml-xtokens = { path = "orml/xtokens", default-features = false }
+orml-xcm-mock-message-queue = { path = "orml/xcm-mock-message-queue", default-features = false }
 
 # Codec
 codec = { package = "parity-scale-codec", version = "3.6.12", features = ["derive"], default-features = false }
@@ -52,6 +57,8 @@ pallet-edge-connect = { path = "pallets/edge-connect", version = "0.1.0", defaul
 pallet-payment= { path = "pallets/payment", version = "0.1.0", default-features = false }
 pallet-status-aggregator = { path = "pallets/status-aggregator", version = "0.1.0", default-features = false }
 pallet-task-management = { path = "pallets/task-management", version = "0.1.0", default-features = false }
+pallet-xcm-adapter = { path = "pallets/xcm-adapter", version = "0.1.0", default-features = false }
+pallet-xcm-support = { path = "pallets/xcm-support", version = "0.1.0", default-features = false }
 pallet-zk-verifier = { path = "pallets/zk-verifier", version = "0.1.0", default-features = false }
 pallet-neuro-zk = { path = "pallets/neuro-zk", version = "0.1.0", default-features = false }
 

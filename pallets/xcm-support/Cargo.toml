@@ -1,0 +1,33 @@
+[package]
+authors.workspace = true
+description = " The XCM support module provides supporting traits, types and implementations, to support cross-chain message(XCM) integration with ORML modules."
+edition.workspace = true
+homepage.workspace = true
+name = "pallet-xcm-support"
+publish = false
+repository.workspace = true
+version = "0.1.0"
+
+[dependencies]
+parity-scale-codec = { workspace = true }
+
+frame-support = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+xcm = { workspace = true }
+xcm-executor = { workspace = true }
+
+orml-traits = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"frame-support/std",
+	"orml-traits/std",
+	"parity-scale-codec/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"xcm-executor/std",
+	"xcm/std",
+]

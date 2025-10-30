@@ -10,8 +10,6 @@ mod mock;
 mod tests;
 
 pub mod weights;
-use cyborg_primitives::payment::AssetConfig;
-use cyborg_primitives::payment::PaymentAsset;
 use cyborg_primitives::payment::RewardRates;
 use log::info;
 
@@ -22,11 +20,17 @@ mod benchmarking;
 #[frame_support::pallet]
 pub mod pallet {
 
+	use frame_support::traits::tokens::Preservation;
+	use frame_support::traits::EnsureOriginWithArg;
 	use frame_support::{
 		pallet_prelude::*,
 		sp_runtime::{traits::CheckedMul, ArithmeticError},
-		traits::{Currency, ExistenceRequirement},
+		traits::{
+			tokens::fungibles::{Inspect as FungiblesInspect, Mutate as FungiblesMutate},
+			Currency, ExistenceRequirement,
+		},
 	};
+	use sp_runtime::traits::AtLeast32BitUnsigned;
 	use sp_std::vec::Vec;
 
 	use super::*;
@@ -75,10 +79,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config
-		+ pallet_edge_connect::Config
-		+ pallet_asset_adapter::Config
-		+ scale_info::TypeInfo
+		frame_system::Config + pallet_edge_connect::Config + scale_info::TypeInfo
 	{
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		/// <https://paritytech.github.io/polkadot-sdk/master/polkadot_sdk_docs/reference_docs/frame_runtime_types/index.html>
@@ -121,6 +122,33 @@ pub mod pallet {
 		/// Maximum length for payment IDs
 		#[pallet::constant]
 		type MaxPaymentIdLength: Get<u32>;
+
+		/// Asset registry for multi-asset support
+		type AssetRegistry: FungiblesInspect<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>
+			+ FungiblesMutate<Self::AccountId, AssetId = Self::AssetId, Balance = Self::AssetBalance>;
+
+		/// Asset ID type
+		type AssetId: Parameter
+			+ Member
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ From<u32>;
+
+		/// Asset Balance type
+		type AssetBalance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Default
+			+ Copy
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ TryFrom<BalanceOf<Self>>
+			+ Into<BalanceOf<Self>>;
+
+		/// Ensure origin for asset operations
+		type AssetAuthority: EnsureOriginWithArg<Self::RuntimeOrigin, Self::AssetId>;
 	}
 
 	/// Storage for mapping Stripe payment IDs to on-chain accounts
@@ -183,19 +211,21 @@ pub mod pallet {
 	pub type IdleRewardRates<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, RewardRates<BalanceOf<T>>, OptionQuery>;
 
-	/// Storage for asset configurations (USDT, USDC, BORG)
+	/// Storage for asset-based subscription fees per hour
 	#[pallet::storage]
-	pub type AssetConfigs<T: Config> =
-		StorageMap<_, Blake2_128Concat, PaymentAsset, AssetConfig, OptionQuery>;
+	pub type AssetSubscriptionFees<T: Config> =
+		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetBalance, OptionQuery>;
 
-	/// Storage for subscription fees in different assets
+	/// Storage for asset-based compute hours
 	#[pallet::storage]
-	pub type AssetSubscriptionFees<T: Config> = StorageMap<
+	pub type AssetComputeHours<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
-		PaymentAsset,
-		u128, // Fee amount in asset's native decimals
-		OptionQuery,
+		T::AccountId,
+		Blake2_128Concat,
+		T::AssetId,
+		u32,
+		ValueQuery,
 	>;
 
 	/// Event declarations for extrinsic calls.
@@ -238,19 +268,30 @@ pub mod pallet {
 		MinerFiatPayoutCreated(T::AccountId, BalanceOf<T>), // Miner payout record created
 		FiatConversionRateUpdated(u64, BalanceOf<T>), // Rate updated (cents per native token)
 		RemainingHoursQueried(T::AccountId, u32),
-		AssetConfigUpdated {
-			asset: PaymentAsset,
-			asset_id: u32,
-			decimals: u8,
-		},
+
+		/// When admin sets subscription fee for a specific asset
 		AssetSubscriptionFeeSet {
-			asset: PaymentAsset,
-			fee: u128,
+			asset_id: T::AssetId,
+			fee_per_hour: T::AssetBalance,
 		},
-		AssetPaymentProcessed {
+		/// When user subscribes using a specific asset
+		AssetSubscribed {
 			account: T::AccountId,
-			asset: PaymentAsset,
-			amount: u128,
+			asset_id: T::AssetId,
+			total_fee: T::AssetBalance,
+			hours: u32,
+		},
+		/// When user adds hours using a specific asset
+		AssetHoursAdded {
+			account: T::AccountId,
+			asset_id: T::AssetId,
+			extra_hours: u32,
+			total_fee: T::AssetBalance,
+		},
+		/// When compute hours are consumed from a specific asset
+		AssetHoursConsumed {
+			account: T::AccountId,
+			asset_id: T::AssetId,
 			hours: u32,
 		},
 	}
@@ -281,8 +322,16 @@ pub mod pallet {
 		KycRejected,
 		InvalidStripePaymentId,
 		FiatConversionRateNotSet,
-		AssetConfigNotFound,
-		InvalidAssetAmount,
+		/// Asset subscription fee not set for this asset
+		AssetFeeNotSet,
+		/// Insufficient asset balance
+		InsufficientAssetBalance,
+		/// Invalid asset ID
+		InvalidAssetId,
+		/// Asset transfer failed
+		AssetTransferFailed,
+		/// Balance conversion failed
+		BalanceConversionFailed,
 	}
 
 	/// Declare callable extrinsics.
@@ -291,9 +340,6 @@ pub mod pallet {
 	where
 		<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
 			TryFrom<u64>,
-		<T as frame_system::Config>::AccountId: Clone,
-		<T as pallet_assets::Config>::AssetId: From<u32>,
-		<T as pallet_assets::Config>::Balance: From<u128>,
 	{
 		/// Set the account that receives all payments.
 		/// Can only be set by root user
@@ -707,159 +753,183 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Admin sets asset configuration for supported payment assets
+		/// Admin sets subscription fee for a specific asset
 		#[pallet::call_index(15)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_asset_config())]
-		pub fn set_asset_config(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_asset_subscription_fee())]
+		pub fn set_asset_subscription_fee(
 			origin: OriginFor<T>,
-			asset: PaymentAsset,
-			asset_id: u32,
-			decimals: u8,
-			min_amount: u128,
+			asset_id: T::AssetId,
+			fee_per_hour: T::AssetBalance,
 		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			let config = AssetConfig {
-				asset_id,
-				decimals,
-				min_amount,
-			};
+			ensure!(fee_per_hour > Zero::zero(), Error::<T>::InvalidFee);
 
-			AssetConfigs::<T>::insert(asset, config.clone());
+			// Verify asset exists by checking if we can get its total issuance
+			let _total_issuance = T::AssetRegistry::total_issuance(asset_id);
 
-			Self::deposit_event(Event::AssetConfigUpdated {
-				asset,
+			AssetSubscriptionFees::<T>::insert(asset_id, fee_per_hour);
+
+			Self::deposit_event(Event::AssetSubscriptionFeeSet {
 				asset_id,
-				decimals,
+				fee_per_hour,
 			});
 
 			Ok(())
 		}
 
-		/// Admin sets subscription fee for a specific asset
+		/// Subscribe using a specific asset
 		#[pallet::call_index(16)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_asset_subscription_fee())]
-		pub fn set_asset_subscription_fee(
-			origin: OriginFor<T>,
-			asset: PaymentAsset,
-			fee: u128,
-		) -> DispatchResult {
-			ensure_root(origin)?;
-			ensure!(fee > 0, Error::<T>::InvalidFee);
-
-			AssetSubscriptionFees::<T>::insert(asset, fee);
-
-			Self::deposit_event(Event::AssetSubscriptionFeeSet { asset, fee });
-
-			Ok(())
-		}
-
-		/// Subscribe using a specific asset (USDT, USDC, BORG)
-		#[pallet::call_index(17)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::subscribe_with_asset())]
 		pub fn subscribe_with_asset(
 			origin: OriginFor<T>,
-			asset: PaymentAsset,
+			asset_id: T::AssetId,
 			hours: u32,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
+
+			// Check if already subscribed with this asset
 			ensure!(
-				ComputeHours::<T>::get(&who) == 0,
+				AssetComputeHours::<T>::get(&who, &asset_id) == 0,
 				Error::<T>::AlreadySubscribed
 			);
 
-			let asset_config = AssetConfigs::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
-			let asset_fee =
-				AssetSubscriptionFees::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+			// Get fee for this asset
+			let fee_per_hour =
+				AssetSubscriptionFees::<T>::get(asset_id).ok_or(Error::<T>::AssetFeeNotSet)?;
 
-			let total_fee = asset_fee
-				.checked_mul(hours as u128)
+			let total_fee = fee_per_hour
+				.checked_mul(&hours.into())
 				.ok_or(ArithmeticError::Overflow)?;
 
+			// Check asset balance
+			let asset_balance = T::AssetRegistry::balance(asset_id, &who);
 			ensure!(
-				total_fee >= asset_config.min_amount,
-				Error::<T>::InvalidAssetAmount
+				asset_balance >= total_fee,
+				Error::<T>::InsufficientAssetBalance
 			);
 
-			let treasury_account = T::TreasuryAccount::get();
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 
-			// Use the asset adapter for transfer
-			pallet_asset_adapter::Pallet::<T>::transfer(
-				who.clone(),
-				treasury_account.clone(),
-				asset_config.asset_id,
+			// Transfer assets
+			T::AssetRegistry::transfer(asset_id, &who, &provider, total_fee, Preservation::Preserve)?;
+
+			// Add compute hours
+			AssetComputeHours::<T>::insert(&who, asset_id, hours);
+
+			Self::deposit_event(Event::AssetSubscribed {
+				account: who,
+				asset_id,
 				total_fee,
-			)?;
-
-			ComputeHours::<T>::insert(&who, hours);
-
-			Self::deposit_event(Event::AssetPaymentProcessed {
-				account: who.clone(),
-				asset,
-				amount: total_fee,
 				hours,
 			});
-
-			// Convert total_fee to native balance for the event
-			let native_balance_fee: BalanceOf<T> = total_fee.try_into().unwrap_or_default();
-			Self::deposit_event(Event::ConsumerSubscribed(who, native_balance_fee, hours));
 
 			Ok(())
 		}
 
 		/// Add hours using a specific asset
-		#[pallet::call_index(18)]
+		#[pallet::call_index(17)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_hours_with_asset())]
 		pub fn add_hours_with_asset(
 			origin: OriginFor<T>,
-			asset: PaymentAsset,
+			asset_id: T::AssetId,
 			extra_hours: u32,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			ensure!(
-				ComputeHours::<T>::contains_key(&who),
-				Error::<T>::SubscriptionExpired
-			);
+			ensure!(extra_hours > 0, Error::<T>::InvalidHoursInput);
 
-			let asset_config = AssetConfigs::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
-			let asset_fee =
-				AssetSubscriptionFees::<T>::get(asset).ok_or(Error::<T>::AssetConfigNotFound)?;
+			// Get fee for this asset
+			let fee_per_hour =
+				AssetSubscriptionFees::<T>::get(asset_id).ok_or(Error::<T>::AssetFeeNotSet)?;
 
-			let total_fee = asset_fee
-				.checked_mul(extra_hours as u128)
+			let total_fee = fee_per_hour
+				.checked_mul(&extra_hours.into())
 				.ok_or(ArithmeticError::Overflow)?;
 
+			// Check asset balance
+			let asset_balance = T::AssetRegistry::balance(asset_id, &who);
 			ensure!(
-				total_fee >= asset_config.min_amount,
-				Error::<T>::InvalidAssetAmount
+				asset_balance >= total_fee,
+				Error::<T>::InsufficientAssetBalance
 			);
 
-			let treasury_account = T::TreasuryAccount::get();
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 
-			// Use the asset adapter for transfer
-			pallet_asset_adapter::Pallet::<T>::transfer(
-				who.clone(),
-				treasury_account.clone(),
-				asset_config.asset_id,
-				total_fee,
-			)?;
+			// Transfer assets
+			T::AssetRegistry::transfer(asset_id, &who, &provider, total_fee, Preservation::Preserve)?;
 
-			ComputeHours::<T>::mutate(&who, |hours| {
+			// Add compute hours
+			AssetComputeHours::<T>::mutate(&who, asset_id, |hours| {
 				*hours += extra_hours;
 			});
 
-			Self::deposit_event(Event::AssetPaymentProcessed {
-				account: who.clone(),
-				asset,
-				amount: total_fee,
-				hours: extra_hours,
+			Self::deposit_event(Event::AssetHoursAdded {
+				account: who,
+				asset_id,
+				extra_hours,
+				total_fee,
 			});
 
-			Self::deposit_event(Event::SubscriptionRenewed(who, extra_hours));
+			Ok(())
+		}
+
+		/// Consume compute hours from a specific asset
+		#[pallet::call_index(18)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::consume_asset_compute_hours())]
+		pub fn consume_asset_compute_hours(
+			origin: OriginFor<T>,
+			asset_id: T::AssetId,
+			hours: u32,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
+
+			let current_hours = AssetComputeHours::<T>::get(&who, &asset_id);
+			ensure!(current_hours >= hours, Error::<T>::InsufficientComputeHours);
+
+			AssetComputeHours::<T>::mutate(&who, asset_id, |current| *current -= hours);
+
+			Self::deposit_event(Event::AssetHoursConsumed {
+				account: who,
+				asset_id,
+				hours,
+			});
 
 			Ok(())
+		}
+
+		/// Get remaining hours for a specific asset
+		#[pallet::call_index(19)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_asset_remaining_hours())]
+		pub fn get_asset_remaining_hours(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let hours = AssetComputeHours::<T>::get(&who, &asset_id);
+			Self::deposit_event(Event::RemainingHoursQueried(who, hours));
+			Ok(())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		/// Get total compute hours across all assets for a user
+		pub fn get_total_compute_hours(account: &T::AccountId) -> u32 {
+			// Sum hours from native currency
+			let native_hours = ComputeHours::<T>::get(account);
+
+			// Sum hours from all assets
+			let asset_hours: u32 = AssetComputeHours::<T>::iter_prefix_values(account).sum();
+
+			native_hours + asset_hours
+		}
+
+		/// Check if user has sufficient compute hours across all assets
+		pub fn has_sufficient_hours(account: &T::AccountId, required_hours: u32) -> bool {
+			Self::get_total_compute_hours(account) >= required_hours
 		}
 	}
 }

@@ -1,4 +1,5 @@
 pub use crate as pallet_payment;
+use frame_support::traits::EnsureOriginWithArg;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::EnsureRoot;
 use frame_system::EnsureRootWithSuccess;
@@ -11,6 +12,7 @@ use sp_runtime::{
 
 pub type Balance = u128;
 pub type AccountId = u64;
+pub type AssetId = u32;
 
 pub const ADMIN: AccountId = 1;
 pub const USER2: AccountId = 2;
@@ -106,6 +108,27 @@ impl pallet_payment::Config for Test {
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+
+	type AssetRegistry = Assets;
+    type AssetId = AssetId;
+    type AssetBalance = Balance;
+    type AssetAuthority = EnsureRootWithAccount;
+}
+
+pub struct EnsureRootWithAccount;
+
+impl EnsureOriginWithArg<RuntimeOrigin, u32> for EnsureRootWithAccount {
+	type Success = AccountId;
+
+	fn try_origin(origin: RuntimeOrigin, _asset_id: &u32) -> Result<Self::Success, RuntimeOrigin> {
+		EnsureRoot::<AccountId>::try_origin(origin.clone(), &())?;
+		Ok(TreasuryAccount::get())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin(_asset_id: &u32) -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::root())
+	}
 }
 
 parameter_types! {

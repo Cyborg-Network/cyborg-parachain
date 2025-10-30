@@ -35,6 +35,8 @@ pallet-edge-connect = { workspace = true }
 pallet-payment= { workspace = true }
 pallet-status-aggregator = { workspace = true }
 pallet-task-management = { workspace = true }
+# pallet-xcm-adapter = { workspace = true }
+# pallet-xcm-support = { workspace = true }
 pallet-zk-verifier = { workspace = true }
 pallet-neuro-zk = { workspace = true }
 

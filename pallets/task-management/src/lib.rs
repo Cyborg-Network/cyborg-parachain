@@ -235,8 +235,8 @@ pub mod pallet {
 where
     <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
         TryFrom<u64>,
-    <T as pallet_assets::Config>::AssetId: From<u32>,
-    <T as pallet_assets::Config>::Balance: From<u128>,
+    // <T as pallet_assets::Config>::AssetId: From<u32>,
+    // <T as pallet_assets::Config>::Balance: From<u128>,
 {
 		/// Creates a new task and assigns it to a randomly selected miner.
 		/// None -> Assigned

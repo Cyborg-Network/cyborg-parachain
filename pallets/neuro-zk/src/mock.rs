@@ -1,4 +1,5 @@
 pub use crate as pallet_neuro_zk;
+use frame_support::traits::EnsureOriginWithArg;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::EnsureRoot;
 use frame_system::EnsureRootWithSuccess;
@@ -11,6 +12,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 
+pub type AssetId = u32;
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
 mod test_runtime {
@@ -142,8 +144,28 @@ impl pallet_payment::Config for Test {
 	type MaxKycHashLength = ConstU32<64>;
 	type MaxPaymentIdLength = MaxPaymentIdLength;
 	type MaxUserIdLength = MaxUserIdLength;
+
+	type AssetRegistry = Assets;
+    type AssetId = AssetId;
+    type AssetBalance = Balance;
+    type AssetAuthority = EnsureRootWithAccount;
 }
 
+pub struct EnsureRootWithAccount;
+
+impl EnsureOriginWithArg<RuntimeOrigin, u32> for EnsureRootWithAccount {
+	type Success = AccountId;
+
+	fn try_origin(origin: RuntimeOrigin, _asset_id: &u32) -> Result<Self::Success, RuntimeOrigin> {
+		EnsureRoot::<AccountId>::try_origin(origin.clone(), &())?;
+		Ok(TreasuryAccount::get())
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin(_asset_id: &u32) -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::root())
+	}
+}
 parameter_types! {
 	pub const TreasuryAccount: u64 = 999;
 	pub const ExistentialDeposit: u128 = 10;

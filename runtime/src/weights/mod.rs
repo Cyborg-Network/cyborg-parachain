@@ -38,6 +38,7 @@ pub mod pallet_sudo;
 pub mod pallet_task_management;
 pub mod pallet_timestamp;
 pub mod pallet_treasury;
+// pub mod pallet_asset_registry;
 
 pub use block_weights::constants::BlockExecutionWeight;
 pub use extrinsic_weights::constants::ExtrinsicBaseWeight;
