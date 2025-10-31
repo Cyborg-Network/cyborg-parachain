@@ -30,7 +30,6 @@ orml-traits = { workspace = true }
 
 # Local
 cyborg-primitives = { workspace = true }
-pallet-asset-adapter = { workspace = true }
 pallet-edge-connect = { workspace = true }
 pallet-payment= { workspace = true }
 pallet-status-aggregator = { workspace = true }
@@ -125,7 +124,6 @@ std = [
 	"orml-oracle/std",
 	"orml-traits/std",
 	"pallet-assets/std",
-	"pallet-asset-adapter/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",

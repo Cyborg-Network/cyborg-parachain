@@ -98,8 +98,6 @@ impl pallet_assets::Config for Test {
 	type Holder = ();
 }
 
-impl pallet_asset_adapter::Config for Test {}
-
 parameter_types! {
 	pub const MaxBlockRangePeriod: u32 = 5;
 	pub const MaxPaymentIdLength: u32 = 128;

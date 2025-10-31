@@ -58,7 +58,6 @@ pub use cyborg_primitives::{
 	task::TaskId,
 };
 
-pub use pallet_asset_adapter;
 pub use pallet_edge_connect;
 pub use pallet_neuro_zk;
 pub use pallet_payment;
@@ -362,10 +361,6 @@ impl frame_support::traits::SortedMembers<AccountId> for OracleMembershipWrapper
 impl pallet_edge_connect::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_edge_connect::SubstrateWeight<Runtime>;
-}
-
-impl pallet_asset_adapter::Config for Runtime {
-	// No additional config needed - it uses pallet_assets types directly
 }
 
 impl pallet_task_management::Config for Runtime {
@@ -688,27 +683,24 @@ mod runtime {
 	pub type EdgeConnect = pallet_edge_connect;
 
 	#[runtime::pallet_index(43)]
-	pub type AssetAdapter = pallet_asset_adapter;
-
-	#[runtime::pallet_index(44)]
 	pub type TaskManagement = pallet_task_management;
 
-	#[runtime::pallet_index(45)]
+	#[runtime::pallet_index(44)]
 	pub type StatusAggregator = pallet_status_aggregator;
 
-	#[runtime::pallet_index(46)]
+	#[runtime::pallet_index(45)]
 	pub type Payment = pallet_payment;
 
-	#[runtime::pallet_index(47)]
+	#[runtime::pallet_index(46)]
 	pub type ZKVerifier = pallet_zk_verifier;
 
-	#[runtime::pallet_index(48)]
+	#[runtime::pallet_index(47)]
 	pub type NeuroZk = pallet_neuro_zk;
 
-	#[runtime::pallet_index(49)]
+	#[runtime::pallet_index(48)]
 	pub type Treasury = pallet_treasury;
 
-	#[runtime::pallet_index(50)]
+	#[runtime::pallet_index(49)]
 	pub type Assets = pallet_assets;
 }
 

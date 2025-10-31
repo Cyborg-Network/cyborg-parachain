@@ -97,8 +97,6 @@ impl pallet_assets::Config for Test {
 	type Holder = ();
 }
 
-impl pallet_asset_adapter::Config for Test {}
-
 // Implementation of the Payment pallet's configuration for the Test runtime
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;

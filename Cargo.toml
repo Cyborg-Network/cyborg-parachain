@@ -47,7 +47,6 @@ scale-info = { version = "2.11.1", features = ["derive"], default-features = fal
 
 # Local 
 cyborg-primitives = { path = "primitives", default-features = false }
-pallet-asset-adapter = { path = "pallets/asset-adapter", version = "0.1.0", default-features = false }
 pallet-edge-connect = { path = "pallets/edge-connect", version = "0.1.0", default-features = false }
 pallet-payment= { path = "pallets/payment", version = "0.1.0", default-features = false }
 pallet-status-aggregator = { path = "pallets/status-aggregator", version = "0.1.0", default-features = false }
