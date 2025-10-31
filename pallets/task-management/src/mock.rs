@@ -96,8 +96,6 @@ impl pallet_assets::Config for Test {
 	type Holder = ();
 }
 
-impl pallet_asset_adapter::Config for Test {}
-
 impl pallet_task_management::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();

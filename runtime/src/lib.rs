@@ -27,7 +27,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature,
 };
-use sp_runtime::DispatchError;
 pub use crate::configs::xcm_config::TreasuryAccount;
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
