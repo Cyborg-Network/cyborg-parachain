@@ -79,6 +79,7 @@ pub enum OperationalStatus {
 	Available, // Miner is available for new tasks (set by miner)
 	Busy,      // Miner is currently processing a task (set by miner)
 	Suspended, // Miner is suspended (set by system via reputation penalties)
+	Maintenance
 }
 
 #[derive(Default, PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]

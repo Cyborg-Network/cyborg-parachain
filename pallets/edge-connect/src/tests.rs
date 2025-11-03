@@ -411,6 +411,152 @@ fn emiting_proper_event_for_registering_miner() {
 	})
 }
 
+#[test]
+fn it_works_for_requesting_maintenance() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+		let domain_str = "maintenance_test.com";
+		let domain: BoundedVec<u8, ConstU32<128>> =
+			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
+		let miner_type = MinerType::Cloud;
+		let latitude: Latitude = 590000;
+		let longitude: Longitude = 120000;
+		let ram: RamBytes = 100000000;
+		let storage: StorageBytes = 100000000;
+		let cpu: CpuCores = 12;
+		let miner_uuid = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		let bounded_uuid: BoundedVec<u8, ConstU32<64>> = 
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
+
+		System::set_block_number(5);
+
+		// Register miner
+		assert_ok!(EdgeConnectModule::register_miner(
+			RuntimeOrigin::signed(alice),
+			miner_type,
+			miner_uuid.clone(),
+			domain.clone(),
+			latitude,
+			longitude,
+			ram,
+			storage,
+			cpu
+		));
+
+		// Set miner status manually to Busy
+		let mut miner = pallet_edge_connect::CloudMiners::<Test>::get(&bounded_uuid).unwrap();
+		miner.operational_status = OperationalStatus::Busy;
+		pallet_edge_connect::CloudMiners::<Test>::insert(&bounded_uuid, miner.clone());
+
+		assert_ok!(EdgeConnectModule::request_maintenance(
+			RuntimeOrigin::signed(alice),
+			bounded_uuid.clone(),
+			MinerType::Cloud
+		));
+
+		let updated = pallet_edge_connect::CloudMiners::<Test>::get(&bounded_uuid).unwrap();
+		assert_eq!(updated.operational_status, OperationalStatus::Maintenance);
+
+		assert!(pallet_edge_connect::MinersUnderMaintenance::<Test>::contains_key(&bounded_uuid));
+
+		System::assert_last_event(RuntimeEvent::EdgeConnectModule(Event::MinerUnderMaintenance {
+			miner: bounded_uuid.clone(),
+			who: alice,
+		}));
+	});
+}
+
+#[test]
+fn it_works_for_resolving_maintenance() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+		let domain_str = "resolve_test.com";
+		let domain: BoundedVec<u8, ConstU32<128>> =
+			BoundedVec::try_from(domain_str.as_bytes().to_vec()).unwrap();
+		let miner_type = MinerType::Cloud;
+		let latitude: Latitude = 590000;
+		let longitude: Longitude = 120000;
+		let ram: RamBytes = 100000000;
+		let storage: StorageBytes = 100000000;
+		let cpu: CpuCores = 12;
+		let miner_uuid = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		let bounded_uuid: BoundedVec<u8, ConstU32<64>> = 
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
+
+		System::set_block_number(10);
+
+		// Register miner
+		assert_ok!(EdgeConnectModule::register_miner(
+			RuntimeOrigin::signed(alice),
+			miner_type,
+			miner_uuid.clone(),
+			domain.clone(),
+			latitude,
+			longitude,
+			ram,
+			storage,
+			cpu
+		));
+
+		let mut miner = pallet_edge_connect::CloudMiners::<Test>::get(&bounded_uuid).unwrap();
+		miner.operational_status = OperationalStatus::Maintenance;
+		pallet_edge_connect::CloudMiners::<Test>::insert(&bounded_uuid, miner.clone());
+		pallet_edge_connect::MinersUnderMaintenance::<Test>::insert(&bounded_uuid, 10);
+		assert_ok!(EdgeConnectModule::resolve_maintenance(
+			RuntimeOrigin::root(),
+			bounded_uuid.clone(),
+			MinerType::Cloud
+		));
+
+		let updated = pallet_edge_connect::CloudMiners::<Test>::get(&bounded_uuid).unwrap();
+		assert_eq!(updated.operational_status, OperationalStatus::Available);
+
+		assert!(!pallet_edge_connect::MinersUnderMaintenance::<Test>::contains_key(&bounded_uuid));
+
+		System::assert_last_event(RuntimeEvent::EdgeConnectModule(Event::MaintenanceResolved {
+			miner: bounded_uuid.clone(),
+		}));
+	});
+}
+
+#[test]
+fn request_maintenance_fails_if_not_owner() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+		let bob = 1;
+		let domain = BoundedVec::try_from(b"ownerfail.com".to_vec()).unwrap();
+		let miner_type = MinerType::Cloud;
+		let miner_uuid = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
+
+		assert_ok!(EdgeConnectModule::register_miner(
+			RuntimeOrigin::signed(alice),
+			miner_type,
+			miner_uuid.clone(),
+			domain.clone(),
+			590000,
+			120000,
+			100000000,
+			100000000,
+			12
+		));
+
+		let mut miner = pallet_edge_connect::CloudMiners::<Test>::get(&bounded_uuid).unwrap();
+		miner.operational_status = OperationalStatus::Busy;
+		pallet_edge_connect::CloudMiners::<Test>::insert(&bounded_uuid, miner.clone());
+
+		assert_noop!(
+			EdgeConnectModule::request_maintenance(
+				RuntimeOrigin::signed(bob),
+				bounded_uuid.clone(),
+				MinerType::Cloud
+			),
+			Error::<Test>::NotAuthorized
+		);
+	});
+}
+
 /*
 
 	let domain_str = "some_api_domain.com";

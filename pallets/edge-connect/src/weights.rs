@@ -39,6 +39,8 @@ pub trait WeightInfo {
     fn ban_miner() -> Weight;
 	fn update_operational_status() -> Weight;
     fn unsuspend_miner() -> Weight;
+	fn request_maintenance() -> Weight;
+	fn resolve_maintenance() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -120,6 +122,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     }
 
 
+	fn request_maintenance() -> Weight {
+		Weight::from_parts(13_000_000, 4200)
+			.saturating_add(T::DbWeight::get().reads(1))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+
+
+	fn resolve_maintenance() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+
+
 }
 
 // For backwards compatibility and tests.
@@ -190,4 +206,16 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
+
+	fn request_maintenance() -> Weight {
+		Weight::from_parts(13_000_000, 4200)
+			.saturating_add(RocksDbWeight::get().reads(1))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+
+	fn resolve_maintenance() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
 }
