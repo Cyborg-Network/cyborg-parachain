@@ -257,16 +257,10 @@ pub mod pallet {
 			};
 			let miner_specs = MinerSpecs { ram, storage, cpu };
 
-			//  Add CL(Cloud),ED(Edge) based on miner_type
-			let mut full_uuid = match miner_type {
-				MinerType::Cloud => b"CL-".to_vec(),
-				MinerType::Edge => b"ED-".to_vec(),
-			};
-
-			full_uuid.extend_from_slice(&miner_uuid);
-			//  Convert to bounded vec
-			let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
-				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
+			let bounded_uuid: MinerId =
+    miner_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
+		
+		
 
 				//  Check if the miner already exists
 			let miner_exists = match miner_type {

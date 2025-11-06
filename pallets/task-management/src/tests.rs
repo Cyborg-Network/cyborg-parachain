@@ -25,7 +25,7 @@ fn register_miner(
 	domain_str: &str,
 ) -> Result<(PostDispatchInfo, MinerId), DispatchErrorWithPostInfo> {
 	// UUIDs for each miner
-	let miner_id  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+	let miner_id  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 
 
@@ -169,7 +169,7 @@ fn it_works_for_task_scheduler() {
 
 
 
-		let miner_id_zk: Vec<u8> = b"22222222-dddd-eeee-ffff-0987654321aa".to_vec();
+		let miner_id_zk: Vec<u8> = b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec();
 		let bounded_miner_id_zk: BoundedVec<u8, ConstU32<64>> = 
 			b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec().try_into().unwrap();
 		let bob = 3;
