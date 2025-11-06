@@ -25,12 +25,12 @@ fn register_miner(
 	domain_str: &str,
 ) -> Result<(PostDispatchInfo, MinerId), DispatchErrorWithPostInfo> {
 	// UUIDs for each miner
-	let miner_id  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+	// let miner_id  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 
 
-	// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
-	// 		b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+	let miner_id: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 	let result = EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
 		miner_type.clone(),
@@ -169,7 +169,7 @@ fn it_works_for_task_scheduler() {
 
 
 
-		let miner_id_zk: Vec<u8> = b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec();
+		// let miner_id_zk: Vec<u8> = b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec();
 		let bounded_miner_id_zk: BoundedVec<u8, ConstU32<64>> = 
 			b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec().try_into().unwrap();
 		let bob = 3;
@@ -178,7 +178,7 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(bob),
 		MinerType::Edge,
-		miner_id_zk.clone(),
+		bounded_miner_id_zk.clone(),
 		BoundedVec::try_from("exec.worker".as_bytes().to_vec()).unwrap(),
 		590000,   // latitude
 		120000,   // longitude

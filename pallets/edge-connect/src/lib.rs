@@ -239,7 +239,7 @@ pub mod pallet {
 		pub fn register_miner(
 			origin: OriginFor<T>,
 			miner_type: MinerType,
-			miner_uuid: Vec<u8>,
+			miner_uuid: MinerId,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -250,29 +250,23 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			let api = MinerAPI { domain };
-			// let miner_keys = AccountMiners::<T>::get(creator.clone());
 			let miner_location = Location {
 				latitude,
 				longitude,
 			};
 			let miner_specs = MinerSpecs { ram, storage, cpu };
 
-			let bounded_uuid: MinerId =
-    miner_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
-		
-		
-
 				//  Check if the miner already exists
 			let miner_exists = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::contains_key(bounded_uuid.clone()),
-				MinerType::Edge => EdgeMiners::<T>::contains_key(bounded_uuid.clone()),
+				MinerType::Cloud => CloudMiners::<T>::contains_key(miner_uuid.clone()),
+				MinerType::Edge => EdgeMiners::<T>::contains_key(miner_uuid.clone()),
 			};
 
 			if miner_exists {
 				// Emit an event for re-registration attempt
 				let existing_miner = match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::get(&bounded_uuid),
-					MinerType::Edge => EdgeMiners::<T>::get(&bounded_uuid),
+					MinerType::Cloud => CloudMiners::<T>::get(&miner_uuid),
+					MinerType::Edge => EdgeMiners::<T>::get(&miner_uuid),
 				};
 
 				if let Some(miner) = existing_miner {
@@ -287,7 +281,7 @@ pub mod pallet {
 
 let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
-				id: bounded_uuid.clone(),
+				id: miner_uuid.clone(),
 				owner: creator.clone(),
 				location: miner_location,
 				specs: miner_specs,
@@ -301,13 +295,13 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
+			AccountMiners::<T>::insert(creator.clone(), miner_uuid.clone());
 
 
 			//  Store miner efficiently
 				match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
-					MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
+					MinerType::Cloud => CloudMiners::<T>::insert(&miner_uuid, miner.clone()),
+					MinerType::Edge => EdgeMiners::<T>::insert(&miner_uuid, miner.clone()),
 				}
 
 

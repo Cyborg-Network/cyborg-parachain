@@ -23,8 +23,8 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 		System::set_block_number(10);
 		let alice = 0;
 		// UUIDs for each miner
-		let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
@@ -75,7 +75,7 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_0,
-			miner_uuid_cloud.clone(),
+			bounded_uuid_cloud.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -87,7 +87,7 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_1,
-			miner_uuid_edge.clone(),
+			bounded_uuid_edge.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -126,7 +126,7 @@ fn it_works_for_registering_domain() {
 		System::set_block_number(10);
 		let alice = 0;
 		// UUIDs for each miner
-		let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
@@ -163,7 +163,7 @@ fn it_works_for_registering_domain() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type,
-			miner_uuid_cloud.clone(),
+			bounded_uuid_cloud.clone(),
 			api_info.domain,
 			latitude,
 			longitude,
@@ -196,15 +196,15 @@ fn it_fails_for_registering_duplicate_miner() {
 		let cpu: CpuCores = 12;
 
 		// UUIDs for each miner
-		let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		// let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
-		// 	b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
-		// 	b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
 		let api_info = MinerAPI { domain: domain };
 
@@ -212,7 +212,7 @@ fn it_fails_for_registering_duplicate_miner() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_0.clone(),
-			miner_uuid_cloud.clone(),
+			bounded_uuid_cloud.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -225,7 +225,7 @@ fn it_fails_for_registering_duplicate_miner() {
 			EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(alice),
 				miner_type_0,
-				miner_uuid_cloud.clone(),
+				bounded_uuid_cloud.clone(),
 				api_info.domain.clone(),
 				latitude,
 				longitude,
@@ -240,7 +240,7 @@ fn it_fails_for_registering_duplicate_miner() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_1.clone(),
-			miner_uuid_edge.clone(),
+			bounded_uuid_edge.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -253,7 +253,7 @@ fn it_fails_for_registering_duplicate_miner() {
 			EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(alice),
 				miner_type_1,
-				miner_uuid_edge.clone(),
+				bounded_uuid_edge.clone(),
 				api_info.domain,
 				latitude,
 				longitude,
@@ -282,8 +282,8 @@ fn it_works_for_removing_miner() {
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
 		// UUIDs for each miner
-		let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
@@ -297,7 +297,7 @@ fn it_works_for_removing_miner() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_0,
-			miner_uuid_cloud.clone(),
+			bounded_uuid_cloud.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -309,7 +309,7 @@ fn it_works_for_removing_miner() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type_1,
-			miner_uuid_edge.clone(),
+			bounded_uuid_edge.clone(),
 			api_info.domain.clone(),
 			latitude,
 			longitude,
@@ -381,8 +381,8 @@ fn emiting_proper_event_for_registering_miner() {
 		let ram: RamBytes = 100000000;
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
-		let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
@@ -395,7 +395,7 @@ fn emiting_proper_event_for_registering_miner() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type,
-			miner_uuid_cloud.clone(),
+			bounded_uuid_cloud.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -424,7 +424,7 @@ fn it_works_for_requesting_maintenance() {
 		let ram: RamBytes = 100000000;
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
-		let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		let bounded_uuid: BoundedVec<u8, ConstU32<64>> = 
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
@@ -434,7 +434,7 @@ fn it_works_for_requesting_maintenance() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type,
-			miner_uuid.clone(),
+			bounded_uuid.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -479,7 +479,7 @@ fn it_works_for_resolving_maintenance() {
 		let ram: RamBytes = 100000000;
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
-		let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		let bounded_uuid: BoundedVec<u8, ConstU32<64>> = 
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
@@ -489,7 +489,7 @@ fn it_works_for_resolving_maintenance() {
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type,
-			miner_uuid.clone(),
+			bounded_uuid.clone(),
 			domain.clone(),
 			latitude,
 			longitude,
@@ -526,14 +526,14 @@ fn request_maintenance_fails_if_not_owner() {
 		let bob = 1;
 		let domain = BoundedVec::try_from(b"ownerfail.com".to_vec()).unwrap();
 		let miner_type = MinerType::Cloud;
-		let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
+		// let miner_uuid = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		let bounded_uuid: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
 			miner_type,
-			miner_uuid.clone(),
+			bounded_uuid.clone(),
 			domain.clone(),
 			590000,
 			120000,
