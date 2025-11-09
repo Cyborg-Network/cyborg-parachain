@@ -18,6 +18,8 @@ use cyborg_primitives::miner::{MinerId, MinerType};
 pub use cyborg_primitives::task::*;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
+use pallet_edge_connect::MinerInfoHandler;
+use cyborg_primitives::miner::OperationalStatus;
 
 use scale_info::prelude::vec::Vec;
 
@@ -264,19 +266,15 @@ where
 			};
 
 			// Check if the miner can accept tasks using the new status system
-			let miner_key =  miner_id.clone();
-			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &miner_type)
-                  .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
-
-			if !miner.is_eligible_for_tasks() {
-				return Err(Error::<T>::MinerIsBusy.into());
-			}
+			// let miner_key =  miner_id.clone();
+			// let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &miner_type)
+            // .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
 
 			// Check if the miner exists, and if its status allows for task execution
 			pallet_edge_connect::Pallet::<T>::check_miner_status(
-				&miner_id.clone(),
+                &miner_id.clone(),
 				&miner_type,
-			).map_err(|_| pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
+			)?;
 
 			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
 				if who == gatekeeper {
@@ -328,10 +326,10 @@ where
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
 			TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
 
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
+			pallet_edge_connect::Pallet::<T>::update_miner(
 				&miner_id,
-				miner_type.clone(),
-				false,
+				&miner_type,
+				OperationalStatus::TaskAssigned,
 			)?;
 
 			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
@@ -467,11 +465,11 @@ where
 			Tasks::<T>::insert(task_id, task);
 
 			// Update the miner status back to active
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
+			pallet_edge_connect::Pallet::<T>::update_miner(
 				&miner_id,
 				// This needs to be changed after the miners have unique IDs
-				miner_type,
-				true,  // set to available
+				&miner_type,
+				OperationalStatus::Available,  // set to available
 			)?;
 
 			// Emit event.
@@ -693,10 +691,10 @@ where
 			if let Some(current_task) = miner.current_task {
 				if current_task == *task_id {
 					// Reset miner to available status
-					pallet_edge_connect::Pallet::<T>::update_miner_status(
+					pallet_edge_connect::Pallet::<T>::update_miner(
 						miner_key,
-						miner_type.clone(),
-						true, // set to available
+						&miner_type,
+						OperationalStatus::Available, // set to available
 					)
 					.map_err(|_| Error::<T>::MinerResetFailed)?;
 

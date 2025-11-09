@@ -54,12 +54,14 @@ pub mod pallet {
 		MinerReputation::default()
 	}
 
+    /*
 	/// AccountMiners Information, Storage map for associating an account ID with a miner ID. If no miner exists, the query returns None.
 	/// Keeps track of MinerIds per account if any
 	#[pallet::storage]
 	#[pallet::getter(fn account_miners)]
 	pub type AccountMiners<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, MinerId, OptionQuery>;
+    */
 
 	#[pallet::storage]
 	#[pallet::getter(fn suspended_miners)]
@@ -194,16 +196,18 @@ pub mod pallet {
 		/// Error indicating that the miner does not exist in the system when trying to perform actions (e.g., removal or status update).
 		MinerDoesNotExist,
 		/// Miner is suspended and cannot perform actions.
-		MinerSuspended,
+		Suspended,
 		/// Miner reputation is too low
-		InsufficientReputation,
+		LowReputation,
 		/// Miner is busy
-		MinerIsBusy,
+		Busy,
 		/// Miner is inactive
 		MinerIsInactive,
 		NotAuthorized,
 		// Provided UUID exceeded MaxUuidLen
-		UuidTooLong, 
+		UuidTooLong,
+        PendingTask,
+        Maintenance,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -286,7 +290,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
+			// AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
 
 
 			//  Store miner efficiently
@@ -456,85 +460,9 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 			Self::lift_suspension(&miner_id, &miner_type)
 		}
-
-		/// Updates the operational status (callable by miner itself)
-		#[pallet::call_index(7)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_operational_status())]
-		pub fn update_operational_status(
-			origin: OriginFor<T>,
-			miner_type: MinerType,
-			miner_id: MinerId,
-			status: OperationalStatus,
-		) -> DispatchResult {
-			let creator = ensure_signed(origin)?;
-			let status_clone = status.clone();
-
-			match miner_type {
-				MinerType::Cloud => {
-					CloudMiners::<T>::mutate(miner_id.clone(), |miner_option| {
-						if let Some(miner) = miner_option {
-							// Miners can only set Available or Busy status
-							if matches!(status, OperationalStatus::Suspended) {
-								return Err(Error::<T>::NotAuthorized.into());
-							}
-							miner.operational_status = status;
-							miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
-				MinerType::Edge => {
-					EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
-						if let Some(miner) = miner_option {
-							// Miners can only set Available or Busy status
-							if matches!(status, OperationalStatus::Suspended) {
-								return Err(Error::<T>::NotAuthorized.into());
-							}
-							miner.operational_status = status;
-							miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
-			}?;
-
-			Self::deposit_event(Event::OperationalStatusUpdated {
-				worker: (creator, miner_id),
-				status: status_clone,
-			});
-
-			Ok(())
-		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		// Helper Function to retrieve all active miners from storage.
-		// Filters miners based on their status (active or inactive).
-		pub fn get_active_miners() -> Option<
-			Vec<(
-				MinerId,
-				Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
-			)>,
-		> {
-			let miners = CloudMiners::<T>::iter()
-				.filter(|&(_, ref miner)| miner.can_accept_tasks())
-				.collect::<Vec<_>>();
-
-			if miners.is_empty() {
-				None
-			} else {
-				Some(miners)
-			}
-		}
-
-		pub fn is_registered_miner(account: &T::AccountId) -> bool {
-			AccountMiners::<T>::contains_key(account)
-		}
-
 		/// Apply penalty to a miner's reputation
 		pub fn apply_penalty(
 			miner_key: &MinerId,
@@ -595,19 +523,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			Ok(())
 		}
 
-		pub fn get_miner(
-			miner_key: &MinerId,
-			miner_type: &MinerType,
-		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			let miner = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
-			};
-
-			miner
-		}
-
-		/// Check if miner can perform actions
+		/// Check if miner can be assigned to a Task
 		pub fn check_miner_status(
 			miner_key: &MinerId,
 			miner_type: &MinerType,
@@ -624,55 +540,37 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 					updated_miner.operational_status = OperationalStatus::Available;
 					updated_miner.status_last_updated = current_block;
 
-					// Update the miner status
-					Self::update_miner(miner_key, miner_type, updated_miner);
-
 					// Remove from suspended miner storage
 					SuspendedMiners::<T>::remove(miner_key);
 				} else {
-					return Err(Error::<T>::MinerSuspended.into());
+					return Err(Error::<T>::Suspended.into());
 				}
 			}
 
+            if miner.in_maintenance() {
+                return Err(Error::<T>::Maintenance.into());
+            }
+
+            if miner.has_task_assigned() {
+                return Err(Error::<T>::PendingTask.into());
+            }
+
 			// Check oracle status (uptime)
+            // TODO: In production, return error.
 			if miner.oracle_status != OracleStatus::Online {
 				log::warn!("Worker oracle status is not Online, but allowing for testing");
 			}
 
-			// Check operational status
-			if miner.operational_status != OperationalStatus::Available {
-				return Err(Error::<T>::MinerIsBusy.into());
-			}
+            if miner.running_task() {
+                return Err(Error::<T>::Busy.into());
+            }
 
 			// Check reputation
 			if miner.reputation.score < 10 {
 				// Reduced from 50 to 10 for testing
-				return Err(Error::<T>::InsufficientReputation.into());
+				return Err(Error::<T>::LowReputation.into());
 			}
 
-			Ok(())
-		}
-
-		pub fn update_miner_status(
-			miner_id: &MinerId,
-			miner_type: MinerType,
-			new_status: bool,
-		) -> DispatchResult {
-			let mut miner = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_id),
-			}
-			.ok_or(Error::<T>::MinerDoesNotExist)?;
-
-			miner.operational_status = if new_status {
-				OperationalStatus::Available
-			} else {
-				OperationalStatus::Busy
-			};
-			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
-				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
-			}
 			Ok(())
 		}
 
@@ -825,29 +723,41 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 	{
 		// Implementation of the MinerInfoHandler trait, which provides methods for accessing miner cluster information.
 		fn get_miner(
-			miner_key: &MinerId,
+			id: &MinerId,
 			miner_type: &MinerType,
 		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
 			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
+				MinerType::Cloud => CloudMiners::<T>::get(id),
+				MinerType::Edge => EdgeMiners::<T>::get(id),
 			}
 		}
 
 		// Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
 		fn update_miner(
-			miner_key: &MinerId,
+			id: &MinerId,
 			miner_type: &MinerType,
-			miner: Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
-		) {
-			match miner_type {
-				MinerType::Cloud => {
-					CloudMiners::<T>::insert(miner_key, miner);
-				}
-				MinerType::Edge => {
-					EdgeMiners::<T>::insert(miner_key, miner);
-				}
-			}
+            status: OperationalStatus,
+		) -> DispatchResult {
+
+            if matches!(status, OperationalStatus::Suspended | OperationalStatus::Maintenance) {
+                return Err(Error::<T>::NotAuthorized.into());
+            }
+
+            // Get miner and update if exists
+            if let Some(mut miner) = Self::get_miner(id, miner_type) {
+                miner.operational_status = status;
+                miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+                // Store back using the appropriate storage
+                match miner_type {
+                    MinerType::Cloud => CloudMiners::<T>::insert(id, miner),
+                    MinerType::Edge => EdgeMiners::<T>::insert(id, miner),
+                }
+
+                Ok(())
+            } else {
+                 Err(Error::<T>::MinerDoesNotExist.into())
+            }
 		}
 	}
 }
