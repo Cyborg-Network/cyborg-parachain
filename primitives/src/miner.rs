@@ -1,6 +1,6 @@
 use crate::task::TaskId;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{pallet_prelude::{ConstU32, DispatchResult}, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
 
@@ -84,9 +84,10 @@ pub enum OracleStatus {
 	DecodeWithMemTracking,
 )]
 pub enum OperationalStatus {
-	Available, // Miner is available for new tasks (set by miner)
-	Busy,      // Miner is currently processing a task (set by miner)
-	Suspended, // Miner is suspended (set by system via reputation penalties)
+	Available,    // Miner is available for new tasks (set by miner)
+	Busy,         // Miner is currently processing a task (set by miner)
+	Suspended,    // Miner is suspended (set by system via reputation penalties)
+    TaskAssigned, // Task has been assigned but not confirmed yet (set by parachain)
 }
 
 /// TODO:
@@ -120,9 +121,8 @@ pub struct Miner<AccountId, BlockNumber, TimeStamp> {
 	pub reputation: MinerReputation<BlockNumber>,
 	pub current_task: Option<TaskId>,
 	pub start_block: BlockNumber,
-	// Two independent status types
 	pub oracle_status: OracleStatus, // Set by oracle feeder (uptime)
-	pub operational_status: OperationalStatus, // Set by miner itself + system (operational state)
+	pub operational_status: OperationalStatus, // Set by miner & system (operational state)
 	pub status_last_updated: BlockNumber,
 	pub api: MinerAPI,
 	pub last_status_check: TimeStamp,
@@ -139,24 +139,20 @@ impl<AccountId, BlockNumber, TimeStamp> Miner<AccountId, BlockNumber, TimeStamp>
 		self.operational_status == OperationalStatus::Suspended
 	}
 
-	pub fn is_online_and_available(&self) -> bool {
-		self.oracle_status == OracleStatus::Online
-			&& self.operational_status == OperationalStatus::Available
-	}
-
 	pub fn is_online(&self) -> bool {
 		self.oracle_status == OracleStatus::Online
 	}
 
-	pub fn is_operational(&self) -> bool {
-		!self.is_suspended() && self.operational_status != OperationalStatus::Suspended
-	}
+    pub fn has_task_assigned(&self) -> bool {
+        self.operational_status == OperationalStatus::TaskAssigned
+    }
 
-	pub fn is_eligible_for_tasks(&self) -> bool {
-		self.can_accept_tasks() && self.reputation.score >= 50
-	}
+    pub fn running_task(&self) -> bool {
+        self.operational_status == OperationalStatus::Busy
+    }
 }
 
+/// TODO:
 pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	fn get_miner(
 		miner_key: &MinerId,
@@ -165,8 +161,8 @@ pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	fn update_miner(
 		miner_key: &MinerId,
 		miner_type: &MinerType,
-		miner: Miner<AccountId, BlockNumber, TimeStamp>,
-	);
+        status: OperationalStatus,
+	) -> DispatchResult;
 }
 
 /// TODO:

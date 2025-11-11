@@ -19,8 +19,12 @@ use cyborg_primitives::{
 	miner::{MinerId, MinerType},
 	payment::PaymentMode,
 };
+use cyborg_primitives::payment::PaymentPurpose;
+use cyborg_primitives::miner::OperationalStatus;
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use pallet_edge_connect::SuspensionReason;
+use pallet_edge_connect::MinerInfoHandler;
+use cyborg_primitives::payment::PaymentPeriod;
 
 use scale_info::prelude::vec::Vec;
 
@@ -34,7 +38,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::{OriginFor, *};
 	use pallet_edge_connect::PenaltyReason;
 	use pallet_timestamp as timestamp;
-	// use pallet_edge_connect::AccountMiners;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -123,7 +126,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new task has been scheduled and assigned to a miner.
 		TaskScheduled {
-			assigned_miner: (T::AccountId, MinerId),
+			assigned_miner: MinerId,
 			task_kind: TaskKind<BlockNumberFor<T>>,
 			task_owner: T::AccountId,
 			task_id: TaskId,
@@ -149,8 +152,12 @@ pub mod pallet {
 		TasksStoppedForExpiredPayments {
 			count: u32,
 			stopped_tasks: Vec<(TaskId, PaymentMode)>,
-    },
-
+        },
+        PaymentActivatedForTask {
+            owner: T::AccountId,
+            mode: PaymentMode,
+            period: PaymentPeriod<BlockNumberFor<T>>,
+        },
 		/// Event emitted when a task is manually reset by admin
 		TaskManuallyReset {
 			task_id: TaskId,
@@ -187,7 +194,7 @@ pub mod pallet {
 		RequireAssignedVerifier, // A verifier must be assigned to the task.
 
 		/// Account has exceeded task submission rate limit
-		RateLimitExceeded,
+		TaskRateLimitExceeded,
 		ModelAlreadyRegistered,
 		ModelNotFound,
 		TaskReceptionAlreadyConfirmed, // Task reception was already confirmed
@@ -254,7 +261,7 @@ pub mod pallet {
 where
     <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
         TryFrom<u64>, {
-		/// Creates a new task and assigns it to a randomly selected miner.
+		/// Creates a new task and assigns it to a randomly selected miner(in production).
 		/// None -> Assigned
 		// TODO calculate actual weight from the length of the inputs 
 		#[pallet::call_index(0)]
@@ -263,117 +270,148 @@ where
 			origin: OriginFor<T>,
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
 			// TODO requesting_user: Option<Some data that identifies the user>,
-			task_kind: TaskSubmissionData,
-			miner_owner: T::AccountId,
-			miner_id: MinerId,
+			submission: TaskSubmissionData,
+			id: MinerId,
             payment_mode: PaymentMode,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin.clone())?;
 
 			// Determine miner type based on task kind
-			let miner_type = match task_kind {
-            TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { MinerType::Edge },
-            TaskSubmissionData::CyCloud => { MinerType::Cloud },
+			let miner_type = match submission {
+                TaskSubmissionData::NeuroZK(_) | TaskSubmissionData::OpenInference(_) | TaskSubmissionData::FlashInfer(_) => { MinerType::Edge },
+                TaskSubmissionData::CyCloud => { MinerType::Cloud },
             };
 
-			// Check if the miner can accept tasks using the new status system
-			let miner_key =  miner_id.clone();
-			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_key, &miner_type)
-                  .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
+            // Calculate pays_fee once for reuse
+            let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
+                if who == gatekeeper {
+                    Pays::No
+                } else {
+                    Pays::Yes
+                }
+            } else {
+                Pays::Yes
+            };
+    
+            let success_response = || Ok(PostDispatchInfo {
+                actual_weight: None,
+                pays_fee,
+            });
 
-			if !miner.is_eligible_for_tasks() {
-				return Err(Error::<T>::MinerIsBusy.into());
-			}
-
-			// Check if the miner exists, and if its status allows for task execution
-			pallet_edge_connect::Pallet::<T>::check_miner_status(
-				&miner_id.clone(),
+			match pallet_edge_connect::Pallet::<T>::check_miner_available(
+				&id,
 				&miner_type,
-			).map_err(|_| pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
+			) {
+                Ok(()) => {
+                    let task_id = NextTaskId::<T>::get();
+                    NextTaskId::<T>::put(task_id.saturating_add(1));
 
-			let pays_fee = if let Some(gatekeeper) = GatekeeperAccount::<T>::get() {
-				if who == gatekeeper {
-					Pays::No
-				} else {
-					Pays::Yes
-				}
-			} else {
-				Pays::Yes
-			};
+                    let task_kind = TaskKind::from_submission(submission);
 
+                    let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
+                        task_owner: who.clone(),
+                        create_block: <frame_system::Pallet<T>>::block_number(),
+                        time_elapsed: None,
+				        average_cpu_percentage_use: None,
+                        task_kind: task_kind.clone(),
+                        result: None,
+                        task_status: TaskStatusType::Assigned,
+                        payment_mode,
+                    };
 
-            // Check and clean user payments, get active modes
-            let (has_active_payment, active_modes) = pallet_payment::Pallet::<T>::check_and_clean_user_payments(&who);
+                    let timeout_block = <frame_system::Pallet<T>>::block_number()
+                        .saturating_add(T::TaskConfirmationTimeout::get());
 
-            // Ensure user has an active payment
-            ensure!(has_active_payment, Error::<T>::RequireActivePayment);
+                    PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
+                        tasks.try_push(task_id).map_err(|_| Error::<T>::TaskRateLimitExceeded)
+                    })?;
 
-            // Validate that the requested payment mode is currently active
-            ensure!(
-                active_modes.contains(&payment_mode),
-                Error::<T>::InvalidPaymentMode
-            );
+                    TaskAllocations::<T>::insert(task_id, id.clone());
+                    TaskOwners::<T>::insert(task_id, who.clone());
+                    Tasks::<T>::insert(task_id, task_info);
+                    TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
+                    TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
 
-            // Consume compute hours from payment pallet
-			//pallet_payment::Pallet::<T>::has_active_payment(&who)?;
+                    pallet_edge_connect::Pallet::<T>::update_miner(
+                        &id,
+                        &miner_type,
+                        OperationalStatus::TaskAssigned,
+                    )?;
 
-            // Assert the modes to choose
-            //let (_, active_modes) = Self::check_and_clean_user_payments(who);
+                    pallet_edge_connect::Pallet::<T>::update_miner_current_task(
+                        &id,
+                        &miner_type.clone(),
+                        Some(task_id),
+                    )?;
 
-			// Generate task ID
-			let task_id = NextTaskId::<T>::get();
-			NextTaskId::<T>::put(task_id.wrapping_add(1));
+                    Self::deposit_event(Event::TaskScheduled {
+                        assigned_miner: id,
+                        task_kind,
+                        task_owner: who,
+                        task_id,
+                    });
 
-			let selected_miner = (miner_owner, miner_id.clone());
-			let task_kind = TaskKind::from_submission(task_kind);
+                    success_response()
+                },
+                Err(e) => {
+                    match e {
+                        // Convert to DispatchError for matching
+                        e if e == pallet_edge_connect::Error::<T>::Busy.into() => {
+                        // Miner is currently running a task - check if user owns it for top-up
+                            let miner = pallet_edge_connect::Pallet::<T>::get_miner(&id, &miner_type)
+                                .ok_or(pallet_edge_connect::Error::<T>::MinerDoesNotExist)?;
 
-			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
-				task_owner: who.clone(),
-				create_block: <frame_system::Pallet<T>>::block_number(),
-				time_elapsed: None,
-				average_cpu_percentage_use: None,
-				task_kind: task_kind.clone(),
-				result: None,
-				task_status: TaskStatusType::Assigned,
-                payment_mode,
-			};
+                            // Check if this user owns the currently running task
+                            if let Some(current_task_id) = miner.current_task {
+                                if let Some(current_task) = Tasks::<T>::get(current_task_id) {
+                                    if current_task.task_owner == who {
+                                        // Fix the ambiguous associated type error
+                                        let period = pallet_payment::ActivePayments::<T>::get(&who, &payment_mode)
+                                            .ok_or(Error::<T>::RequireActivePayment)?;
+                                        ensure!(
+                                            period.purpose == cyborg_primitives::payment::PaymentPurpose::TaskExecution(current_task_id),
+                                            Error::<T>::TaskNotFound
+                                        );
+                                        pallet_payment::Pallet::<T>::top_up(&who, payment_mode)?;
+                    
+                                        Ok(PostDispatchInfo {
+                        
+                                            actual_weight: None,
+                        
+                                            pays_fee,
+                    
+                                        })
+                
+                                    } else {
+                    
+                                        Err(Error::<T>::MinerIsBusy.into())
+                
+                                    }
+            
+                                } else {
+                
+                                    Err(Error::<T>::MinerIsBusy.into())
+            
+                                }
+        
+                            } else {
+            
+                                Err(Error::<T>::MinerIsBusy.into())
+        
+                            }
+    
+                        },
+    
+                        _ => {
+        
+                            Err(e.into())
+    
+                        }
 
-			let timeout_block = <frame_system::Pallet<T>>::block_number()
-				.saturating_add(T::TaskConfirmationTimeout::get());
-			PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
-				tasks.try_push(task_id).expect("Task queue bounded to 100 per block");
-			});
-
-			TaskAllocations::<T>::insert(task_id, miner_id.clone());
-			TaskOwners::<T>::insert(task_id, who.clone());
-			Tasks::<T>::insert(task_id, task_info);
-			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
-			TaskAssignmentBlock::<T>::insert(task_id, <frame_system::Pallet<T>>::block_number());
-
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
-				&miner_id,
-				miner_type.clone(),
-				false,
-			)?;
-
-			pallet_edge_connect::Pallet::<T>::update_miner_current_task(
-				&miner_id,
-				&miner_type.clone(),
-				Some(task_id),
-			)?;
-
-			Self::deposit_event(Event::TaskScheduled {
-				assigned_miner: selected_miner,
-				task_kind,
-				task_owner: who,
-				task_id,
-			});
-
-			Ok(PostDispatchInfo {
-				actual_weight: None,
-				pays_fee,
-			})
-		} // Need a shared trait that and an architectural flow.
+                    }
+                }
+            }
+        } // TODO: Need a shared trait that and an architectural flow.
 
 		/// Miner confirms that it has gathered the data and is starting task execution.
 		///
@@ -387,12 +425,6 @@ where
             // Load task
             let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-            // Check that caller is the assigned worker
-            // let miner_id = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
-            // ensure!(miner_id == task_id, Error::<T>::InvalidTaskOwner);
-
-
-
             // If task is already running, return specific error
             if task_info.task_status == TaskStatusType::Running {
                 return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
@@ -403,6 +435,18 @@ where
                 task_info.task_status == TaskStatusType::Assigned,
                 Error::<T>::RequireAssignedTask
             );
+
+            let payment_period = pallet_payment::Pallet::<T>::activate(
+                &task_info.task_owner,
+                task_info.payment_mode.clone(),
+                PaymentPurpose::TaskExecution(task_id),
+            )?;
+
+             Self::deposit_event(Event::PaymentActivatedForTask {
+                 owner: task_info.task_owner.clone(),
+                 mode: task_info.payment_mode.clone(),
+                 period: payment_period,
+             });
 
             task_info.task_status = TaskStatusType::Running;
             TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
@@ -418,7 +462,7 @@ where
 
             Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
 
-			   // If confirmation succeeds, remove from pending confirmations
+			   // Remove from pending confirmations
 			   if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
 				let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
 				PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
@@ -430,17 +474,22 @@ where
 
             Ok(())
         }
-
-		//
+        
+        /*
 		/// signals the miner to exit task execution and reset itself
 		/// Admin will make status to stopped
 		/// RUnning -> Stopped
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::stop_task_and_vacate_miner())]
 		pub fn stop_task_and_vacate_miner(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			ensure_signed(origin)?; // anyone controlling can request stop
+			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+
+            ensure!(
+                task.owner == who,
+                Error::<T>::Unauthorized
+            );
 
 			// Ensure task is running.
 			ensure!(
@@ -459,7 +508,9 @@ where
 				}
 			});
 
-			// Emit event.
+            // we check if caller has an active payment and reimburse them for the time left/ base
+            // pricing is ondemandrate.
+
 			Self::deposit_event(Event::TaskStopRequested { task_id });
 
 			Ok(())
@@ -475,9 +526,6 @@ where
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 			let miner_id = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-			// Ensure the caller is the miner who was assigned the task
-			// ensure!(assigned_miner.0 == who, Error::<T>::NotAssignedMiner);
-
 			// Ensure task is stopped.
 			ensure!(
 				task.task_status == TaskStatusType::Stopped,
@@ -489,18 +537,17 @@ where
 			Tasks::<T>::insert(task_id, task);
 
 			// Update the miner status back to active
-			pallet_edge_connect::Pallet::<T>::update_miner_status(
+			pallet_edge_connect::Pallet::<T>::update_miner(
 				&miner_id,
-				// This needs to be changed after the miners have unique IDs
 				miner_type,
-				true,  // set to available
+				OperationalStatus::Available,
 			)?;
 
-			// Emit event.
 			Self::deposit_event(Event::MinerVacated { task_id });
 
 			Ok(())
 		}
+        */
 
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_gatekeeper())]
@@ -650,7 +697,7 @@ where
 
 			// Allow up to 5 tasks per block per account
 			if new_count > 5 {
-				Err(Error::<T>::RateLimitExceeded.into())
+				Err(Error::<T>::TaskRateLimitExceeded.into())
 			} else {
 				Ok(())
 			}
@@ -788,10 +835,10 @@ where
 				};
 
 				// Update miner status back to Active
-				if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner_status(
+				if let Err(e) = pallet_edge_connect::Pallet::<T>::update_miner(
 					&assigned_miner,
-					miner_type.clone(),
-					true,
+					&miner_type,
+					OperationalStatus::Available,
 				) {
 					log::error!(
 						"Failed to update miner status for task {}: {:?}",
@@ -840,10 +887,10 @@ where
 			if let Some(current_task) = miner.current_task {
 				if current_task == *task_id {
 					// Reset miner to available status
-					pallet_edge_connect::Pallet::<T>::update_miner_status(
+					pallet_edge_connect::Pallet::<T>::update_miner(
 						miner_key,
-						miner_type.clone(),
-						true, // set to available
+						&miner_type,
+						OperationalStatus::Available, // set to available
 					)
 					.map_err(|_| Error::<T>::MinerResetFailed)?;
 

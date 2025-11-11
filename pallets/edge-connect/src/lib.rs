@@ -201,12 +201,13 @@ pub mod pallet {
 		/// Miner reputation is too low
 		InsufficientReputation,
 		/// Miner is busy
-		MinerIsBusy,
+		Busy,
 		/// Miner is inactive
 		MinerIsInactive,
 		NotAuthorized,
 		// Provided UUID exceeded MaxUuidLen
-		UuidTooLong, 
+		UuidTooLong,
+        PendingTask,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -586,53 +587,41 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			Ok(())
 		}
 
-		pub fn get_miner(
-			miner_key: &MinerId,
-			miner_type: &MinerType,
-		) -> Option<Miner<T::AccountId, BlockNumberFor<T>, T::Moment>> {
-			let miner = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
-			};
-
-			miner
-		}
-
 		/// Check if miner can perform actions
-		pub fn check_miner_status(
-			miner_key: &MinerId,
+		pub fn check_miner_available(
+			id: &MinerId,
 			miner_type: &MinerType,
 		) -> DispatchResult {
-			let miner = Self::get_miner(miner_key, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
+			let miner = Self::get_miner(id, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Check if worker is suspended and if suspension period has expired
 			if miner.is_suspended() {
 				let current_block = <frame_system::Pallet<T>>::block_number();
 
 				// If suspension period is over, auto-unsuspend
-				if current_block >= miner.status_last_updated {
-					let mut updated_miner = miner.clone();
-					updated_miner.operational_status = OperationalStatus::Available;
-					updated_miner.status_last_updated = current_block;
-
+				if current_block >= miner.status_last_updated { // TODO: Improve field suspended.
 					// Update the miner status
-					Self::update_miner(miner_key, miner_type, updated_miner);
+					Self::update_miner(id, miner_type, OperationalStatus::Available)?;
 
 					// Remove from suspended miner storage
-					SuspendedMiners::<T>::remove(miner_key);
+					SuspendedMiners::<T>::remove(id);
 				} else {
 					return Err(Error::<T>::MinerSuspended.into());
 				}
 			}
 
+            if miner.has_task_assigned() {
+                return Err(Error::<T>::PendingTask.into());
+            }
+
+            if miner.running_task() {
+                return Err(Error::<T>::Busy.into());
+            }
+
 			// Check oracle status (uptime)
+            // TODO: In production, return error.
 			if miner.oracle_status != OracleStatus::Online {
 				log::warn!("Worker oracle status is not Online, but allowing for testing");
-			}
-
-			// Check operational status
-			if miner.operational_status != OperationalStatus::Available {
-				return Err(Error::<T>::MinerIsBusy.into());
 			}
 
 			// Check reputation
@@ -641,29 +630,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
 
-			Ok(())
-		}
-
-		pub fn update_miner_status(
-			miner_id: &MinerId,
-			miner_type: MinerType,
-			new_status: bool,
-		) -> DispatchResult {
-			let mut miner = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_id),
-			}
-			.ok_or(Error::<T>::MinerDoesNotExist)?;
-
-			miner.operational_status = if new_status {
-				OperationalStatus::Available
-			} else {
-				OperationalStatus::Busy
-			};
-			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
-				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
-			}
 			Ok(())
 		}
 
@@ -825,21 +791,27 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			}
 		}
 
-		// Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
+        // Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
 		fn update_miner(
-			miner_key: &MinerId,
+			id: &MinerId,
 			miner_type: &MinerType,
-			miner: Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
-		) {
-			match miner_type {
-				MinerType::Cloud => {
-					CloudMiners::<T>::insert(miner_key, miner);
-				}
-				MinerType::Edge => {
-					EdgeMiners::<T>::insert(miner_key, miner);
-				}
-			}
-		}
+            status: OperationalStatus,
+		) -> DispatchResult {
+            // Get miner and update if exists
+            if let Some(mut miner) = Self::get_miner(id, miner_type) {
+                miner.operational_status = status;
+                miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
 
+                // Store back using the appropriate storage
+                match miner_type {
+                    MinerType::Cloud => CloudMiners::<T>::insert(id, miner),
+                    MinerType::Edge => EdgeMiners::<T>::insert(id, miner),
+                }
+
+                Ok(())
+            } else {
+                 Err(Error::<T>::MinerDoesNotExist.into())
+            }
+		}
 	}
 }
