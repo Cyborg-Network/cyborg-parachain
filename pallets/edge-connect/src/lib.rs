@@ -526,20 +526,32 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			miner_id: MinerId,
 			miner_type: MinerType,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let is_root = ensure_root(origin.clone()).is_ok();
+
+			let who = if is_root {
+				// Root caller: fetch miner owner
+				let miner = Self::get_miner(&miner_id, &miner_type)
+					.ok_or(Error::<T>::MinerDoesNotExist)?;
+				miner.owner.clone()
+			} else {
+				// Normal user caller: ensure signed and get account id
+				ensure_signed(origin.clone())?
+			};
+			
 
 			let mut miner = Self::get_miner(&miner_id, &miner_type)
 				.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			// Ensure the miner belongs to the caller
-			ensure!(miner.owner == who, Error::<T>::NotAuthorized);
+			// Ensure the miner belongs to the caller (if not root)
+			if !is_root {
+				ensure!(miner.owner == who, Error::<T>::NotAuthorized);
+			}
 
 			// Ensure the miner is in use or busy 
 			ensure!(
 				miner.operational_status == OperationalStatus::Busy,
 				Error::<T>::MinerIsInactive
 			);
-
 			miner.operational_status = OperationalStatus::Maintenance; 
 			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
 
