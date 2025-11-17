@@ -258,7 +258,7 @@ where
 				TaskSubmissionData::FlashInfer(_) => {
 					MinerType::Edge
 				}
-				TaskSubmissionData::CyCloud => {
+				TaskSubmissionData::CyCloud(_) => {
 					MinerType::Cloud
 				},
 			};
