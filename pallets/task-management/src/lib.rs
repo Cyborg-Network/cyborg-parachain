@@ -169,7 +169,7 @@ pub mod pallet {
 		ZkFilesMissing, // The user submitted a ZK task, but has not provided the required files for proof generation
 
 		// General task errors
-		TaskNotFound,         // The provided task ID does not exist.
+		TaskNotFound,             // The provided task ID does not exist.
 		InvalidTaskOwner,         // The caller is not the task owner.
 		TaskVerificationNotFound, // The task verification process cannot be found.
 
@@ -234,7 +234,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T>
 where
     <<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
-        TryFrom<u64>, {
+        TryFrom<u64>,
+    // <T as pallet_assets::Config>::AssetId: From<u32>,
+    // <T as pallet_assets::Config>::Balance: From<u128>,
+{
 		/// Creates a new task and assigns it to a randomly selected miner.
 		/// None -> Assigned
 		// TODO calculate actual weight from the length of the inputs 
@@ -510,7 +513,7 @@ where
 				.try_into()
 				.map_err(|_| Error::<T>::InvalidModelIdLength)?;
 
-			// Ensure it’s not already registered
+			// Ensure it's not already registered
 			ensure!(
 				!ModelHashes::<T>::contains_key(&model_id_fixed),
 				Error::<T>::ModelAlreadyRegistered

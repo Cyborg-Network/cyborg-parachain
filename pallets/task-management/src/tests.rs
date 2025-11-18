@@ -5,9 +5,7 @@ use crate::{
 };
 pub use cyborg_primitives::miner::*;
 pub use cyborg_primitives::task::NeuroZkTaskSubmissionDetails;
-use cyborg_primitives::task::{
-	AzureTask, OnnxTask, OpenInferenceTask, TaskId, TaskSubmissionData,
-};
+use cyborg_primitives::task::{AzureTask, OnnxTask, OpenInferenceTask, TaskId, TaskSubmissionData};
 use frame_support::{assert_noop, assert_ok};
 use sp_core::ConstU32;
 
@@ -26,8 +24,6 @@ fn register_miner(
 ) -> Result<(PostDispatchInfo, MinerId), DispatchErrorWithPostInfo> {
 	// UUIDs for each miner
 	// let miner_id  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
-
-
 
 	let miner_id: BoundedVec<u8, ConstU32<64>> = 
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
@@ -69,8 +65,6 @@ fn register_miner(
 	}
 }
 
-
-
 fn setup_gatekeeper() {
 	TaskManagementModule::set_gatekeeper(RuntimeOrigin::root(), 1).unwrap();
 }
@@ -90,8 +84,11 @@ fn it_works_for_task_scheduler() {
 		System::set_block_number(1);
 		let alice = 1;
 		let executor = 2;
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap();
 		// Register workers first
 		assert_ok!(register_miner(alice, MinerType::Edge, "docker.worker"));
 		// assert_ok!(register_miner(executor, MinerType::Edge, "exec.worker"));
@@ -134,8 +131,10 @@ fn it_works_for_task_scheduler() {
 		// let miner_id_docker = 0;
 		// let miner_id_exec = 1;
 
-		let miner_id_docker: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id_docker: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// let miner_id_exec: BoundedVec<u8, ConstU32<64>> = 
 		// 	b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
@@ -186,7 +185,7 @@ fn it_works_for_task_scheduler() {
 		10000000, // storage
 		12,       // cpu
 		));
-		
+
 		// let task_id_1 = NextTaskId::<Test>::get() - 1;
 		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
 		// assert_eq!(
@@ -221,8 +220,6 @@ fn it_works_for_task_scheduler() {
 	});
 }
 
-
-
 #[test]
 fn it_works_for_miner_status_updates() {
 	new_test_ext().execute_with(|| {
@@ -233,9 +230,12 @@ fn it_works_for_miner_status_updates() {
 		let miner_type = MinerType::Edge;
 
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec.miner"));
-		let bounded_miner_id_exec: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
-		
+		let bounded_miner_id_exec: BoundedVec<u8, ConstU32<64>> =
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap();
+
 		// Verify miners are registered
 		assert!(pallet_edge_connect::EdgeMiners::<Test>::contains_key(
 			bounded_miner_id_exec
@@ -250,8 +250,10 @@ fn it_works_for_miner_status_updates() {
 		}));
 
 		// let miner_id_exec: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![0u8]).unwrap();
-		let miner_id_exec: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id_exec: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 		// Provide initial compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
 
@@ -329,7 +331,6 @@ fn it_fails_when_miner_not_registered() {
 		let alice = 1;
 		let miner_owner = 2;
 		let miner_id: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![99u8]).unwrap();
-		
 
 		// Register an Executable miner to ensure miners exist
 		assert_ok!(register_miner(miner_owner, MinerType::Edge, "exec.miner"));
@@ -418,8 +419,10 @@ fn it_fails_when_no_computer_hours_available() {
 		let alice = 1;
 
 		let miner_owner = 2;
-		let bounded_miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let bounded_miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -453,8 +456,10 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		System::set_block_number(1);
 		let creator = 1;
 		let executor = 2;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -541,8 +546,10 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		setup_gatekeeper();
 		let creator = 1;
 		let executor = 2;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -585,8 +592,10 @@ fn it_works_for_confirm_miner_vacation() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -696,8 +705,10 @@ fn fails_if_task_not_stopped() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -744,8 +755,10 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -804,8 +817,10 @@ fn fails_if_task_is_not_running() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -879,7 +894,7 @@ fn test_register_model_hash_works() {
 // fn test_register_and_retrieve_model_hash() {
 //     new_test_ext().execute_with(|| {
 //         // bring the trait into scope
-//         use base64::Engine; 
+//         use base64::Engine;
 //         use base64::engine::general_purpose::STANDARD;
 //         use hex_literal::hex;
 //         use sp_core::H256;
@@ -936,8 +951,10 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1015,8 +1032,10 @@ fn reset_task_should_work_for_stuck_running_task() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Schedule task and confirm reception
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1082,8 +1101,10 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Schedule task and go through full lifecycle to Stopped state
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1153,8 +1174,10 @@ fn reset_task_should_fail_for_non_root_caller() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
@@ -1217,8 +1240,10 @@ fn reset_task_should_fail_for_non_resettable_states() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Create task and go through full lifecycle to Vacated state
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1282,8 +1307,10 @@ fn reset_task_should_handle_suspended_miner() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1347,8 +1374,10 @@ fn reset_task_should_clean_up_pending_confirmations() {
 			triton_config: None,
 		}));
 
-		let miner_id: BoundedVec<u8, ConstU32<64>> = 
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -1391,4 +1420,3 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		);
 	});
 }
-

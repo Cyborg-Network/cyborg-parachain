@@ -256,7 +256,20 @@ pub mod pallet {
 			};
 			let miner_specs = MinerSpecs { ram, storage, cpu };
 
-				//  Check if the miner already exists
+			//  Add CL(Cloud),ED(Edge) based on miner_type
+			let mut full_uuid = match miner_type {
+				MinerType::Cloud => b"CL-".to_vec(),
+				MinerType::Edge => b"ED-".to_vec(),
+			};
+
+			full_uuid.extend_from_slice(&miner_uuid);
+			//  Convert to bounded vec
+			let bounded_uuid: BoundedVec<u8, ConstU32<64>> = full_uuid
+				.clone()
+				.try_into()
+				.map_err(|_| Error::<T>::UuidTooLong)?;
+
+			//  Check if the miner already exists
 			let miner_exists = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::contains_key(miner_uuid.clone()),
 				MinerType::Edge => EdgeMiners::<T>::contains_key(miner_uuid.clone()),
@@ -279,7 +292,7 @@ pub mod pallet {
 				return Err(Error::<T>::MinerExists.into());
 			}
 
-let blocknumber = <frame_system::Pallet<T>>::block_number();
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
 				id: miner_uuid.clone(),
 				owner: creator.clone(),
@@ -296,7 +309,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			};
 
 			AccountMiners::<T>::insert(creator.clone(), miner_uuid.clone());
-
 
 			//  Store miner efficiently
 				match miner_type {
@@ -354,7 +366,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
- 
+
 		/// Updates the oracle status (callable by oracle feeder)
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_oracle_status())]
