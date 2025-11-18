@@ -91,6 +91,16 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn miners_under_maintenance)]
+	pub type MinersUnderMaintenance<T:Config>=StorageMap<
+		_,
+		Twox64Concat,
+		MinerId,
+		BlockNumberFor<T>,
+		OptionQuery
+	>;
+
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
 	/// Events are emitted when significant actions or state changes happen in the pallet.
 	#[pallet::event]
@@ -162,6 +172,15 @@ pub mod pallet {
 
 		/// Event emitted when a miner is unsuspended
 		MinerUnsuspended { miner: MinerId },
+
+		/// Maintenance mode resolved by root/admin, miner restored to Available.
+		MaintenanceResolved{miner:MinerId},
+
+		/// Miner has been put under maintenance mode by its owner.
+		MinerUnderMaintenance {
+        miner: MinerId,
+        who: T::AccountId,
+    },
 	}
 
 	#[derive(
@@ -203,7 +222,9 @@ pub mod pallet {
 		MinerIsInactive,
 		NotAuthorized,
 		// Provided UUID exceeded MaxUuidLen
-		UuidTooLong,
+		UuidTooLong, 
+		//When Miner is not Under Maintenance
+		NotUnderMaintenance
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -218,7 +239,7 @@ pub mod pallet {
 		pub fn register_miner(
 			origin: OriginFor<T>,
 			miner_type: MinerType,
-			miner_uuid: Vec<u8>,
+			miner_uuid: MinerId,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -229,7 +250,6 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			let api = MinerAPI { domain };
-			// let miner_keys = AccountMiners::<T>::get(creator.clone());
 			let miner_location = Location {
 				latitude,
 				longitude,
@@ -251,15 +271,15 @@ pub mod pallet {
 
 			//  Check if the miner already exists
 			let miner_exists = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::contains_key(bounded_uuid.clone()),
-				MinerType::Edge => EdgeMiners::<T>::contains_key(bounded_uuid.clone()),
+				MinerType::Cloud => CloudMiners::<T>::contains_key(miner_uuid.clone()),
+				MinerType::Edge => EdgeMiners::<T>::contains_key(miner_uuid.clone()),
 			};
 
 			if miner_exists {
 				// Emit an event for re-registration attempt
 				let existing_miner = match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::get(&bounded_uuid),
-					MinerType::Edge => EdgeMiners::<T>::get(&bounded_uuid),
+					MinerType::Cloud => CloudMiners::<T>::get(&miner_uuid),
+					MinerType::Edge => EdgeMiners::<T>::get(&miner_uuid),
 				};
 
 				if let Some(miner) = existing_miner {
@@ -274,7 +294,7 @@ pub mod pallet {
 
 			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
-				id: bounded_uuid.clone(),
+				id: miner_uuid.clone(),
 				owner: creator.clone(),
 				location: miner_location,
 				specs: miner_specs,
@@ -288,12 +308,12 @@ pub mod pallet {
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			AccountMiners::<T>::insert(creator.clone(), bounded_uuid.clone());
+			AccountMiners::<T>::insert(creator.clone(), miner_uuid.clone());
 
 			//  Store miner efficiently
 				match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
-					MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
+					MinerType::Cloud => CloudMiners::<T>::insert(&miner_uuid, miner.clone()),
+					MinerType::Edge => EdgeMiners::<T>::insert(&miner_uuid, miner.clone()),
 				}
 
 
@@ -507,6 +527,91 @@ pub mod pallet {
 				worker: (creator, miner_id),
 				status: status_clone,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_maintenance())]
+		pub fn request_maintenance(
+			origin: OriginFor<T>,
+			miner_id: MinerId,
+			miner_type: MinerType,
+		) -> DispatchResult {
+			let is_root = ensure_root(origin.clone()).is_ok();
+
+			let who = if is_root {
+				// Root caller: fetch miner owner
+				let miner = Self::get_miner(&miner_id, &miner_type)
+					.ok_or(Error::<T>::MinerDoesNotExist)?;
+				miner.owner.clone()
+			} else {
+				// Normal user caller: ensure signed and get account id
+				ensure_signed(origin.clone())?
+			};
+			
+
+			let mut miner = Self::get_miner(&miner_id, &miner_type)
+				.ok_or(Error::<T>::MinerDoesNotExist)?;
+
+			// Ensure the miner belongs to the caller (if not root)
+			if !is_root {
+				ensure!(miner.owner == who, Error::<T>::NotAuthorized);
+			}
+
+			// Ensure the miner is in use or busy 
+			ensure!(
+				miner.operational_status == OperationalStatus::Busy,
+				Error::<T>::MinerIsInactive
+			);
+			miner.operational_status = OperationalStatus::Maintenance; 
+			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+			Self::update_miner(&miner_id, &miner_type, miner);
+
+			// Record maintenance 
+			MinersUnderMaintenance::<T>::insert(
+				&miner_id, 
+				<frame_system::Pallet<T>>::block_number(), 
+			);
+
+			Self::deposit_event(Event::MinerUnderMaintenance {
+				miner: miner_id.clone(),
+				who,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::resolve_maintenance())]
+		pub fn resolve_maintenance(
+			origin: OriginFor<T>,
+			miner_id: MinerId,
+			miner_type: MinerType,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Fetch miner
+			let mut miner = Self::get_miner(&miner_id, &miner_type)
+				.ok_or(Error::<T>::MinerDoesNotExist)?;
+
+			ensure!(
+				miner.operational_status == OperationalStatus::Maintenance,
+				Error::<T>::NotUnderMaintenance
+			);
+
+			miner.operational_status = OperationalStatus::Available;
+			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+			Self::update_miner(&miner_id, &miner_type, miner);
+
+			// Remove from maintenance map
+			MinersUnderMaintenance::<T>::remove(&miner_id);
+
+			 Self::deposit_event(Event::MaintenanceResolved {
+					miner: miner_id.clone(),
+				});
 
 			Ok(())
 		}
