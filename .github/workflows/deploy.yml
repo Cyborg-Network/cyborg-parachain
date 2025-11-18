@@ -22,8 +22,8 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no cyborg@20.234.51.134 << EOF
             cd /home/cyborg/cyborg-parachain || exit 1
-            git fetch origin v0.1
-            git reset --hard origin/v0.1
+            git fetch origin dev
+            git reset --hard origin/dev
             cargo build --release
             sudo systemctl restart parachain.service
           EOF
