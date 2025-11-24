@@ -26,7 +26,6 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
-		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
 				.to_vec()
@@ -137,7 +136,6 @@ fn it_works_for_registering_domain() {
 		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
-		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
 				.to_vec()
@@ -191,6 +189,45 @@ fn it_works_for_registering_domain() {
 }
 
 #[test]
+fn it_fails_for_registering_with_incomplete_miner_id() {
+	new_test_ext().execute_with(|| {
+		let alice = 0;
+
+		let domain_str = "127.0.0.1:3001";
+		let domain_vec = domain_str.as_bytes().to_vec();
+		let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+		let miner_type_0 = MinerType::Cloud;
+		let latitude: Latitude = 590000;
+		let longitude: Longitude = 120000;
+		let ram: RamBytes = 100000000;
+		let storage: StorageBytes = 100000000;
+		let cpu: CpuCores = 12;
+
+		// ID without prefix (the pallet checks if the prefix is present)
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
+
+		let api_info = MinerAPI { domain: domain };
+
+		// Try to register the same miner again
+		assert_noop!(
+			EdgeConnectModule::register_miner(
+				RuntimeOrigin::signed(alice),
+				miner_type_0,
+				bounded_uuid_cloud.clone(),
+				api_info.domain.clone(),
+				latitude,
+				longitude,
+				ram,
+				storage,
+				cpu
+			),
+			Error::<Test>::InvalidMinerIdPrefix
+		);
+	});
+}
+
+#[test]
 fn it_fails_for_registering_duplicate_miner() {
 	new_test_ext().execute_with(|| {
 		let alice = 0;
@@ -210,7 +247,6 @@ fn it_fails_for_registering_duplicate_miner() {
 		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
-		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
@@ -296,7 +332,6 @@ fn it_works_for_removing_miner() {
 		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
-		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
 				.to_vec()
@@ -415,15 +450,8 @@ fn emiting_proper_event_for_registering_miner() {
 		// let miner_uuid_cloud = b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
 		// let miner_uuid_edge  = b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
-		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
 		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
-				.to_vec()
-				.try_into()
-				.unwrap();
-
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
 				.to_vec()
 				.try_into()
 				.unwrap();
