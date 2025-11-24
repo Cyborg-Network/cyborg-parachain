@@ -17,7 +17,6 @@ fn prevents_nonexistent_miner_storage() {
 	new_test_ext().execute_with(|| {
 		// initalize test variables
 		let oracle_feeder_1: AccountId = 100;
-		let miner_addrs: Vec<AccountId> = [0].to_vec();
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat = OracleMinerFormat {

@@ -59,7 +59,7 @@ pub mod pallet {
 	/// Allocation of tasks to miners.
 	#[pallet::storage]
 	pub type TaskAllocations<T: Config> =
-		StorageMap<_, Twox64Concat, TaskId, MinerId, OptionQuery>;
+		StorageMap<_, Twox64Concat, TaskId, (MinerId, T::AccountId), OptionQuery>;
 
 	/// Owners of the tasks.
 	#[pallet::storage]
@@ -120,7 +120,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new task has been scheduled and assigned to a miner.
 		TaskScheduled {
-			assigned_miner: (T::AccountId, MinerId),
+			assigned_miner: MinerId,
 			task_kind: TaskKind<BlockNumberFor<T>>,
 			task_owner: T::AccountId,
 			task_id: TaskId,
@@ -248,7 +248,6 @@ where
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
 			// TODO requesting_user: Option<Some data that identifies the user>,
 			task_kind: TaskSubmissionData,
-			miner_owner: T::AccountId,
 			miner_id: MinerId,
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResultWithPostInfo {
@@ -304,7 +303,7 @@ where
 			let task_id = NextTaskId::<T>::get();
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
-			let selected_miner = (miner_owner, miner_id.clone());
+			let selected_miner = miner_id.clone();
 			let task_kind = TaskKind::from_submission(task_kind);
 
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
@@ -325,7 +324,7 @@ where
 				tasks.try_push(task_id).expect("Task queue bounded to 100 per block");
 			});
 
-			TaskAllocations::<T>::insert(task_id, miner_id.clone());
+			TaskAllocations::<T>::insert(task_id, (miner_id.clone(), miner.owner.clone()));
 			TaskOwners::<T>::insert(task_id, who.clone());
 			Tasks::<T>::insert(task_id, task_info);
 			TaskStatus::<T>::insert(task_id, TaskStatusType::Assigned);
@@ -369,10 +368,8 @@ where
             let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
             // Check that caller is the assigned worker
-            // let miner_id = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
-            // ensure!(miner_id == task_id, Error::<T>::InvalidTaskOwner);
-
-
+            let task_allocation = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+            ensure!(who == task_allocation.1, Error::<T>::NotAssignedMiner);
 
             // If task is already running, return specific error
             if task_info.task_status == TaskStatusType::Running {
@@ -412,16 +409,20 @@ where
             Ok(())
         }
 
-		//
-		/// signals the miner to exit task execution and reset itself
-		/// Admin will make status to stopped
-		/// RUnning -> Stopped
+		/// Signals the miner to exit task execution and reset itself
+		/// Running -> Stopped
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::stop_task_and_vacate_miner())]
 		pub fn stop_task_and_vacate_miner(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			ensure_signed(origin)?; // anyone controlling can request stop
+			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+
+			// Ensure task is owned by caller.
+			ensure!(
+				task.task_owner == who, 
+				Error::<T>::InvalidTaskOwner
+			);
 
 			// Ensure task is running.
 			ensure!(
@@ -451,13 +452,13 @@ where
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_miner_vacation())]
 		pub fn confirm_miner_vacation(origin: OriginFor<T>, task_id: TaskId, miner_type: MinerType) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
 
 			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
-			let miner_id = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+			let task_allocation = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
 			// Ensure the caller is the miner who was assigned the task
-			// ensure!(assigned_miner.0 == who, Error::<T>::NotAssignedMiner);
+			ensure!(who == task_allocation.1, Error::<T>::NotAssignedMiner);
 
 			// Ensure task is stopped.
 			ensure!(
@@ -471,7 +472,7 @@ where
 
 			// Update the miner status back to active
 			pallet_edge_connect::Pallet::<T>::update_miner_status(
-				&miner_id,
+				&task_allocation.0,
 				// This needs to be changed after the miners have unique IDs
 				miner_type,
 				true,  // set to available
@@ -573,14 +574,14 @@ where
              }
 
             // Get assigned miner
-            let miner_id = TaskAllocations::<T>::get(task_id)
+            let task_allocation = TaskAllocations::<T>::get(task_id)
                .ok_or(Error::<T>::TaskNotFound)?;
 
 			// Store the assigned block
 			let assigned_block = TaskAssignmentBlock::<T>::get(task_id);
 
             // Reset miner status
-            Self::reset_miner_for_task(&miner_id, miner_type.clone(), &task_id)?;
+            Self::reset_miner_for_task(&task_allocation.0, miner_type.clone(), &task_id)?;
 
             // Clean up task storage
             Tasks::<T>::remove(task_id);
@@ -653,7 +654,7 @@ where
 						}
 
 						// Get assigned miner and penalize
-						if let Some(miner_id) = TaskAllocations::<T>::get(task_id) {
+						if let Some((miner_id, _)) = TaskAllocations::<T>::get(task_id) {
 							pallet_edge_connect::Pallet::<T>::apply_penalty(
 								&miner_id.clone(),
 								&MinerType::Edge,

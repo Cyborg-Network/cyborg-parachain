@@ -83,7 +83,6 @@ fn it_works_for_task_scheduler() {
 		setup_gatekeeper();
 		System::set_block_number(1);
 		let alice = 1;
-		let executor = 2;
 		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
 				.to_vec()
@@ -101,25 +100,6 @@ fn it_works_for_task_scheduler() {
 		// 	bounded_uuid_edge.clone()
 		// ));
 
-		let azure_task = AzureTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-		};
-
-		let task_kind_neurozk = TaskSubmissionData::NeuroZK(NeuroZkTaskSubmissionDetails {
-			location: azure_task.clone(),
-			zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
-				.unwrap(),
-			zk_settings: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
-				.unwrap(),
-			zk_verifying_key: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			gatekeeper_pub: Some(BoundedVec::try_from([0u8; 32].to_vec()).unwrap()),
-		});
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
@@ -148,7 +128,6 @@ fn it_works_for_task_scheduler() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
-			executor,
 			miner_id_docker.clone(),
 			Some(10)
 		));
@@ -166,13 +145,10 @@ fn it_works_for_task_scheduler() {
 			}))
 		);
 
-
-
 		// let miner_id_zk: Vec<u8> = b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec();
 		let bounded_miner_id_zk: BoundedVec<u8, ConstU32<64>> = 
 			b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec().try_into().unwrap();
 		let bob = 3;
-		let devyan = 4;
 
 		assert_ok!(EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(bob),
@@ -185,38 +161,6 @@ fn it_works_for_task_scheduler() {
 		10000000, // storage
 		12,       // cpu
 		));
-
-		// let task_id_1 = NextTaskId::<Test>::get() - 1;
-		// let task_info_1 = Tasks::<Test>::get(task_id_1).unwrap();
-		// assert_eq!(
-		// 	task_info_1.task_kind,
-		// 	TaskKind::NeuroZK(NzkData {
-		// 		location: azure_task,
-		// 		zk_input: BoundedVec::try_from(b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec())
-		// 			.unwrap(),
-		// 		zk_settings: BoundedVec::try_from(
-		// 			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
-		// 		)
-		// 		.unwrap(),
-		// 		zk_verifying_key: BoundedVec::try_from(
-		// 			b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec()
-		// 		)
-		// 		.unwrap(),
-		// 		zk_proof: None,
-		// 		last_proof_accepted: None
-		// 	})
-		// );
-
-		// // Verify both tasks are in the system
-		// assert_eq!(Tasks::<Test>::iter().count(), 2);
-
-		// // Verify both workers are now busy
-		// let worker_0 =
-		// 	pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_docker)).unwrap();
-		// let worker_1 = pallet_edge_connect::EdgeMiners::<Test>::get((executor, miner_id_exec)).unwrap();
-
-		// assert_eq!(worker_0.operational_status, OperationalStatus::Busy);
-		// assert_eq!(worker_1.operational_status, OperationalStatus::Busy);
 	});
 }
 
@@ -263,7 +207,6 @@ fn it_works_for_miner_status_updates() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
-			executor,
 			miner_id_exec.clone(),
 			Some(10)
 		));
@@ -286,7 +229,6 @@ fn it_works_for_miner_status_updates() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer.clone(),
-				executor,
 				miner_id_exec.clone(),
 				Some(10)
 			),
@@ -316,7 +258,6 @@ fn it_works_for_miner_status_updates() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer.clone(),
-			executor,
 			miner_id_exec.clone(),
 			Some(10)
 		));
@@ -364,7 +305,6 @@ fn it_fails_when_miner_not_registered() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_neurozk,
-				miner_owner,
 				miner_id.clone(),
 				Some(1),
 			),
@@ -378,7 +318,6 @@ fn it_fails_when_no_miners_are_available() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
 		let alice = 1;
-		let miner_owner = 2;
 		let miner_id: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![0u8]).unwrap();
 		let task_kind_infer = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -403,7 +342,6 @@ fn it_fails_when_no_miners_are_available() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				miner_owner,
 				miner_id.clone(),
 				Some(10)
 			),
@@ -440,7 +378,6 @@ fn it_fails_when_no_computer_hours_available() {
 			TaskManagementModule::task_scheduler(
 				RuntimeOrigin::signed(alice),
 				task_kind_infer,
-				miner_owner,
 				bounded_miner_id.clone(),
 				None
 			),
@@ -477,7 +414,6 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
-			executor,
 			miner_id.clone(),
 			Some(10)
 		));
@@ -565,7 +501,6 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(creator),
 			task_kind_infer,
-			executor,
 			miner_id.clone(),
 			Some(10)
 		));
@@ -615,7 +550,6 @@ fn it_works_for_confirm_miner_vacation() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
-			alice,
 			miner_id, // miner_id
 			Some(10),
 		));
@@ -724,7 +658,6 @@ fn fails_if_task_not_stopped() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
-			alice,
 			miner_id,
 			Some(5),
 		));
@@ -775,7 +708,6 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
-			alice,
 			miner_id,
 			Some(10),
 		));
@@ -836,7 +768,6 @@ fn fails_if_task_is_not_running() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind_infer,
-			alice,
 			miner_id,
 			Some(15),
 		));
@@ -960,7 +891,6 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1041,7 +971,6 @@ fn reset_task_should_work_for_stuck_running_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1110,7 +1039,6 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1182,7 +1110,6 @@ fn reset_task_should_fail_for_non_root_caller() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1249,7 +1176,6 @@ fn reset_task_should_fail_for_non_resettable_states() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1316,7 +1242,6 @@ fn reset_task_should_handle_suspended_miner() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
@@ -1383,7 +1308,6 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		assert_ok!(TaskManagementModule::task_scheduler(
 			RuntimeOrigin::signed(alice),
 			task_kind,
-			executor,
 			miner_id.clone(),
 			Some(10),
 		));
