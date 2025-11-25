@@ -88,6 +88,12 @@ fn it_works_for_task_scheduler() {
 				.to_vec()
 				.try_into()
 				.unwrap();
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        alice
+    ));
+
 		// Register workers first
 		assert_ok!(register_miner(alice, MinerType::Edge, "docker.worker"));
 		// assert_ok!(register_miner(executor, MinerType::Edge, "exec.worker"));
@@ -150,6 +156,11 @@ fn it_works_for_task_scheduler() {
 			b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec().try_into().unwrap();
 		let bob = 3;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        bob
+    ));
+
 		assert_ok!(EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(bob),
 		MinerType::Edge,
@@ -173,7 +184,13 @@ fn it_works_for_miner_status_updates() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
+
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec.miner"));
+
 		let bounded_miner_id_exec: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
 				.to_vec()
@@ -273,6 +290,11 @@ fn it_fails_when_miner_not_registered() {
 		let miner_owner = 2;
 		let miner_id: BoundedVec<u8, ConstU32<64>> = BoundedVec::try_from(vec![99u8]).unwrap();
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        miner_owner
+    ));
+
 		// Register an Executable miner to ensure miners exist
 		assert_ok!(register_miner(miner_owner, MinerType::Edge, "exec.miner"));
 
@@ -370,6 +392,11 @@ fn it_fails_when_no_computer_hours_available() {
 			triton_config: None,
 		}));
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        miner_owner
+    ));
+
 		// Register miner first
 		assert_ok!(register_miner(miner_owner, MinerType::Edge, "miner.domain"));
 
@@ -405,6 +432,11 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 			.unwrap(),
 			triton_config: None,
 		}));
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
 
 		// Register miner first
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
@@ -496,6 +528,12 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
+
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -542,6 +580,11 @@ fn it_works_for_confirm_miner_vacation() {
 
 		// Provide compute hours
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        alice
+    ));
 
 		// Register an Executable miner
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
@@ -653,6 +696,12 @@ fn fails_if_task_not_stopped() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        alice
+    ));
+
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -702,6 +751,12 @@ fn it_works_for_stop_task_and_vacate_miner() {
 
 		// Provide compute hours and register miner
 		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        alice
+    ));
+
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// Schedule task
@@ -760,6 +815,11 @@ fn fails_if_task_is_not_running() {
 			.unwrap(),
 			triton_config: None,
 		}));
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        alice
+    ));
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 30);
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
@@ -868,6 +928,11 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
+
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
 
@@ -948,6 +1013,11 @@ fn reset_task_should_work_for_stuck_running_task() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
+
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
 
@@ -1015,6 +1085,11 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 		let alice = 1;
 		let executor = 2;
 		let miner_type = MinerType::Edge;
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
 
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
@@ -1090,8 +1165,14 @@ fn reset_task_should_fail_for_non_root_caller() {
 		let executor = 2;
 		let miner_type = MinerType::Edge;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
+
 		// Register miner and create a task
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
@@ -1154,6 +1235,11 @@ fn reset_task_should_fail_for_non_resettable_states() {
 		let alice = 1;
 		let executor = 2;
 		let miner_type = MinerType::Edge;
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
 
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
@@ -1218,6 +1304,11 @@ fn reset_task_should_handle_suspended_miner() {
 		let alice = 1;
 		let executor = 2;
 		let miner_type = MinerType::Edge;
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
 
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
@@ -1286,6 +1377,11 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		let alice = 1;
 		let executor = 2;
 		let miner_type = MinerType::Edge;
+
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        executor
+    ));
 
 		// Register miner
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));

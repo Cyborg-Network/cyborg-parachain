@@ -36,11 +36,13 @@ pub trait WeightInfo {
 	fn update_oracle_status() -> Weight;
 	fn penalize_miner() -> Weight;
 	fn suspend_miner() -> Weight;
-    fn ban_miner() -> Weight;
+  fn ban_miner() -> Weight;
 	fn update_operational_status() -> Weight;
-    fn unsuspend_miner() -> Weight;
+  fn unsuspend_miner() -> Weight;
 	fn request_maintenance() -> Weight;
 	fn resolve_maintenance() -> Weight;
+  fn add_account_authorized_for_registration() -> Weight;
+  fn remove_account_authorized_for_registration() -> Weight;
 }
 
 /// Weights for `pallet_edge_connect` using the Substrate node and recommended hardware.
@@ -115,12 +117,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
     
-    fn unsuspend_miner() -> Weight {
-        Weight::from_parts(10_000_000, 3688)
-            .saturating_add(T::DbWeight::get().reads(1_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-
+  fn unsuspend_miner() -> Weight {
+    Weight::from_parts(10_000_000, 3688)
+      .saturating_add(T::DbWeight::get().reads(1_u64))
+      .saturating_add(T::DbWeight::get().writes(1_u64))
+  }
 
 	fn request_maintenance() -> Weight {
 		Weight::from_parts(13_000_000, 4200)
@@ -128,14 +129,23 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
 
-
 	fn resolve_maintenance() -> Weight {
 		Weight::from_parts(12_000_000, 4300)
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
 
+	fn add_account_authorized_for_registration() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
 
+	fn remove_account_authorized_for_registration() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
 }
 
 // For backwards compatibility and tests.
@@ -214,6 +224,18 @@ impl WeightInfo for () {
 	}
 
 	fn resolve_maintenance() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+
+	fn add_account_authorized_for_registration() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(RocksDbWeight::get().reads(2))
+			.saturating_add(RocksDbWeight::get().writes(2))
+	}
+
+	fn remove_account_authorized_for_registration() -> Weight {
 		Weight::from_parts(12_000_000, 4300)
 			.saturating_add(RocksDbWeight::get().reads(2))
 			.saturating_add(RocksDbWeight::get().writes(2))
