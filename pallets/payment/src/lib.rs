@@ -181,7 +181,7 @@ pub mod pallet {
 	#[pallet::getter(fn subscription_fee)]
 	pub(super) type SubscriptionFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-	/// Storage map that tracks the number of compute hours owned by each account.
+	/// storage that tracks compute hours for all users regardless of payment method
 	#[pallet::storage]
 	pub type ComputeHours<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u32, ValueQuery>;
 
@@ -215,18 +215,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type AssetSubscriptionFees<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AssetId, T::AssetBalance, OptionQuery>;
-
-	/// Storage for asset-based compute hours
-	#[pallet::storage]
-	pub type AssetComputeHours<T: Config> = StorageDoubleMap<
-		_,
-		Blake2_128Concat,
-		T::AccountId,
-		Blake2_128Concat,
-		T::AssetId,
-		u32,
-		ValueQuery,
-	>;
 
 	/// Event declarations for extrinsic calls.
 	#[pallet::event]
@@ -287,12 +275,6 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			extra_hours: u32,
 			total_fee: T::AssetBalance,
-		},
-		/// When compute hours are consumed from a specific asset
-		AssetHoursConsumed {
-			account: T::AccountId,
-			asset_id: T::AssetId,
-			hours: u32,
 		},
 	}
 
@@ -494,15 +476,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Allows a new user to subscribe to compute by paying upfront.
+		/// Allows a new user to subscribe to compute by paying upfront with native currency.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::subscribe())]
 		pub fn subscribe(origin: OriginFor<T>, hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(
-				ComputeHours::<T>::get(&who) == 0,
-				Error::<T>::AlreadySubscribed
-			);
+			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
+
+			// Check if user already has compute hours (is already subscribed)
+			let current_hours = ComputeHours::<T>::get(&who);
+			ensure!(current_hours == 0, Error::<T>::AlreadySubscribed);
+
 			let fee_per_hour = SubscriptionFee::<T>::get();
 			let total_fee = fee_per_hour
 				.checked_mul(&hours.into())
@@ -511,27 +495,30 @@ pub mod pallet {
 				<T as pallet::Config>::Currency::free_balance(&who) >= total_fee,
 				Error::<T>::InsufficientBalance
 			);
-			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 			<T as pallet::Config>::Currency::transfer(
 				&who,
 				&provider,
 				total_fee,
 				ExistenceRequirement::KeepAlive,
 			)?;
-			ComputeHours::<T>::insert(&who, hours);
+			ComputeHours::<T>::mutate(&who, |current_hours| *current_hours += hours);
 			Self::deposit_event(Event::ConsumerSubscribed(who, total_fee, hours));
 			Ok(())
 		}
 
-		/// Lets an existing user add more hours to their subscription.
+		/// Lets an existing user add more hours to their subscription using native currency.
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_hours())]
 		pub fn add_hours(origin: OriginFor<T>, extra_hours: u32) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(
-				ComputeHours::<T>::contains_key(&who),
-				Error::<T>::SubscriptionExpired
-			);
+			ensure!(extra_hours > 0, Error::<T>::InvalidHoursInput);
+
+			// Check if user has an active subscription (has compute hours)
+			let current_hours = ComputeHours::<T>::get(&who);
+			ensure!(current_hours > 0, Error::<T>::SubscriptionExpired);
+
 			let fee_per_hour = SubscriptionFee::<T>::get();
 			let total_fee = fee_per_hour
 				.checked_mul(&extra_hours.into())
@@ -540,7 +527,8 @@ pub mod pallet {
 				<T as pallet::Config>::Currency::free_balance(&who) >= total_fee,
 				Error::<T>::InsufficientBalance
 			);
-			let provider = ServiceProviderAccount::<T>::get().ok_or(Error::<T>::SubscriptionExpired)?;
+			let provider =
+				ServiceProviderAccount::<T>::get().ok_or(Error::<T>::ServiceProviderAccountNotFound)?;
 			<T as pallet::Config>::Currency::transfer(
 				&who,
 				&provider,
@@ -554,7 +542,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Admin sets the global subscription cost per compute hour.
+		/// Admin sets the global subscription cost per compute hour for native currency.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_subscription_fee_per_hour())]
 		pub fn set_subscription_fee_per_hour(
@@ -744,6 +732,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Get remaining hours from the unified compute hours pool
 		#[pallet::call_index(14)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_remaining_hours())]
 		pub fn get_remaining_hours(origin: OriginFor<T>) -> DispatchResult {
@@ -790,11 +779,9 @@ pub mod pallet {
 
 			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
 
-			// Check if already subscribed with this asset
-			ensure!(
-				AssetComputeHours::<T>::get(&who, &asset_id) == 0,
-				Error::<T>::AlreadySubscribed
-			);
+			// Check if user already has compute hours (is already subscribed)
+			let current_hours = ComputeHours::<T>::get(&who);
+			ensure!(current_hours == 0, Error::<T>::AlreadySubscribed);
 
 			// Get fee for this asset
 			let fee_per_hour =
@@ -817,8 +804,8 @@ pub mod pallet {
 			// Transfer assets
 			T::AssetRegistry::transfer(asset_id, &who, &provider, total_fee, Preservation::Preserve)?;
 
-			// Add compute hours
-			AssetComputeHours::<T>::insert(&who, asset_id, hours);
+			// Add compute hours to the unified pool
+			ComputeHours::<T>::mutate(&who, |current_hours| *current_hours += hours);
 
 			Self::deposit_event(Event::AssetSubscribed {
 				account: who,
@@ -842,6 +829,10 @@ pub mod pallet {
 
 			ensure!(extra_hours > 0, Error::<T>::InvalidHoursInput);
 
+			// Check if user has an active subscription (has compute hours)
+			let current_hours = ComputeHours::<T>::get(&who);
+			ensure!(current_hours > 0, Error::<T>::SubscriptionExpired);
+
 			// Get fee for this asset
 			let fee_per_hour =
 				AssetSubscriptionFees::<T>::get(asset_id).ok_or(Error::<T>::AssetFeeNotSet)?;
@@ -863,8 +854,8 @@ pub mod pallet {
 			// Transfer assets
 			T::AssetRegistry::transfer(asset_id, &who, &provider, total_fee, Preservation::Preserve)?;
 
-			// Add compute hours
-			AssetComputeHours::<T>::mutate(&who, asset_id, |hours| {
+			// Add compute hours to the unified pool
+			ComputeHours::<T>::mutate(&who, |hours| {
 				*hours += extra_hours;
 			});
 
@@ -877,57 +868,15 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-		/// Consume compute hours from a specific asset
-		#[pallet::call_index(18)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::consume_asset_compute_hours())]
-		pub fn consume_asset_compute_hours(
-			origin: OriginFor<T>,
-			asset_id: T::AssetId,
-			hours: u32,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			ensure!(hours > 0, Error::<T>::InvalidHoursInput);
-
-			let current_hours = AssetComputeHours::<T>::get(&who, &asset_id);
-			ensure!(current_hours >= hours, Error::<T>::InsufficientComputeHours);
-
-			AssetComputeHours::<T>::mutate(&who, asset_id, |current| *current -= hours);
-
-			Self::deposit_event(Event::AssetHoursConsumed {
-				account: who,
-				asset_id,
-				hours,
-			});
-
-			Ok(())
-		}
-
-		/// Get remaining hours for a specific asset
-		#[pallet::call_index(19)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::get_asset_remaining_hours())]
-		pub fn get_asset_remaining_hours(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let hours = AssetComputeHours::<T>::get(&who, &asset_id);
-			Self::deposit_event(Event::RemainingHoursQueried(who, hours));
-			Ok(())
-		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Get total compute hours across all assets for a user
+		/// Get total compute hours for a user (now unified)
 		pub fn get_total_compute_hours(account: &T::AccountId) -> u32 {
-			// Sum hours from native currency
-			let native_hours = ComputeHours::<T>::get(account);
-
-			// Sum hours from all assets
-			let asset_hours: u32 = AssetComputeHours::<T>::iter_prefix_values(account).sum();
-
-			native_hours + asset_hours
+			ComputeHours::<T>::get(account)
 		}
 
-		/// Check if user has sufficient compute hours across all assets
+		/// Check if user has sufficient compute hours
 		pub fn has_sufficient_hours(account: &T::AccountId, required_hours: u32) -> bool {
 			Self::get_total_compute_hours(account) >= required_hours
 		}

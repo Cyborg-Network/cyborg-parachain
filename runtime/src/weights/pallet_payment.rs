@@ -57,8 +57,6 @@ pub trait WeightInfo {
 	fn set_asset_subscription_fee() -> Weight;
     fn subscribe_with_asset() -> Weight;
     fn add_hours_with_asset() -> Weight;
-    fn consume_asset_compute_hours() -> Weight;
-    fn get_asset_remaining_hours() -> Weight;
 }
 
 /// Weights for `pallet_payment` using the Substrate node and recommended hardware.
@@ -186,11 +184,6 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
 
-    fn consume_asset_compute_hours() -> Weight {
-        Weight::from_parts(2_000_000_000, 0)
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-
     fn subscribe_with_asset() -> Weight {
         Weight::from_parts(6_000_000_000, 0)
             .saturating_add(T::DbWeight::get().reads(4_u64))
@@ -202,13 +195,6 @@ impl<T: frame_system::Config> pallet_payment::WeightInfo for SubstrateWeight<T> 
             .saturating_add(T::DbWeight::get().reads(4_u64))
             .saturating_add(T::DbWeight::get().writes(1_u64))
     }
-
-    fn get_asset_remaining_hours() -> Weight {
-        Weight::from_parts(3_000_000_000, 0)
-            .saturating_add(T::DbWeight::get().reads(1_u64))
-            .saturating_add(T::DbWeight::get().writes(1_u64))
-    }
-
 }
 
 // For backwards compatibility and tests.
@@ -333,11 +319,6 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 
-    fn consume_asset_compute_hours() -> Weight {
-        Weight::from_parts(2_000_000_000, 0)
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
-
     fn subscribe_with_asset() -> Weight {
         Weight::from_parts(6_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(4_u64))
@@ -347,12 +328,6 @@ impl WeightInfo for () {
     fn add_hours_with_asset() -> Weight {
         Weight::from_parts(5_000_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(4_u64))
-            .saturating_add(RocksDbWeight::get().writes(1_u64))
-    }
-
-    fn get_asset_remaining_hours() -> Weight {
-        Weight::from_parts(3_000_000_000, 0)
-            .saturating_add(RocksDbWeight::get().reads(1_u64))
             .saturating_add(RocksDbWeight::get().writes(1_u64))
     }
 }
