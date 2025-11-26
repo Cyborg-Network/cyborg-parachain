@@ -27,6 +27,12 @@ fn register_miner(
 
 	let miner_id: BoundedVec<u8, ConstU32<64>> = 
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
+
+  assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+      RuntimeOrigin::root(), 
+      account
+  ));
+
 	let result = EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
 		miner_type.clone(),
@@ -88,6 +94,7 @@ fn it_works_for_task_scheduler() {
 				.to_vec()
 				.try_into()
 				.unwrap();
+
 		// Register workers first
 		assert_ok!(register_miner(alice, MinerType::Edge, "docker.worker"));
 		// assert_ok!(register_miner(executor, MinerType::Edge, "exec.worker"));
@@ -150,6 +157,11 @@ fn it_works_for_task_scheduler() {
 			b"ED-22222222-dddd-eeee-ffff-0987654321aa".to_vec().try_into().unwrap();
 		let bob = 3;
 
+    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        bob
+    ));
+
 		assert_ok!(EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(bob),
 		MinerType::Edge,
@@ -174,6 +186,7 @@ fn it_works_for_miner_status_updates() {
 		let miner_type = MinerType::Edge;
 
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec.miner"));
+
 		let bounded_miner_id_exec: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
 				.to_vec()
@@ -496,6 +509,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		}));
 
 		pallet_payment::ComputeHours::<Test>::insert(creator, 100);
+
 		assert_ok!(register_miner(executor, MinerType::Edge, "exec"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -653,6 +667,7 @@ fn fails_if_task_not_stopped() {
 		let miner_type = MinerType::Edge;
 
 		pallet_payment::ComputeHours::<Test>::insert(alice, 10);
+
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		assert_ok!(TaskManagementModule::task_scheduler(
@@ -702,6 +717,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 
 		// Provide compute hours and register miner
 		pallet_payment::ComputeHours::<Test>::insert(alice, 40);
+
 		assert_ok!(register_miner(alice, MinerType::Edge, "alice"));
 
 		// Schedule task
@@ -1092,6 +1108,7 @@ fn reset_task_should_fail_for_non_root_caller() {
 
 		// Register miner and create a task
 		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+
 		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
 
 		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {

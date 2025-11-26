@@ -129,6 +129,18 @@ impl<T: frame_system::Config> pallet_edge_connect::WeightInfo for SubstrateWeigh
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+
+	fn add_account_authorized_for_registration() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+
+	fn remove_account_authorized_for_registration() -> Weight {
+		Weight::from_parts(12_000_000, 4300)
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
 }
 
 // For backwards compatibility and tests.

@@ -52,6 +52,7 @@ fn prevents_nonexistent_miner_storage() {
 		assert_eq!(MinerStatusEntriesPerPeriod::<Test>::get(&key_1), entries);
 	})
 }
+
 #[test]
 fn on_new_data_works_as_expected() {
 	new_test_ext().execute_with(|| {
@@ -96,6 +97,11 @@ fn on_new_data_works_as_expected() {
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
 
 			assert_ok!(EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(*miner),
@@ -309,6 +315,11 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 
 		// register miners
 		for (miner, id_bytes) in miner_addrs.iter().zip(bounded_miner_ids.iter()) {
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
+
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
@@ -623,6 +634,11 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
 
 			assert_ok!(EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(*miner),

@@ -21,6 +21,8 @@ pub type StorageBytes = u64;
 
 pub type CpuCores = u16;
 
+pub type HasRegistered = bool;
+
 /// An enum that is used to differentiate between the different kinds of Miners that are
 /// registered on the cyborg parachain.
 #[derive(
