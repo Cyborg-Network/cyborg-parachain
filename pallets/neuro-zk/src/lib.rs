@@ -23,6 +23,7 @@ pub use cyborg_primitives::{
 use frame_support::traits::Get;
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
+use pallet_payment::BalanceOf;
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct VerificationResult<BlockNumber> {
@@ -60,7 +61,7 @@ pub mod pallet {
 		type AggregateLength: Get<u32>;
 
 		/// Updates Task Status for Task Management
-		type NzkTaskInfoHandler: NzkTaskInfoHandler<Self::AccountId, TaskId, BlockNumberFor<Self>>;
+		type NzkTaskInfoHandler: NzkTaskInfoHandler<Self::AccountId, TaskId, BlockNumberFor<Self>, BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]

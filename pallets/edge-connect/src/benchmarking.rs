@@ -10,22 +10,25 @@ use frame_system::RawOrigin;
 // Define a constant for the worker API domain.
 const WORKER_API_DOMAIN: &str = "https://some_api_domain.com";
 
-// Helper function to convert the domain string into a BoundedVec with a maximum length of 128 bytes.
-// Convert the domain string into a vector of bytes and then into a BoundedVec with a maximum length of 128 bytes.
-// The `try_from` mthod ensure that the length of the string doesn't exceed the limit.
+// Helper function to convert the domain string into a BoundedVec with a maximum length of 128
+// bytes. Convert the domain string into a vector of bytes and then into a BoundedVec with a maximum
+// length of 128 bytes. The `try_from` mthod ensure that the length of the string doesn't exceed the
+// limit.
 fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 	BoundedVec::try_from(domain_str.as_bytes().to_vec())
 		.expect("Domain string exceeds maximum length")
 }
 
-/// A function to initialize benchmarking data by creating multiple worker accounts with various attributes
-/// for each worker, including location, specifications, and status.
+/// A function to initialize benchmarking data by creating multiple worker accounts with various
+/// attributes for each worker, including location, specifications, and status.
 ///
-/// The function generates 100 creators, and for each creator, it creates up to `MAX_WORKER_ID` workers.
-/// It inserts these workers into the `WorkerClusters` map, associating them with their respective creators.
+/// The function generates 100 creators, and for each creator, it creates up to `MAX_WORKER_ID`
+/// workers. It inserts these workers into the `WorkerClusters` map, associating them with their
+/// respective creators.
 ///
 /// # Type Parameters
-/// - `T`: The configuration trait for the pallet, which provides the necessary types like `AccountId`.
+/// - `T`: The configuration trait for the pallet, which provides the necessary types like
+///   `AccountId`.
 fn set_initial_benchmark_data<T: Config>() {
 	for i in 0..100 {
 		let index = i;
@@ -34,22 +37,14 @@ fn set_initial_benchmark_data<T: Config>() {
 		let creator = account::<T::AccountId>("benchmark_account", index, seed);
 
 		// Create the WorkerAPI object
-		let api = WorkerAPI {
-			domain: get_domain(WORKER_API_DOMAIN),
-		};
+		let api = WorkerAPI { domain: get_domain(WORKER_API_DOMAIN) };
 
 		// Create the location object for the worker
-		let worker_location = Location {
-			latitude: i as i32,
-			longitude: (103 + i) as i32,
-		};
+		let worker_location = Location { latitude: i as i32, longitude: (103 + i) as i32 };
 
 		// Define the worker's specifications (RAM, storage, CPU)
-		let worker_specs = WorkerSpecs {
-			ram: 5_000_000_000u64,
-			storage: 100_000_000_000u64,
-			cpu: 5u16,
-		};
+		let worker_specs =
+			WorkerSpecs { ram: 5_000_000_000u64, storage: 100_000_000_000u64, cpu: 5u16 };
 
 		// Maximum number of worker IDs to generate
 		const MAX_WORKER_ID: u64 = 6;
@@ -75,7 +70,7 @@ fn set_initial_benchmark_data<T: Config>() {
 				owner: creator.clone(),
 				location: worker_location.clone(),
 				specs: worker_specs.clone(),
-				reputation: reputation,
+				reputation,
 				start_block: blocknumber,
 				status: WorkerStatusType::Inactive,
 				status_last_updated: blocknumber,
@@ -132,7 +127,8 @@ mod benchmarks {
 		let worker_id = 0;
 
 		// Match the result of querying the worker from the worker cluster storage.
-		// The key is (T::AccountId, WorkerId), where `caller` is the account and `worker_id` is the ID.
+		// The key is (T::AccountId, WorkerId), where `caller` is the account and `worker_id` is the
+		// ID.
 		let worker_id = 0;
 		match ExecutableWorkers::<T>::get((caller.clone(), worker_id)) {
 			Some(worker) => {
@@ -143,11 +139,12 @@ mod benchmarks {
 
 				// Verification: Ensure that the worker's ID matches the expected worker_id.
 				assert!(id == worker_id)
-			}
+			},
 			None => {
-				// If the worker is not found, we panic because it indicates that the worker was not registered properly.
+				// If the worker is not found, we panic because it indicates that the worker was not
+				// registered properly.
 				panic!("Worker not found!")
-			}
+			},
 		}
 
 		Ok(())

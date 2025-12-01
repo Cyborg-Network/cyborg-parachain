@@ -24,21 +24,18 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 		let alice = 0;
 		// UUIDs for each miner
 		let miner_uuid_cloud = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		let miner_uuid_edge = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
 		let api_info = MinerAPI { domain: domain.clone() };
 		let miner_specs = MinerSpecs { ram, storage, cpu };
-		let miner_location = Location {
-			latitude,
-			longitude,
-		};
+		let miner_location = Location { latitude, longitude };
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
 		let miner_0 = Miner {
@@ -102,10 +99,7 @@ fn it_works_for_inserting_miner_into_correct_storage() {
 			Some(miner_0)
 		);
 		// Read pallet storage and assert an expected result.
-		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge),
-			Some(miner_1)
-		);
+		assert_eq!(pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge), Some(miner_1));
 	});
 }
 
@@ -130,18 +124,15 @@ fn it_works_for_registering_domain() {
 		// let miner_uuid_edge  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 		// 	b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
-		let api_info = MinerAPI { domain: domain };
+		let api_info = MinerAPI { domain };
 		let miner_specs = MinerSpecs { ram, storage, cpu };
-		let miner_location = Location {
-			latitude,
-			longitude,
-		};
+		let miner_location = Location { latitude, longitude };
 		let current_timestamp = pallet_timestamp::Pallet::<Test>::get();
 
 		let miner = Miner {
@@ -158,7 +149,7 @@ fn it_works_for_registering_domain() {
 			reputation: MinerReputation::<BlockNumberFor<Test>>::default(),
 			last_status_check: current_timestamp,
 		};
-		
+
 		// Dispatch a signed extrinsic.
 		assert_ok!(EdgeConnectModule::register_miner(
 			RuntimeOrigin::signed(alice),
@@ -197,16 +188,16 @@ fn it_fails_for_registering_duplicate_miner() {
 
 		// UUIDs for each miner
 		let miner_uuid_cloud = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		let miner_uuid_edge = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		// let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		// let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 		// 	b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		// let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 		// 	b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
-		let api_info = MinerAPI { domain: domain };
+		let api_info = MinerAPI { domain };
 
 		// Register the first miner
 		assert_ok!(EdgeConnectModule::register_miner(
@@ -283,15 +274,15 @@ fn it_works_for_removing_miner() {
 		let cpu: CpuCores = 12;
 		// UUIDs for each miner
 		let miner_uuid_cloud = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		let miner_uuid_edge = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
-		let api_info = MinerAPI { domain: domain };
+		let api_info = MinerAPI { domain };
 
 		// Register a miner first
 		assert_ok!(EdgeConnectModule::register_miner(
@@ -332,36 +323,38 @@ fn it_works_for_removing_miner() {
 		));
 
 		// Assert that the miner no longer exists
-		assert_eq!(
-			pallet_edge_connect::CloudMiners::<Test>::get(bounded_uuid_cloud.clone()),
-			None
-		);
+		assert_eq!(pallet_edge_connect::CloudMiners::<Test>::get(bounded_uuid_cloud.clone()), None);
 		// Assert that the miner no longer exists
-		assert_eq!(
-			pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge.clone()),
-			None
-		);
+		assert_eq!(pallet_edge_connect::EdgeMiners::<Test>::get(bounded_uuid_edge.clone()), None);
 	});
 }
 
 #[test]
 fn it_fails_for_removing_non_existent_miner() {
 	new_test_ext().execute_with(|| {
-		let alice = 0;	
-		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		let alice = 0;
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 		// Attempt to remove a miner that doesn't exist
 		assert_noop!(
-			EdgeConnectModule::remove_miner(RuntimeOrigin::signed(alice), MinerType::Cloud, bounded_uuid_cloud.clone()),
+			EdgeConnectModule::remove_miner(
+				RuntimeOrigin::signed(alice),
+				MinerType::Cloud,
+				bounded_uuid_cloud.clone()
+			),
 			Error::<Test>::MinerDoesNotExist
 		);
 
 		// Attempt to remove a miner that doesn't exist
 		assert_noop!(
-			EdgeConnectModule::remove_miner(RuntimeOrigin::signed(alice), MinerType::Edge, bounded_uuid_edge.clone()),
+			EdgeConnectModule::remove_miner(
+				RuntimeOrigin::signed(alice),
+				MinerType::Edge,
+				bounded_uuid_edge.clone()
+			),
 			Error::<Test>::MinerDoesNotExist
 		);
 	});
@@ -382,13 +375,13 @@ fn emiting_proper_event_for_registering_miner() {
 		let storage: StorageBytes = 100000000;
 		let cpu: CpuCores = 12;
 		let miner_uuid_cloud = b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec();
-		let miner_uuid_edge  = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
+		let miner_uuid_edge = b"22222222-dddd-eeee-ffff-0987654321cd".to_vec();
 
 		// Full IDs (the pallet adds "CL-" or "ED-" automatically)
-		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_cloud: BoundedVec<u8, ConstU32<64>> =
 			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap();
 
-		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> = 
+		let bounded_uuid_edge: BoundedVec<u8, ConstU32<64>> =
 			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap();
 
 		System::set_block_number(10);
@@ -406,7 +399,7 @@ fn emiting_proper_event_for_registering_miner() {
 		System::assert_last_event(RuntimeEvent::EdgeConnectModule(Event::MinerRegistered {
 			creator: alice,
 			miner: (alice, bounded_uuid_cloud),
-			domain: domain,
+			domain,
 		}));
 	})
 }

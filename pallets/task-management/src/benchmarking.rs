@@ -14,9 +14,10 @@ const WORKER_API_DOMAIN2: &str = "https://api-worker2.testing";
 const WORKER_API_DOMAIN3: &str = "https://api-worker3.testing";
 const DOCKER_IMAGE_TESTDATA: &str = "some-docker-imgv.0";
 
-// Helper function to convert the domain string into a BoundedVec with a maximum length of 128 bytes.
-// Convert the domain string into a vector of bytes and then into a BoundedVec with a maximum length of 128 bytes.
-// The `try_from` mthod ensure that the length of the string doesn't exceed the limit.
+// Helper function to convert the domain string into a BoundedVec with a maximum length of 128
+// bytes. Convert the domain string into a vector of bytes and then into a BoundedVec with a maximum
+// length of 128 bytes. The `try_from` mthod ensure that the length of the string doesn't exceed the
+// limit.
 fn get_domain(domain_str: &str) -> BoundedVec<u8, ConstU32<128>> {
 	BoundedVec::try_from(domain_str.as_bytes().to_vec())
 		.expect("Domain string exceeds maximum length")
@@ -29,14 +30,16 @@ fn get_taskdata(task_data_str: &str) -> BoundedVec<u8, ConstU32<500>> {
 		.expect("Task Data string exceeds maximum length")
 }
 
-/// A function to initialize benchmarking data by creating multiple worker accounts with various attributes
-/// for each worker, including location, specifications, and status.
+/// A function to initialize benchmarking data by creating multiple worker accounts with various
+/// attributes for each worker, including location, specifications, and status.
 ///
-/// The function generates 100 creators, and for each creator, it creates up to `MAX_WORKER_ID` workers.
-/// It inserts these workers into the `WorkerClusters` map, associating them with their respective creators.
+/// The function generates 100 creators, and for each creator, it creates up to `MAX_WORKER_ID`
+/// workers. It inserts these workers into the `WorkerClusters` map, associating them with their
+/// respective creators.
 ///
 /// # Type Parameters
-/// - `T`: The configuration trait for the pallet, which provides the necessary types like `AccountId`.
+/// - `T`: The configuration trait for the pallet, which provides the necessary types like
+///   `AccountId`.
 fn set_initial_benchmark_data<T: Config>() {
 	for i in 0..100 {
 		let index = i;
@@ -55,17 +58,11 @@ fn set_initial_benchmark_data<T: Config>() {
 		};
 
 		// Create the location object for the worker
-		let worker_location = Location {
-			latitude: i as i32,
-			longitude: (103 + i) as i32,
-		};
+		let worker_location = Location { latitude: i as i32, longitude: (103 + i) as i32 };
 
 		// Define the worker's specifications (RAM, storage, CPU)
-		let worker_specs = WorkerSpecs {
-			ram: 5_000_000_000u64,
-			storage: 100_000_000_000u64,
-			cpu: 5u16,
-		};
+		let worker_specs =
+			WorkerSpecs { ram: 5_000_000_000u64, storage: 100_000_000_000u64, cpu: 5u16 };
 
 		// Maximum number of worker IDs to generate
 		const MAX_WORKER_ID: u64 = 6;
@@ -73,12 +70,8 @@ fn set_initial_benchmark_data<T: Config>() {
 		// Insert the MAX_WORKER_ID into the AccountWorkers map for the creator
 		pallet_edge_connect::AccountWorkers::<T>::insert(creator.clone(), MAX_WORKER_ID);
 
-		let worker_reputation = WorkerReputation {
-			score: 0,
-			last_updated: None,
-			violations: 0,
-			successful_tasks: 0,
-		};
+		let worker_reputation =
+			WorkerReputation { score: 0, last_updated: None, violations: 0, successful_tasks: 0 };
 
 		// Loop to create multiple workers for the same creator
 		for worker_id in 0..MAX_WORKER_ID {
@@ -129,7 +122,8 @@ mod benchmarks {
 		let worker_id = 0;
 
 		// Initialize Compute Hours for the caller account in the payment pallet.
-		// This ensures the account has sufficient compute hours for task operations during benchmarking.
+		// This ensures the account has sufficient compute hours for task operations during
+		// benchmarking.
 		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
 
 		#[block]
@@ -179,7 +173,8 @@ mod benchmarks {
 		let worker_id = 0;
 
 		// Initialize Compute Hours for the caller account in the payment pallet.
-		// This ensures the account has sufficient compute hours for task operations during benchmarking.
+		// This ensures the account has sufficient compute hours for task operations during
+		// benchmarking.
 		pallet_payment::ComputeHours::<T>::insert(caller.clone(), 50);
 
 		let dummy_bytes = vec![1u8; 1_000_000]; // 1MB each
@@ -242,13 +237,14 @@ mod benchmarks {
 
 		#[block]
 		{
-			Pallet::<T>::stop_task_and_vacate_miner(RawOrigin::Signed(caller.clone()).into(), task_id)?;
+			Pallet::<T>::stop_task_and_vacate_miner(
+				RawOrigin::Signed(caller.clone()).into(),
+				task_id,
+			)?;
 		}
 
 		assert_eq!(TaskStatus::<T>::get(task_id), Some(TaskStatusType::Stopped));
-		assert!(ComputeAggregations::<T>::get(task_id)
-			.and_then(|(_, e)| e)
-			.is_some());
+		assert!(ComputeAggregations::<T>::get(task_id).and_then(|(_, e)| e).is_some());
 		Ok(())
 	}
 

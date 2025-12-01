@@ -51,8 +51,5 @@ impl pallet_timestamp::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	GenesisConfig::<Test>::default()
-		.build_storage()
-		.unwrap()
-		.into()
+	GenesisConfig::<Test>::default().build_storage().unwrap().into()
 }

@@ -1,7 +1,8 @@
 pub use crate as pallet_task_management;
 use cyborg_primitives::constants::{DAYS, HOURS};
-use frame_support::traits::ConstU32;
-use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
+use frame_support::{
+	derive_impl, parameter_types, traits::ConstU32, weights::constants::RocksDbWeight, PalletId,
+};
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
@@ -70,20 +71,19 @@ impl pallet_edge_connect::Config for Test {
 }
 
 parameter_types! {
-		pub const MaxPaymentIdLength: u32 = 128;
+		// pub const MaxPaymentIdLength: u32 = 128;
 		pub const ExistentialDeposit: u128 = 10;
-		pub const MaxUserIdLength: u32 = 128;
-				pub const OnDemandRate: Balance = 2;
-				pub const SubscriptionRate: Balance = 10;
+		// pub const MaxUserIdLength: u32 = 128;
+		pub const OnDemandRate: Balance = 6;
+		pub const SubscriptionRate: Balance = 10;
+		pub const PaymentPalletId: PalletId = PalletId(*b"py/paymt");
 }
 
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type WeightInfo = ();
-	type MaxKycHashLength = ConstU32<64>;
-	type MaxPaymentIdLength = MaxPaymentIdLength;
-	type MaxUserIdLength = MaxUserIdLength;
+	// type WeightInfo = ();
+	type PalletId = PaymentPalletId;
 	type SubscriptionPeriod = ConstU64<{ 30 * DAYS }>;
 	type OnDemandPeriod = ConstU64<{ HOURS }>;
 	type GracePeriod = ConstU64<{ 4 * DAYS }>;
@@ -116,8 +116,5 @@ impl pallet_balances::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	GenesisConfig::<Test>::default()
-		.build_storage()
-		.unwrap()
-		.into()
+	GenesisConfig::<Test>::default().build_storage().unwrap().into()
 }

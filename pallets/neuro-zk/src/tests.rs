@@ -1,8 +1,10 @@
 use crate::{mock::*, Error};
 use crate::{RequestedProofs, SubmittedPerProof, VerificationResultsPerProof};
-use cyborg_primitives::payment::PaymentMode;
+use cyborg_primitives::payment::{PaymentDetails, PaymentMode};
 use frame_support::{assert_noop, assert_ok, pallet_prelude::ConstU32, BoundedVec};
 use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_payment::BalanceOf;
+use sp_runtime::traits::Zero;
 
 use cyborg_primitives::{task::*, zkml::*};
 
@@ -37,7 +39,12 @@ fn create_neurozk_task(task_id: TaskId) {
 		task_kind: task_kind_neurozk,
 		result: None,
 		task_status: TaskStatusType::Assigned,
-        payment_mode: PaymentMode::Subscription,
+        payment: PaymentDetails {
+            begin: Default::default(),
+            expiry: Default::default(),
+            reserved: Zero::zero(),
+            mode: PaymentMode::OnDemand,
+        },
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
@@ -62,13 +69,18 @@ fn create_non_neurozk_task(task_id: TaskId) {
 		task_kind: task_kind_infer,
 		result: None,
 		task_status: TaskStatusType::Assigned,
-        payment_mode: PaymentMode::OnDemand,
+        payment: PaymentDetails {
+            begin: Default::default(),
+            expiry: Default::default(),
+            reserved: Zero::zero(),
+            mode: PaymentMode::OnDemand,
+        }
 	};
 
 	pallet_task_management::Tasks::<Test>::insert(task_id, task_info)
 }
 
-fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumberFor<Test>>> {
+fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumberFor<Test>, BalanceOf<Test>>> {
 	pallet_task_management::Tasks::<Test>::get(task_id)
 }
 

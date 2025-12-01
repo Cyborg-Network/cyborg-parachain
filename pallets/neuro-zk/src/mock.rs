@@ -9,6 +9,7 @@ use sp_runtime::{
 	BuildStorage,
 };
 use cyborg_primitives::constants::{DAYS, HOURS};
+use frame_support::PalletId;
 
 
 pub type Balance = u128;
@@ -118,16 +119,18 @@ parameter_types! {
     pub const ExistentialDeposit: u128 = 10;
 	pub const TaskConfirmationTimeout: u64 = 75; // ~7.5 minutes at 6s/block
     pub const OnDemandRate: Balance = 2;
-    pub const SubscriptionRate: Balance = 10; 
+    pub const SubscriptionRate: Balance = 10;
+    pub const PaymentPalletId: PalletId = PalletId(*b"py/paymt");
 }
 
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type WeightInfo = ();
-	type MaxKycHashLength = ConstU32<64>;
-	type MaxPaymentIdLength = MaxPaymentIdLength;
-	type MaxUserIdLength = MaxUserIdLength;
+	// type WeightInfo = ();
+	// type MaxKycHashLength = ConstU32<64>;
+	// type MaxPaymentIdLength = MaxPaymentIdLength;
+	// type MaxUserIdLength = MaxUserIdLength;
+    type PalletId = PaymentPalletId;
     type SubscriptionPeriod = ConstU64<{ 30 * DAYS }>;
     type OnDemandPeriod = ConstU64<{ HOURS }>;
     type GracePeriod = ConstU64<{ 4 * DAYS }>;

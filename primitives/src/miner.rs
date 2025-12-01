@@ -1,6 +1,6 @@
 use crate::task::TaskId;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use frame_support::{pallet_prelude::{ConstU32, DispatchResult}, sp_runtime::RuntimeDebug, BoundedVec};
+use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
 
@@ -123,9 +123,9 @@ pub struct Miner<AccountId, BlockNumber, TimeStamp> {
 	pub start_block: BlockNumber,
 	pub oracle_status: OracleStatus, // Set by oracle feeder (uptime)
 	pub operational_status: OperationalStatus, // Set by miner & system (operational state)
-	pub status_last_updated: BlockNumber,
+	pub status_last_updated: BlockNumber, // TODO: Verify usability
 	pub api: MinerAPI,
-	pub last_status_check: TimeStamp,
+	pub last_status_check: TimeStamp, // TODO: Verify usability
 }
 
 // Helper method to check if miner can accept tasks
@@ -161,8 +161,8 @@ pub trait MinerInfoHandler<AccountId, MinerId, BlockNumber, TimeStamp> {
 	fn update_miner(
 		miner_key: &MinerId,
 		miner_type: &MinerType,
-        status: OperationalStatus,
-	) -> DispatchResult;
+        miner: Miner<AccountId, BlockNumber, TimeStamp>,
+	);
 }
 
 /// TODO:

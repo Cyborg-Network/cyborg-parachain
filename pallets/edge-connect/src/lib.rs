@@ -19,16 +19,16 @@ pub use cyborg_primitives::miner::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use cyborg_primitives::task::TaskId;
-	use frame_support::sp_runtime::Saturating;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*, BoundedVec};
+	use frame_support::{
+		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, sp_runtime::Saturating, BoundedVec,
+	};
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
 
-	// The `Config` trait defines the configuration for this pallet. It specifies the types and parameters
-	// that the pallet depends on and provides flexibility to the runtime in how it implements these
-	// requirements.
+	// The `Config` trait defines the configuration for this pallet. It specifies the types and
+	// parameters that the pallet depends on and provides flexibility to the runtime in how it
+	// implements these requirements.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + timestamp::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
@@ -54,8 +54,7 @@ pub mod pallet {
 		MinerReputation::default()
 	}
 
-    /*
-
+	/*
 	/// AccountMiners Information, Storage map for associating an account ID with a miner ID. If no miner exists, the query returns None.
 	/// Keeps track of MinerIds per account if any
 	#[pallet::storage]
@@ -63,18 +62,14 @@ pub mod pallet {
 	pub type AccountMiners<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, MinerId, OptionQuery>;
 
-    */
+	*/
 	#[pallet::storage]
 	#[pallet::getter(fn suspended_miners)]
-	pub type SuspendedMiners<T: Config> = StorageMap<
-		_,
-		Twox64Concat,
-		MinerId,
-		(BlockNumberFor<T>, SuspensionReason),
-		OptionQuery,
-	>;
+	pub type SuspendedMiners<T: Config> =
+		StorageMap<_, Twox64Concat, MinerId, (BlockNumberFor<T>, SuspensionReason), OptionQuery>;
 
-	/// Cloud Miner information, Storage map to keep track of detailed miner information for each (account ID, miner ID) pair.
+	/// Cloud Miner information, Storage map to keep track of detailed miner information for each
+	/// (account ID, miner ID) pair.
 	#[pallet::storage]
 	pub type CloudMiners<T: Config> = StorageMap<
 		_,
@@ -84,7 +79,8 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Edge Miner information, Storage map to keep track of detailed miner information for each (account ID, miner ID) pair.
+	/// Edge Miner information, Storage map to keep track of detailed miner information for each
+	/// (account ID, miner ID) pair.
 	#[pallet::storage]
 	pub type EdgeMiners<T: Config> = StorageMap<
 		_,
@@ -147,7 +143,7 @@ pub mod pallet {
 
 		/// Event emitted when a miner is suspended
 		MinerSuspended {
-			miner:  MinerId,
+			miner: MinerId,
 			until_block: BlockNumberFor<T>,
 		},
 
@@ -164,7 +160,9 @@ pub mod pallet {
 		},
 
 		/// Event emitted when a miner is unsuspended
-		MinerUnsuspended { miner: MinerId },
+		MinerUnsuspended {
+			miner: MinerId,
+		},
 	}
 
 	#[derive(
@@ -186,15 +184,17 @@ pub mod pallet {
 		Other,
 	}
 
-	/// The `Error` enum contains all possible errors that can occur when interacting with this pallet.
-	/// These errors will be returned in the `DispatchResult` when a function call fails.
+	/// The `Error` enum contains all possible errors that can occur when interacting with this
+	/// pallet. These errors will be returned in the `DispatchResult` when a function call fails.
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error indicating that either the IP address or the domain was missing when attempting to register a miner.
+		/// Error indicating that either the IP address or the domain was missing when attempting
+		/// to register a miner.
 		MinerRegisterMissingIpOrDomain,
 		/// Error indicating that the miner already exists and cannot be registered again.
 		MinerExists,
-		/// Error indicating that the miner does not exist in the system when trying to perform actions (e.g., removal or status update).
+		/// Error indicating that the miner does not exist in the system when trying to perform
+		/// actions (e.g., removal or status update).
 		MinerDoesNotExist,
 		/// Miner is suspended and cannot perform actions.
 		MinerSuspended,
@@ -207,7 +207,7 @@ pub mod pallet {
 		NotAuthorized,
 		// Provided UUID exceeded MaxUuidLen
 		UuidTooLong,
-        PendingTask,
+		PendingTask,
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -234,10 +234,7 @@ pub mod pallet {
 
 			let api = MinerAPI { domain };
 			// let miner_keys = AccountMiners::<T>::get(creator.clone());
-			let miner_location = Location {
-				latitude,
-				longitude,
-			};
+			let miner_location = Location { latitude, longitude };
 			let miner_specs = MinerSpecs { ram, storage, cpu };
 
 			//  Add CL(Cloud),ED(Edge) based on miner_type
@@ -251,25 +248,28 @@ pub mod pallet {
 			let bounded_uuid: BoundedVec<u8, MaxUuidLen> =
 				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
 
-            // let miner_key = (creator.clone(), bounded_uuid.clone());
-            let miner_exists = match miner_type {
-                MinerType::Cloud => CloudMiners::<T>::contains_key(&bounded_uuid),
-                MinerType::Edge => EdgeMiners::<T>::contains_key(&bounded_uuid),
-            };
+			// let miner_key = (creator.clone(), bounded_uuid.clone());
+			let miner_exists = match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::contains_key(&bounded_uuid),
+				MinerType::Edge => EdgeMiners::<T>::contains_key(&bounded_uuid),
+			};
 
-            if miner_exists {
-                // Emit an event for re-registration attempt
-                if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(&bounded_uuid, &miner_type) {
-                    Self::deposit_event(Event::MinerAlreadyRegistered {
-                        creator: creator.clone(),
-                        miner: (miner.owner.clone(), miner.id.clone()),
-                        domain: miner.api.domain.clone(),
-                    });
-                }
-                return Err(Error::<T>::MinerExists.into());
-            }
+			if miner_exists {
+				// Emit an event for re-registration attempt
+				if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(
+					&bounded_uuid,
+					&miner_type,
+				) {
+					Self::deposit_event(Event::MinerAlreadyRegistered {
+						creator: creator.clone(),
+						miner: (miner.owner.clone(), miner.id.clone()),
+						domain: miner.api.domain.clone(),
+					});
+				}
+				return Err(Error::<T>::MinerExists.into());
+			}
 
-let blocknumber = <frame_system::Pallet<T>>::block_number();
+			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
 				id: bounded_uuid.clone(),
 				owner: creator.clone(),
@@ -281,18 +281,16 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				oracle_status: OracleStatus::Offline,
 				operational_status: OperationalStatus::Available,
 				status_last_updated: blocknumber.clone(),
-				api: api,
+				api,
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
 			//  Store miner efficiently
-				match miner_type {
-					MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
-					MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
-				}
+			match miner_type {
+				MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
+				MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
+			}
 
-
-			
 			// Emit an event.
 			Self::deposit_event(Event::MinerRegistered {
 				creator: creator.clone(),
@@ -323,25 +321,21 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 
 					// update storage
 					CloudMiners::<T>::remove(&miner_id);
-				}
+				},
 				MinerType::Edge => {
-					ensure!(
-						EdgeMiners::<T>::get(&miner_id) != None,
-						Error::<T>::MinerDoesNotExist
-					);
+					ensure!(EdgeMiners::<T>::get(&miner_id) != None, Error::<T>::MinerDoesNotExist);
 
 					// update storage
 					EdgeMiners::<T>::remove(&miner_id);
-				}
+				},
 			}
-
 			// Emit an event.
 			Self::deposit_event(Event::MinerRemoved { creator, miner_id });
 
 			// Return a successful DispatchResultWithPostInfo
 			Ok(().into())
 		}
- 
+
 		/// Updates the oracle status (callable by oracle feeder)
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_oracle_status())]
@@ -355,36 +349,26 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			ensure_signed(origin)?;
 
 			match miner_type {
-				MinerType::Cloud => {
-					CloudMiners::<T>::mutate(miner_id.clone(), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.oracle_status = if online {
-								OracleStatus::Online
-							} else {
-								OracleStatus::Offline
-							};
-							miner.last_status_check = timestamp::Pallet::<T>::get();
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
-				MinerType::Edge => {
-					EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
-						if let Some(miner) = miner_option {
-							miner.oracle_status = if online {
-								OracleStatus::Online
-							} else {
-								OracleStatus::Offline
-							};
-							miner.last_status_check = timestamp::Pallet::<T>::get();
-							Ok(())
-						} else {
-							Err(Error::<T>::MinerDoesNotExist)
-						}
-					})
-				}
+				MinerType::Cloud => CloudMiners::<T>::mutate(miner_id.clone(), |miner_option| {
+					if let Some(miner) = miner_option {
+						miner.oracle_status =
+							if online { OracleStatus::Online } else { OracleStatus::Offline };
+						miner.last_status_check = timestamp::Pallet::<T>::get();
+						Ok(())
+					} else {
+						Err(Error::<T>::MinerDoesNotExist)
+					}
+				}),
+				MinerType::Edge => EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
+					if let Some(miner) = miner_option {
+						miner.oracle_status =
+							if online { OracleStatus::Online } else { OracleStatus::Offline };
+						miner.last_status_check = timestamp::Pallet::<T>::get();
+						Ok(())
+					} else {
+						Err(Error::<T>::MinerDoesNotExist)
+					}
+				}),
 			}?;
 
 			Self::deposit_event(Event::OracleStatusUpdated {
@@ -480,7 +464,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 							Err(Error::<T>::MinerDoesNotExist)
 						}
 					})
-				}
+				},
 				MinerType::Edge => {
 					EdgeMiners::<T>::mutate(miner_id.clone(), |miner_option| {
 						if let Some(miner) = miner_option {
@@ -495,7 +479,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 							Err(Error::<T>::MinerDoesNotExist)
 						}
 					})
-				}
+				},
 			}?;
 
 			Self::deposit_event(Event::OperationalStatusUpdated {
@@ -510,12 +494,8 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 	impl<T: Config> Pallet<T> {
 		// Helper Function to retrieve all active miners from storage.
 		// Filters miners based on their status (active or inactive).
-		pub fn get_active_miners() -> Option<
-			Vec<(
-				MinerId,
-				Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
-			)>,
-		> {
+		pub fn get_active_miners(
+		) -> Option<Vec<(MinerId, Miner<T::AccountId, BlockNumberFor<T>, T::Moment>)>> {
 			let miners = CloudMiners::<T>::iter()
 				.filter(|&(_, ref miner)| miner.can_accept_tasks())
 				.collect::<Vec<_>>();
@@ -588,10 +568,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 		}
 
 		/// Check if miner can perform actions
-		pub fn check_miner_available(
-			id: &MinerId,
-			miner_type: &MinerType,
-		) -> DispatchResult {
+		pub fn check_miner_available(id: &MinerId, miner_type: &MinerType) -> DispatchResult {
 			let miner = Self::get_miner(id, miner_type).ok_or(Error::<T>::MinerDoesNotExist)?;
 
 			// Check if worker is suspended and if suspension period has expired
@@ -599,9 +576,18 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				let current_block = <frame_system::Pallet<T>>::block_number();
 
 				// If suspension period is over, auto-unsuspend
-				if current_block >= miner.status_last_updated { // TODO: Improve field suspended.
+				if current_block >= miner.status_last_updated {
+					// TODO: Improve field suspended
+					// Create updated miner with new status
+					let updated_miner = Miner {
+						operational_status: OperationalStatus::Available,
+						status_last_updated: current_block,
+						current_task: None,
+						..miner.clone()
+					};
+
 					// Update the miner status
-					Self::update_miner(id, miner_type, OperationalStatus::Available)?;
+					Self::update_miner(id, miner_type, updated_miner);
 
 					// Remove from suspended miner storage
 					SuspendedMiners::<T>::remove(id);
@@ -610,16 +596,16 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				}
 			}
 
-            if miner.has_task_assigned() {
-                return Err(Error::<T>::PendingTask.into());
-            }
+			if miner.has_task_assigned() {
+				return Err(Error::<T>::PendingTask.into());
+			}
 
-            if miner.running_task() {
-                return Err(Error::<T>::Busy.into());
-            }
+			if miner.running_task() {
+				return Err(Error::<T>::Busy.into());
+			}
 
 			// Check oracle status (uptime)
-            // TODO: In production, return error.
+			// TODO: In production, return error.
 			if miner.oracle_status != OracleStatus::Online {
 				log::warn!("Worker oracle status is not Online, but allowing for testing");
 			}
@@ -630,26 +616,6 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				return Err(Error::<T>::InsufficientReputation.into());
 			}
 
-			Ok(())
-		}
-
-		/// Updates the current task of the miner in question
-		pub fn update_miner_current_task(
-			miner_id: &MinerId,
-			miner_type: &MinerType,
-			current_task: Option<TaskId>,
-		) -> DispatchResult {
-			let mut miner = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::get(miner_id),
-				MinerType::Edge => EdgeMiners::<T>::get(miner_id),
-			}
-			.ok_or(Error::<T>::MinerDoesNotExist)?;
-
-			miner.current_task = current_task;
-			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::insert(miner_id, miner),
-				MinerType::Edge => EdgeMiners::<T>::insert(miner_id, miner),
-			}
 			Ok(())
 		}
 
@@ -712,10 +678,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				MinerType::Edge => EdgeMiners::<T>::insert(miner_key, miner),
 			}
 
-			Self::deposit_event(Event::MinerUnderReview {
-				miner: miner_key.clone(),
-				reason,
-			});
+			Self::deposit_event(Event::MinerUnderReview { miner: miner_key.clone(), reason });
 
 			Ok(())
 		}
@@ -732,19 +695,13 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 				MinerType::Edge => EdgeMiners::<T>::remove(miner_key),
 			}
 
-			Self::deposit_event(Event::MinerBanned {
-				miner: miner_key.clone(),
-				reason,
-			});
+			Self::deposit_event(Event::MinerBanned { miner: miner_key.clone(), reason });
 
 			Ok(())
 		}
 
 		/// Lift suspension from a miner
-		pub fn lift_suspension(
-			miner_key: &MinerId,
-			miner_type: &MinerType,
-		) -> DispatchResult {
+		pub fn lift_suspension(miner_key: &MinerId, miner_type: &MinerType) -> DispatchResult {
 			let mut miner = match miner_type {
 				MinerType::Cloud => CloudMiners::<T>::get(miner_key),
 				MinerType::Edge => EdgeMiners::<T>::get(miner_key),
@@ -769,9 +726,7 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			// Remove from suspended miners
 			SuspendedMiners::<T>::remove(miner_key);
 
-			Self::deposit_event(Event::MinerUnsuspended {
-				miner: miner_key.clone(),
-			});
+			Self::deposit_event(Event::MinerUnsuspended { miner: miner_key.clone() });
 
 			Ok(())
 		}
@@ -780,7 +735,8 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 	impl<T: Config + timestamp::Config>
 		MinerInfoHandler<T::AccountId, MinerId, BlockNumberFor<T>, T::Moment> for Pallet<T>
 	{
-		// Implementation of the MinerInfoHandler trait, which provides methods for accessing miner cluster information.
+		// Implementation of the MinerInfoHandler trait, which provides methods to fetch miner
+		// information.
 		fn get_miner(
 			miner_key: &MinerId,
 			miner_type: &MinerType,
@@ -791,27 +747,21 @@ let blocknumber = <frame_system::Pallet<T>>::block_number();
 			}
 		}
 
-        // Implementation of the MinerInfoHandler trait, which provides methods for updating miner cluster information.
+		// Implementation of the MinerInfoHandler trait, which provides methods for updating miner
+		// information.
 		fn update_miner(
 			id: &MinerId,
 			miner_type: &MinerType,
-            status: OperationalStatus,
-		) -> DispatchResult {
-            // Get miner and update if exists
-            if let Some(mut miner) = Self::get_miner(id, miner_type) {
-                miner.operational_status = status;
-                miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
-
-                // Store back using the appropriate storage
-                match miner_type {
-                    MinerType::Cloud => CloudMiners::<T>::insert(id, miner),
-                    MinerType::Edge => EdgeMiners::<T>::insert(id, miner),
-                }
-
-                Ok(())
-            } else {
-                 Err(Error::<T>::MinerDoesNotExist.into())
-            }
+			miner: Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
+		) {
+			match miner_type {
+				MinerType::Cloud => {
+					CloudMiners::<T>::insert(id, miner);
+				},
+				MinerType::Edge => {
+					EdgeMiners::<T>::insert(id, miner);
+				},
+			}
 		}
 	}
 }

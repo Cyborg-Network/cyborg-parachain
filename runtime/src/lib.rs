@@ -27,6 +27,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use frame_support::PalletId;
 
 use frame_support::{
 	parameter_types,
@@ -364,9 +365,10 @@ impl pallet_task_management::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxKycHashLength: u32 = 64;
-	pub const MaxPaymentIdLength: u32 = 128;
-	pub const MaxUserIdLength: u32 = 128;
+	// pub const MaxKycHashLength: u32 = 64;
+	// pub const MaxPaymentIdLength: u32 = 128;
+	// pub const MaxUserIdLength: u32 = 128;
+    pub const PaymentPalletId: PalletId = PalletId(*b"py/paymt");
     pub const OnDemandRate: Balance = 2;
     pub const SubscriptionRate: Balance = 10;
 }
@@ -374,10 +376,11 @@ parameter_types! {
 impl pallet_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
-	type MaxKycHashLength = MaxKycHashLength;
-	type MaxPaymentIdLength = MaxPaymentIdLength;
-	type MaxUserIdLength = MaxUserIdLength;
+    // type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
+	// type MaxKycHashLength = MaxKycHashLength;
+	// type MaxPaymentIdLength = MaxPaymentIdLength;
+	// type MaxUserIdLength = MaxUserIdLength;
+    type PalletId = PaymentPalletId;
     type SubscriptionPeriod = ConstU32<{ 30 * DAYS }>;
     type OnDemandPeriod = ConstU32<{ HOURS }>;
     type GracePeriod = ConstU32<{ 4 * DAYS }>;

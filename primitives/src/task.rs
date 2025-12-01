@@ -1,7 +1,7 @@
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use crate::payment::PaymentMode;
+use crate::payment::PaymentDetails;
 
 pub type TaskId = u64;
 
@@ -110,7 +110,7 @@ pub struct HuggingfaceTask {
 
 ///Detailed information about a specific task.
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct TaskInfo<AccountId, BlockNumber> {
+pub struct TaskInfo<AccountId, BlockNumber, Balance> {
 	pub task_owner: AccountId,                  // Who scheduled the task.
 	pub create_block: BlockNumber,              // Block when created.
 	pub time_elapsed: Option<BlockNumber>,      // Time consumed.
@@ -118,7 +118,7 @@ pub struct TaskInfo<AccountId, BlockNumber> {
 	pub task_kind: TaskKind<BlockNumber>,       // New: Logical kind (NeuroZK or OpenInference).
 	pub result: Option<BoundedVec<u8, ConstU32<500>>>, // Final result (optional).
 	pub task_status: TaskStatusType,            // Current lifecycle status.
-    pub payment_mode: PaymentMode,
+    pub payment: PaymentDetails<BlockNumber, Balance>,
 }
 
 pub type ZkInput = BoundedVec<u8, ConstU32<5000>>;
@@ -162,7 +162,7 @@ pub struct NzkData<BlockNumber> {
 // 	pub resolver: Option<VerificationHashes<AccountId>>,
 // }
 
-pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber> {
-	fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumber>>;
-	fn update_nzk_task(task_id: TaskId, task: TaskInfo<AccountId, BlockNumber>);
+pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber, Balance> {
+	fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumber, Balance>>;
+	fn update_nzk_task(task_id: TaskId, task: TaskInfo<AccountId, BlockNumber, Balance>);
 }

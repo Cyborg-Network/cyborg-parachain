@@ -20,14 +20,16 @@ pub enum PaymentMode {
 }
 
 #[derive(Clone, Encode, Decode, TypeInfo, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
-pub struct PaymentPeriod<BlockNumber> {
-    pub start_block: BlockNumber,
-    pub end_block: BlockNumber,
-    pub purpose: PaymentPurpose,
+pub struct PaymentDetails<BlockNumber, Balance> {
+    pub begin: BlockNumber,
+    pub expiry: BlockNumber,
+    pub reserved: Balance,
+    pub mode: PaymentMode,
 }
 
-#[derive(Encode, Decode, Clone, RuntimeDebug, Eq, PartialEq, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug, Eq, PartialEq, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum PaymentPurpose {
     TaskExecution(TaskId), // Payment is for specific task execution
-    General,               // General subscription (for future use)
+    #[default]
+    Undefined,             // Default/unspecified payment purpose
 }
