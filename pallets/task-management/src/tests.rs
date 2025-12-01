@@ -417,14 +417,12 @@ fn task_termination_comprehensive() {
 		),);
 
 		// Verify task is running
-		let task_before_termination = Tasks::<Test>::get(task_id).unwrap();
-		assert_eq!(task_before_termination.task_status, TaskStatusType::Running);
+		let task_info = Tasks::<Test>::get(task_id).unwrap();
+		assert_eq!(task_info.task_status, TaskStatusType::Running);
 		assert!(pallet_payment::Pallet::<Test>::has_active_payment(
 			&user,
 			PaymentPurpose::TaskExecution(task_id)
 		));
-
-		println!("After confirmation - Balance: {}", Balances::free_balance(&user));
 
 		// 2. Test termination with minimal execution time
 		System::set_block_number(2);
