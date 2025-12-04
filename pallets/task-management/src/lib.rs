@@ -132,6 +132,12 @@ pub mod pallet {
 			who: T::AccountId,
 		},
 
+		/// A miner confirmed the task reception, but failed to run the task
+		TaskReceptionFailed {
+			task_id: TaskId,
+			who: T::AccountId,
+		},
+
 		/// Controller/admin requested to stop a running task.
 		TaskStopRequested {
 			task_id: TaskId,
@@ -361,27 +367,41 @@ where
 		/// Changes task state to `Running` and starts aggregation of resource usage.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
-        pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-            let who = ensure_signed(origin)?;
+    pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId, has_failed: bool) -> DispatchResult {
+        let who = ensure_signed(origin)?;
 
-            // Load task
-            let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+        // Load task
+        let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
-            // Check that caller is the assigned worker
-            let task_allocation = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
-            ensure!(who == task_allocation.1, Error::<T>::NotAssignedMiner);
+        // Check that caller is the assigned miner
+        let task_allocation = TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+        ensure!(who == task_allocation.1, Error::<T>::NotAssignedMiner);
 
-            // If task is already running, return specific error
-            if task_info.task_status == TaskStatusType::Running {
-                return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
-            }
+        // If task is already running, return specific error
+        if task_info.task_status == TaskStatusType::Running {
+            return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
+        }
 
-            // Task must currently be `Assigned`
-            ensure!(
-                task_info.task_status == TaskStatusType::Assigned,
-                Error::<T>::RequireAssignedTask
-            );
+        // Task must currently be `Assigned`
+        ensure!(
+            task_info.task_status == TaskStatusType::Assigned,
+            Error::<T>::RequireAssignedTask
+        );
 
+        if has_failed {
+            task_info.task_status = TaskStatusType::Failed;
+            TaskStatus::<T>::insert(task_id, TaskStatusType::Failed);
+            Tasks::<T>::insert(task_id, task_info);
+
+			let miner_type = pallet_edge_connect::Pallet::<T>::return_miner_type(&task_allocation.0)?;
+			// Update the miner status back to active
+			pallet_edge_connect::Pallet::<T>::put_miner_under_maintenance(
+				&task_allocation.0,
+				&miner_type,
+			)?;
+
+            Self::deposit_event(Event::TaskReceptionFailed { task_id, who });
+        } else {
             task_info.task_status = TaskStatusType::Running;
             TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
             Tasks::<T>::insert(task_id, task_info);
@@ -395,19 +415,20 @@ where
             );
 
             Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
-
-			   // If confirmation succeeds, remove from pending confirmations
-			   if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
-				let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
-				PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
-					if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
-						tasks.swap_remove(pos);
-					}
-				});
-			}
-
-            Ok(())
         }
+
+        // Remove from pending confirmations
+        if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
+            let timeout_block = assigned_block.saturating_add(T::TaskConfirmationTimeout::get());
+            PendingTaskConfirmations::<T>::mutate(timeout_block, |tasks| {
+                if let Some(pos) = tasks.iter().position(|&id| id == task_id) {
+                    tasks.swap_remove(pos);
+                }
+            });
+        }
+
+        Ok(())
+    }
 
 		/// Signals the miner to exit task execution and reset itself
 		/// Running -> Stopped
