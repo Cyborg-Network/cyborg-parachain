@@ -251,7 +251,8 @@ fn it_works_for_miner_status_updates() {
 		// Confirm task reception
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			0
+			0, 
+			false,
 		));
 
 		// Stop task and request miner vacation
@@ -435,7 +436,8 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			task_id
+			task_id,
+			false, 
 		));
 
 		// Task status should be updated to Running
@@ -524,12 +526,13 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		// First time (should work)
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			task_id
+			task_id, 
+			false, 
 		));
 
 		// Second time (should fail - already running)
 		assert_noop!(
-			TaskManagementModule::confirm_task_reception(RuntimeOrigin::signed(executor), task_id),
+			TaskManagementModule::confirm_task_reception(RuntimeOrigin::signed(executor), task_id, false),
 			Error::<Test>::TaskReceptionAlreadyConfirmed
 		);
 	});
@@ -573,7 +576,8 @@ fn it_works_for_confirm_miner_vacation() {
 		// 🔹 Confirm task reception
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(alice),
-			task_id
+			task_id, 
+			false, 
 		));
 
 		// 🔹 Simulate that task was forcibly stopped
@@ -682,7 +686,8 @@ fn fails_if_task_not_stopped() {
 		// Do not update status to Stopped → still Running
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(alice),
-			task_id
+			task_id, 
+			false, 
 		));
 
 		//  Cannot confirm vacation unless status is Stopped
@@ -734,6 +739,7 @@ fn it_works_for_stop_task_and_vacate_miner() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(alice),
 			task_id,
+			false, 
 		));
 		Tasks::<Test>::mutate(task_id, |task| {
 			if let Some(ref mut t) = task {
@@ -995,7 +1001,8 @@ fn reset_task_should_work_for_stuck_running_task() {
 
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			task_id
+			task_id, 
+			false, 
 		));
 
 		// Verify task is in Running state
@@ -1063,7 +1070,8 @@ fn reset_task_should_work_for_stuck_stopped_task() {
 
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			task_id
+			task_id, 
+			false, 
 		));
 
 		// Stop the task
@@ -1202,7 +1210,8 @@ fn reset_task_should_fail_for_non_resettable_states() {
 		// Complete the task lifecycle to reach Vacated state
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(executor),
-			task_id
+			task_id, 
+			false,
 		));
 
 		assert_ok!(TaskManagementModule::stop_task_and_vacate_miner(
@@ -1224,6 +1233,56 @@ fn reset_task_should_fail_for_non_resettable_states() {
 			reset_task_as_root(task_id, miner_type, ResetReason::ManualIntervention),
 			Error::<Test>::TaskNotResettable
 		);
+	});
+}
+
+#[test]
+fn miner_should_be_under_maintenance_if_task_reception_fails() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let executor = 2;
+		let miner_type = MinerType::Edge;
+
+		// Register miner
+		assert_ok!(register_miner(executor, miner_type.clone(), "exec.miner"));
+		pallet_payment::ComputeHours::<Test>::insert(alice, 20);
+
+		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		let miner_id: BoundedVec<u8, ConstU32<64>> = b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+			.to_vec()
+			.try_into()
+			.unwrap();
+
+		// Create task and go through full lifecycle to Vacated state
+		assert_ok!(TaskManagementModule::task_scheduler(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			miner_id.clone(),
+			Some(10),
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Complete the task lifecycle to reach Vacated state
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(executor),
+			task_id, 
+			true,
+		));
+
+		assert_eq!(
+			EdgeConnectModule::miners_under_maintenance(&miner_id.clone()),
+			Some(1)
+		)
 	});
 }
 

@@ -19,6 +19,9 @@ pub enum TaskStatusType {
 
 	/// Miner reset hardware after stopping task.
 	Vacated,
+
+  /// The miner failed to run the task
+  Failed,
 }
 
 #[derive(
