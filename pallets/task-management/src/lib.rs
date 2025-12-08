@@ -121,7 +121,7 @@ pub mod pallet {
 		/// A new task has been scheduled and assigned to a miner.
 		TaskScheduled {
 			assigned_miner: MinerId,
-			task_kind: TaskKind<BlockNumberFor<T>>,
+			task_kind: TaskKind,
 			task_owner: T::AccountId,
 			task_id: TaskId,
 		},
@@ -253,7 +253,7 @@ where
 			origin: OriginFor<T>,
 			// TODO If the gatekeeper submits the task we need to keep track of which user submitted the task and process the request differently
 			// TODO requesting_user: Option<Some data that identifies the user>,
-			task_kind: TaskSubmissionData,
+			task_kind: TaskKind,
 			miner_id: MinerId,
 			compute_hours_deposit: Option<u32>,
 		) -> DispatchResultWithPostInfo {
@@ -261,12 +261,11 @@ where
 
 			// Determine miner type based on task kind
 			let miner_type = match task_kind {
-				TaskSubmissionData::NeuroZK(_) |
-				TaskSubmissionData::OpenInference(_) |
-				TaskSubmissionData::FlashInfer(_) => {
+				TaskKind::OpenInference(_) |
+				TaskKind::FlashInfer(_) => {
 					MinerType::Edge
 				}
-				TaskSubmissionData::CyCloud(_) => {
+				TaskKind::CyCloud(_) => {
 					MinerType::Cloud
 				},
 			};
@@ -310,7 +309,6 @@ where
 			NextTaskId::<T>::put(task_id.wrapping_add(1));
 
 			let selected_miner = miner_id.clone();
-			let task_kind = TaskKind::from_submission(task_kind);
 
 			let task_info = TaskInfo::<T::AccountId, BlockNumberFor<T>> {
 				task_owner: who.clone(),
@@ -775,20 +773,6 @@ where
 			}
 
 			stuck_tasks
-		}
-	}
-
-	impl<T: Config + timestamp::Config> NzkTaskInfoHandler<T::AccountId, TaskId, BlockNumberFor<T>>
-		for Pallet<T>
-	{
-		// Implementation of the NzkTaskInfoHandler trait, which provides methods for accessing NZK task information.
-		fn get_nzk_task(task_key: TaskId) -> Option<TaskInfo<T::AccountId, BlockNumberFor<T>>> {
-			Tasks::<T>::get(task_key)
-		}
-
-		// Implementation of the NzkTaskInfoHandler trait, which provides methods for NZK task information.
-		fn update_nzk_task(task_key: TaskId, task: TaskInfo<T::AccountId, BlockNumberFor<T>>) {
-			Tasks::<T>::insert(task_key, task);
 		}
 	}
 }

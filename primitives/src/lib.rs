@@ -7,5 +7,3 @@ pub mod task;
 pub mod oracle;
 
 pub mod payment;
-
-pub mod zkml;

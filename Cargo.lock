@@ -2763,7 +2763,6 @@ dependencies = [
  "pallet-edge-connect",
  "pallet-membership",
  "pallet-message-queue",
- "pallet-neuro-zk",
  "pallet-payment",
  "pallet-session",
  "pallet-status-aggregator",
@@ -7637,31 +7636,6 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
-]
-
-[[package]]
-name = "pallet-neuro-zk"
-version = "0.1.0"
-dependencies = [
- "cyborg-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "orml-oracle",
- "orml-traits",
- "pallet-assets",
- "pallet-balances",
- "pallet-edge-connect",
- "pallet-payment",
- "pallet-task-management",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "sp-core 36.1.0",
- "sp-io 40.0.1",
- "sp-runtime 41.1.0",
- "sp-std 14.0.0 (git+https://github.com/Cyborg-Network/polkadot-sdk?rev=1530a8826416514c3326597338b3511a55040663)",
 ]
 
 [[package]]
