@@ -37,7 +37,6 @@ pallet-task-management = { workspace = true }
 # pallet-xcm-adapter = { workspace = true }
 # pallet-xcm-support = { workspace = true }
 pallet-zk-verifier = { workspace = true }
-pallet-neuro-zk = { workspace = true }
 
 # Substrate / FRAME
 frame-benchmarking = { workspace = true, optional = true }
@@ -189,7 +188,6 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 	"pallet-zk-verifier/runtime-benchmarks",
-	"pallet-neuro-zk/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
