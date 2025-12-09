@@ -22,6 +22,7 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, sp_runtime::Saturating, BoundedVec,
 	};
+	use cyborg_primitives::task::TaskId;
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp as timestamp;
 	use scale_info::prelude::vec::Vec;
@@ -63,6 +64,18 @@ pub mod pallet {
 		StorageMap<_, Twox64Concat, T::AccountId, MinerId, OptionQuery>;
 
 	*/
+  /// Storage Map that maps accounts that are allowed to register a miner and if they did register
+  /// a miner
+	#[pallet::storage]
+	#[pallet::getter(fn authorized_miners)]
+	pub type AccountsAuthorizedForMinerRegistration<T: Config> = StorageMap<
+		_,
+		Twox64Concat,
+		T::AccountId,
+		HasRegistered,
+		OptionQuery,
+	>;
+
 	#[pallet::storage]
 	#[pallet::getter(fn suspended_miners)]
 	pub type SuspendedMiners<T: Config> =
@@ -88,6 +101,16 @@ pub mod pallet {
 		MinerId,
 		Miner<T::AccountId, BlockNumberFor<T>, T::Moment>,
 		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn miners_under_maintenance)]
+	pub type MinersUnderMaintenance<T:Config>=StorageMap<
+		_,
+		Twox64Concat,
+		MinerId,
+		BlockNumberFor<T>,
+		OptionQuery
 	>;
 
 	/// The `Event` enum contains the various events that can be emitted by this pallet.
@@ -160,9 +183,26 @@ pub mod pallet {
 		},
 
 		/// Event emitted when a miner is unsuspended
-		MinerUnsuspended {
-			miner: MinerId,
-		},
+		MinerUnsuspended { miner: MinerId },
+
+		/// Maintenance mode resolved by root/admin, miner restored to Available.
+		MaintenanceResolved{miner:MinerId},
+
+		/// Miner has been put under maintenance mode by its owner.
+		MinerUnderMaintenance {
+            miner: MinerId,
+            who: T::AccountId,
+        },
+
+        /// An account that is allowed to register a miner has been added
+        AccountAuthorizedForMinerRegistrationAdded {
+            account: T::AccountId
+        },
+
+        /// An account that is allowed to register a miner has been removed
+        AccountAuthorizedForMinerRegistrationRemoved {
+            account: T::AccountId
+        },
 	}
 
 	#[derive(
@@ -204,10 +244,21 @@ pub mod pallet {
 		Busy,
 		/// Miner is inactive
 		MinerIsInactive,
+        /// Not authorized to perform this action
 		NotAuthorized,
-		// Provided UUID exceeded MaxUuidLen
-		UuidTooLong,
 		PendingTask,
+		/// Provided UUID exceeded MaxUuidLen
+		UuidTooLong, 
+		/// When Miner is not Under Maintenance
+		NotUnderMaintenance,
+		/// When the miner does not provide the correct prefix, based on what kind of miner it is 
+		InvalidMinerIdPrefix,
+        /// User tries to register a miner with an account that is not authorized for registration
+        MinerRegistrationNotAllowedWithThisAccount,
+        /// User tried to register multiple miners with one account
+        CanOnlyRegisterOneMinerPerAccount,
+        /// The authorized account does not exists
+        AuthorizedAccountDoesnNotExist
 	}
 
 	// This block defines the dispatchable functions (calls) for the pallet.
@@ -222,7 +273,7 @@ pub mod pallet {
 		pub fn register_miner(
 			origin: OriginFor<T>,
 			miner_type: MinerType,
-			miner_uuid: Vec<u8>,
+			miner_uuid: MinerId,
 			domain: Domain,
 			latitude: Latitude,
 			longitude: Longitude,
@@ -232,34 +283,49 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let creator = ensure_signed(origin)?;
 
-			let api = MinerAPI { domain };
-			// let miner_keys = AccountMiners::<T>::get(creator.clone());
-			let miner_location = Location { latitude, longitude };
-			let miner_specs = MinerSpecs { ram, storage, cpu };
+      let has_registered = AccountsAuthorizedForMinerRegistration::<T>::get(&creator).ok_or(
+          Error::<T>::MinerRegistrationNotAllowedWithThisAccount
+      )?;
+    
+      ensure!(!has_registered, Error::<T>::CanOnlyRegisterOneMinerPerAccount);
 
-			//  Add CL(Cloud),ED(Edge) based on miner_type
-			let mut full_uuid = match miner_type {
-				MinerType::Cloud => b"CL-".to_vec(),
-				MinerType::Edge => b"ED-".to_vec(),
+			// Check if the miner_uuid has the correct prefix
+			match miner_type {
+				MinerType::Cloud => {
+					ensure!(
+						miner_uuid.starts_with(b"CL-"),
+						Error::<T>::InvalidMinerIdPrefix
+					);
+				},
+				MinerType::Edge => {
+					ensure!(
+						miner_uuid.starts_with(b"ED-"),
+						Error::<T>::InvalidMinerIdPrefix
+					);
+				},
 			};
 
-			full_uuid.extend_from_slice(&miner_uuid);
-			//  Convert to bounded vec
-			let bounded_uuid: BoundedVec<u8, MaxUuidLen> =
-				full_uuid.clone().try_into().map_err(|_| Error::<T>::UuidTooLong)?;
+			let api = MinerAPI { domain };
+			let miner_location = Location {
+				latitude,
+				longitude,
+			};
+			let miner_specs = MinerSpecs { ram, storage, cpu };
 
-			// let miner_key = (creator.clone(), bounded_uuid.clone());
+			//  Check if the miner already exists
 			let miner_exists = match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::contains_key(&bounded_uuid),
-				MinerType::Edge => EdgeMiners::<T>::contains_key(&bounded_uuid),
+				MinerType::Cloud => CloudMiners::<T>::contains_key(miner_uuid.clone()),
+				MinerType::Edge => EdgeMiners::<T>::contains_key(miner_uuid.clone()),
 			};
 
 			if miner_exists {
 				// Emit an event for re-registration attempt
-				if let Some(miner) = <Pallet<T> as MinerInfoHandler<_, _, _, _>>::get_miner(
-					&bounded_uuid,
-					&miner_type,
-				) {
+				let existing_miner = match miner_type {
+					MinerType::Cloud => CloudMiners::<T>::get(&miner_uuid),
+					MinerType::Edge => EdgeMiners::<T>::get(&miner_uuid),
+				};
+
+				if let Some(miner) = existing_miner {
 					Self::deposit_event(Event::MinerAlreadyRegistered {
 						creator: creator.clone(),
 						miner: (miner.owner.clone(), miner.id.clone()),
@@ -271,7 +337,7 @@ pub mod pallet {
 
 			let blocknumber = <frame_system::Pallet<T>>::block_number();
 			let miner = Miner {
-				id: bounded_uuid.clone(),
+				id: miner_uuid.clone(),
 				owner: creator.clone(),
 				location: miner_location,
 				specs: miner_specs,
@@ -285,11 +351,20 @@ pub mod pallet {
 				last_status_check: timestamp::Pallet::<T>::get(),
 			};
 
-			//  Store miner efficiently
+			//  Store miner
 			match miner_type {
-				MinerType::Cloud => CloudMiners::<T>::insert(&bounded_uuid, miner.clone()),
-				MinerType::Edge => EdgeMiners::<T>::insert(&bounded_uuid, miner.clone()),
+				MinerType::Cloud => CloudMiners::<T>::insert(&miner_uuid, miner.clone()),
+				MinerType::Edge => EdgeMiners::<T>::insert(&miner_uuid, miner.clone()),
 			}
+
+      
+            AccountsAuthorizedForMinerRegistration::<T>::try_mutate(&creator, |has_registered| -> DispatchResult {
+                let _ = has_registered.ok_or(
+                    Error::<T>::AuthorizedAccountDoesnNotExist
+                    )?;
+                *has_registered = Some(true); 
+                Ok(())
+            })?;
 
 			// Emit an event.
 			Self::deposit_event(Event::MinerRegistered {
@@ -302,7 +377,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Remove a miner from storage an deactivates it
+		/// Remove a miner from storage
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_miner())]
 		pub fn remove_miner(
@@ -313,22 +388,37 @@ pub mod pallet {
 			let creator = ensure_signed(origin)?;
 
 			match miner_type {
-				MinerType::Cloud => {
-					ensure!(
-						CloudMiners::<T>::get(&miner_id) != None,
-						Error::<T>::MinerDoesNotExist
-					);
+                MinerType::Cloud => {
+                    // Ensure that miner exists
+                    let miner = CloudMiners::<T>::get(&miner_id).ok_or(
+                        Error::<T>::MinerDoesNotExist    
+                    )?;
 
-					// update storage
-					CloudMiners::<T>::remove(&miner_id);
-				},
+                    // Ensure the caller owns the miner
+                    ensure!(&miner.owner == &creator, Error::<T>::NotAuthorized);
+                    CloudMiners::<T>::remove(&miner_id);
+                },
 				MinerType::Edge => {
-					ensure!(EdgeMiners::<T>::get(&miner_id) != None, Error::<T>::MinerDoesNotExist);
+                    // Ensure that miner exists
+                    let miner = EdgeMiners::<T>::get(&miner_id).ok_or(
+                        Error::<T>::MinerDoesNotExist
+                    )?;
+          
+                    // Ensure the caller owns the miner
+                    ensure!(&miner.owner == &creator, Error::<T>::NotAuthorized);
+                    EdgeMiners::<T>::remove(&miner_id);
+                },
+            }
 
-					// update storage
-					EdgeMiners::<T>::remove(&miner_id);
-				},
-			}
+      
+            AccountsAuthorizedForMinerRegistration::<T>::try_mutate(&creator, |has_registered| -> DispatchResult {
+                let _ = has_registered.ok_or(
+                    Error::<T>::AuthorizedAccountDoesnNotExist
+                    )?;
+                *has_registered = Some(false); 
+                Ok(())
+            })?;
+
 			// Emit an event.
 			Self::deposit_event(Event::MinerRemoved { creator, miner_id });
 
@@ -489,6 +579,131 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_maintenance())]
+		pub fn request_maintenance(
+			origin: OriginFor<T>,
+			miner_id: MinerId,
+			miner_type: MinerType,
+		) -> DispatchResult {
+			let is_root = ensure_root(origin.clone()).is_ok();
+
+			let who = if is_root {
+				// Root caller: fetch miner owner
+				let miner = Self::get_miner(&miner_id, &miner_type)
+					.ok_or(Error::<T>::MinerDoesNotExist)?;
+				miner.owner.clone()
+			} else {
+				// Normal user caller: ensure signed and get account id
+				ensure_signed(origin.clone())?
+			};
+			
+
+			let mut miner = Self::get_miner(&miner_id, &miner_type)
+				.ok_or(Error::<T>::MinerDoesNotExist)?;
+
+			// Ensure the miner belongs to the caller (if not root)
+			if !is_root {
+				ensure!(miner.owner == who, Error::<T>::NotAuthorized);
+			}
+
+			// Ensure the miner is in use or busy 
+			ensure!(
+				miner.operational_status == OperationalStatus::Busy,
+				Error::<T>::MinerIsInactive
+			);
+			miner.operational_status = OperationalStatus::Maintenance; 
+			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+			Self::update_miner(&miner_id, &miner_type, miner);
+
+			// Record maintenance 
+			MinersUnderMaintenance::<T>::insert(
+				&miner_id, 
+				<frame_system::Pallet<T>>::block_number(), 
+			);
+
+			Self::deposit_event(Event::MinerUnderMaintenance {
+				miner: miner_id.clone(),
+				who,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::resolve_maintenance())]
+		pub fn resolve_maintenance(
+			origin: OriginFor<T>,
+			miner_id: MinerId,
+			miner_type: MinerType,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Fetch miner
+			let mut miner = Self::get_miner(&miner_id, &miner_type)
+				.ok_or(Error::<T>::MinerDoesNotExist)?;
+
+			ensure!(
+				miner.operational_status == OperationalStatus::Maintenance,
+				Error::<T>::NotUnderMaintenance
+			);
+
+			miner.operational_status = OperationalStatus::Available;
+			miner.status_last_updated = <frame_system::Pallet<T>>::block_number();
+
+			Self::update_miner(&miner_id, &miner_type, miner);
+
+			// Remove from maintenance map
+			MinersUnderMaintenance::<T>::remove(&miner_id);
+
+			 Self::deposit_event(Event::MaintenanceResolved {
+					miner: miner_id.clone(),
+				});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_account_authorized_for_registration())]
+		pub fn add_account_authorized_for_registration(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+		) -> DispatchResult {
+		    ensure_root(origin)?;
+
+		    AccountsAuthorizedForMinerRegistration::<T>::insert(
+		        &account, 
+            false
+			  );
+
+		    Self::deposit_event(Event::AccountAuthorizedForMinerRegistrationAdded {
+				    account: account,
+		    });
+
+			  Ok(())
+		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_account_authorized_for_registration())]
+		pub fn remove_account_authorized_for_registration(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+		) -> DispatchResult {
+		    ensure_root(origin)?;
+
+		    AccountsAuthorizedForMinerRegistration::<T>::remove(
+		        &account, 
+			  );
+
+		    Self::deposit_event(Event::AccountAuthorizedForMinerRegistrationRemoved {
+				    account: account,
+		    });
+
+			  Ok(())
+		}
+
 	}
 
 	impl<T: Config> Pallet<T> {

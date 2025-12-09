@@ -3,7 +3,6 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
 
-
 // pub type MinerId = u64;
 
 pub type MaxUuidLen = ConstU32<64>;
@@ -86,9 +85,10 @@ pub enum OracleStatus {
 	DecodeWithMemTracking,
 )]
 pub enum OperationalStatus {
-	Available,    // Miner is available for new tasks (set by miner)
-	Busy,         // Miner is currently processing a task (set by miner)
-	Suspended,    // Miner is suspended (set by system via reputation penalties)
+	Available, // Miner is available for new tasks (set by miner)
+	Busy,      // Miner is currently processing a task (set by miner)
+	Suspended, // Miner is suspended (set by system via reputation penalties)
+	Maintenance,
     TaskAssigned, // Task has been assigned but not confirmed yet (set by parachain)
 }
 

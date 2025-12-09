@@ -23,7 +23,7 @@
 //
 // For more information, please refer to <http://unlicense.org>
 
-mod xcm_config;
+pub mod xcm_config;
 
 // Substrate and Polkadot dependencies
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;

@@ -29,7 +29,7 @@ pub enum TaskSubmissionData {
 	NeuroZK(NeuroZkTaskSubmissionDetails), // A Zero-Knowledge Proof Generation task.
 	OpenInference(OpenInferenceTask),      // An AI Inference Task (normal).
 	FlashInfer(FlashInferTask),
-	CyCloud,
+	CyCloud(CyCloudTask),
 }
 
 /// Kinds of overall tasks at a logical level (business logic: inference vs zk proof).
@@ -40,7 +40,7 @@ pub enum TaskKind<BlockNumber> {
 	NeuroZK(NzkData<BlockNumber>), // A Zero-Knowledge Proof Generation task.
 	OpenInference(OpenInferenceTask), // An AI Inference Task (normal).
 	FlashInferInfer(FlashInferTask),
-	CyCloud,
+	CyCloud(CyCloudTask),
 }
 
 impl<BlockNumber> TaskKind<BlockNumber> {
@@ -56,7 +56,7 @@ impl<BlockNumber> TaskKind<BlockNumber> {
 			}),
 			TaskSubmissionData::OpenInference(task) => TaskKind::OpenInference(task),
 			TaskSubmissionData::FlashInfer(task) => TaskKind::FlashInferInfer(task),
-			TaskSubmissionData::CyCloud => TaskKind::CyCloud,
+			TaskSubmissionData::CyCloud(task) => TaskKind::CyCloud(task),
 		}
 	}
 }
@@ -69,6 +69,15 @@ pub enum OpenInferenceTask {
 	//Cess(CessTask),
 	//Azure(AzureTask),
 	//Huggingface(HuggingfaceTask),
+}
+
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
+pub enum CyCloudTask {
+  Container(CyCloudContainerTask),
+  Native(CyCloudNativeTask),
+  Vm(CyCloudVmTask),
 }
 
 #[derive(
@@ -107,6 +116,28 @@ pub struct AzureTask {
 pub struct HuggingfaceTask {
 	pub hf_identifier: BoundedVec<u8, ConstU32<500>>,
 }
+
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
+pub struct CyCloudContainerTask {
+    _marker: (),
+}
+
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
+pub struct CyCloudNativeTask {
+    user_name: BoundedVec<u8, ConstU32<20>>,
+}
+
+#[derive(
+	PartialEq, Eq, Clone, Decode, Encode, TypeInfo, Debug, MaxEncodedLen, DecodeWithMemTracking,
+)]
+pub struct CyCloudVmTask {
+    user_name: BoundedVec<u8, ConstU32<20>>,
+}
+
 
 ///Detailed information about a specific task.
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]

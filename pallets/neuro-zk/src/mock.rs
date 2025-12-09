@@ -1,5 +1,8 @@
 pub use crate as pallet_neuro_zk;
+use frame_support::traits::EnsureOriginWithArg;
 use frame_support::{derive_impl, parameter_types, weights::constants::RocksDbWeight};
+use frame_system::EnsureRoot;
+use frame_system::EnsureRootWithSuccess;
 use frame_system::{mocking::MockBlock, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
@@ -14,14 +17,15 @@ use frame_support::PalletId;
 
 pub type Balance = u128;
 
+pub type AssetId = u32;
 // Configure a mock runtime to test the pallet.
 #[frame_support::runtime]
 mod test_runtime {
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
-		RuntimeEvent,
 		RuntimeError,
+		RuntimeEvent,
 		RuntimeOrigin,
 		RuntimeFreezeReason,
 		RuntimeHoldReason,
@@ -51,9 +55,16 @@ mod test_runtime {
 
 	#[runtime::pallet_index(6)]
 	pub type NeuroZk = pallet_neuro_zk;
+
+	#[runtime::pallet_index(7)]
+	pub type Assets = pallet_assets;
 }
 
-pub type AccountId = u128;
+
+//pub type AccountId = u128;
+
+pub type AccountId = u64;
+//pub type Balance = u128;
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
@@ -67,9 +78,40 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-		pub const MaxBlockRangePeriod: u32 = 5;
-		pub const MaxPaymentIdLength: u32 = 128;
-		pub const MaxUserIdLength: u32 = 128;
+	pub const AssetDeposit: u128 = 100;
+	pub const AssetAccountDeposit: u128 = 10;
+	pub const ApprovalDeposit: u128 = 1;
+	pub const AssetsStringLimit: u32 = 50;
+	pub const MetadataDepositBase: u128 = 10;
+	pub const MetadataDepositPerByte: u128 = 1;
+}
+
+impl pallet_assets::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type AssetId = u32;
+	type AssetIdParameter = codec::Compact<u32>;
+	type Currency = Balances;
+	type CreateOrigin = EnsureRootWithSuccess<AccountId, ConstU64<12345>>;
+	type ForceOrigin = EnsureRoot<AccountId>;
+	type AssetDeposit = AssetDeposit;
+	type AssetAccountDeposit = AssetAccountDeposit;
+	type MetadataDepositBase = MetadataDepositBase;
+	type MetadataDepositPerByte = MetadataDepositPerByte;
+	type ApprovalDeposit = ApprovalDeposit;
+	type StringLimit = AssetsStringLimit;
+	type Freezer = ();
+	type Extra = ();
+	type WeightInfo = ();
+	type RemoveItemsLimit = ConstU32<1000>;
+	type CallbackHandle = ();
+	type Holder = ();
+}
+
+parameter_types! {
+	pub const MaxBlockRangePeriod: u32 = 5;
+	pub const MaxPaymentIdLength: u32 = 128;
+	pub const MaxUserIdLength: u32 = 128;
 }
 
 impl pallet_neuro_zk::Config for Test {
@@ -126,6 +168,7 @@ parameter_types! {
 impl pallet_payment::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
+
 	// type WeightInfo = ();
 	// type MaxKycHashLength = ConstU32<64>;
 	// type MaxPaymentIdLength = MaxPaymentIdLength;
@@ -136,6 +179,33 @@ impl pallet_payment::Config for Test {
     type GracePeriod = ConstU64<{ 4 * DAYS }>;
     type OnDemandRate = OnDemandRate;
     type SubscriptionRate = SubscriptionRate;
+	//type TreasuryAccount = TreasuryAccount;
+	//type WeightInfo = ();
+	type MaxKycHashLength = ConstU32<64>;
+	//type MaxPaymentIdLength = MaxPaymentIdLength;
+	type MaxUserIdLength = MaxUserIdLength;
+
+	type AssetRegistry = Assets;
+    type AssetId = AssetId;
+    type AssetBalance = Balance;
+    type AssetAuthority = EnsureRootWithAccount;
+}
+
+
+pub struct EnsureRootWithAccount;
+
+impl EnsureOriginWithArg<RuntimeOrigin, u32> for EnsureRootWithAccount {
+	type Success = AccountId;
+
+	fn try_origin(origin: RuntimeOrigin, _asset_id: &u32) -> Result<Self::Success, RuntimeOrigin> {
+		EnsureRoot::<AccountId>::try_origin(origin.clone(), &())?;
+		Ok(1u64)
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn try_successful_origin(_asset_id: &u32) -> Result<RuntimeOrigin, ()> {
+		Ok(RuntimeOrigin::root())
+	}
 }
 
 // Build genesis storage according to the mock runtime.

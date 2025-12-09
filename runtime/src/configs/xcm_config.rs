@@ -124,8 +124,8 @@ pub type Barrier = TrailingSetTopicAsId<
 
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId = AccountId::from(AccountId::new([1u8; 32])); // FIX ME: get account from treasury pallet
-	//pub TreasuryAccount: AccountId = Treasury::account_id();
+	pub TreasuryAccount: AccountId =
+				pallet_treasury::Pallet::<Runtime>::account_id();
 }
 
 pub struct XcmConfig;

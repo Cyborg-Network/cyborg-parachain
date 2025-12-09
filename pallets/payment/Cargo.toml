@@ -19,12 +19,17 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-sudo = { workspace = true }
+pallet-assets = { workspace = true }
 pallet-timestamp = { workspace = true }
 scale-info = { workspace = true }
 pallet-edge-connect={ workspace = true }
 sp-runtime= { workspace = true }
 sp-std = { workspace = true }
 log={ workspace = true }
+xcm = { workspace = true }
+xcm-executor = { workspace = true }
+xcm-builder = { workspace = true }
+orml-traits = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }
@@ -46,7 +51,11 @@ std = [
 	"frame-system/std",
 	"pallet-balances/std",
 	"pallet-sudo/std",
+	"pallet-assets/std",
 	"scale-info/std",
+	"xcm/std",
+	"xcm-builder/std",
+    "xcm-executor/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -17,8 +17,6 @@ fn prevents_nonexistent_miner_storage() {
 	new_test_ext().execute_with(|| {
 		// initalize test variables
 		let oracle_feeder_1: AccountId = 100;
-		let miner_addrs: Vec<AccountId> = [0].to_vec();
-	
 
 		// miner for which status is to be updated
 		let key_1: OracleMinerFormat = OracleMinerFormat {
@@ -54,6 +52,7 @@ fn prevents_nonexistent_miner_storage() {
 		assert_eq!(MinerStatusEntriesPerPeriod::<Test>::get(&key_1), entries);
 	})
 }
+
 #[test]
 fn on_new_data_works_as_expected() {
 	new_test_ext().execute_with(|| {
@@ -64,17 +63,26 @@ fn on_new_data_works_as_expected() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<Vec<u8>> = vec![
-			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
-			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
-			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
-		];
+		// let miner_ids: Vec<Vec<u8>> = vec![
+		// 	b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+		// 	b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+		// 	b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		// ];
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
 		// basic miner spec
 		let miner_type = MinerType::Cloud;
@@ -85,10 +93,15 @@ fn on_new_data_works_as_expected() {
 		let miner_cpu: CpuCores = 12;
 
 		// register miners
-		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+		for (miner, id_bytes) in miner_addrs.iter().zip(bounded_miner_ids.iter()) {
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
 
 			assert_ok!(EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(*miner),
@@ -270,20 +283,27 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<Vec<u8>> = vec![
-			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
-			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
-			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
-		];
+		// let miner_ids: Vec<Vec<u8>> = vec![
+		// 	b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+		// 	b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+		// 	b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		// ];
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"CL-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"CL-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"CL-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"CL-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
-
-
 
 		// basic miner spec
 		let miner_latitude: Latitude = 590000;
@@ -294,7 +314,12 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		let miner_type = MinerType::Cloud;
 
 		// register miners
-		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+		for (miner, id_bytes) in miner_addrs.iter().zip(bounded_miner_ids.iter()) {
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
+
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
@@ -323,7 +348,7 @@ fn on_finalize_works_as_expected_for_docker_miners() {
 		};
 
 		assert_ok!(EdgeConnectModule::update_operational_status(
-			RuntimeOrigin::signed(miner_addrs[1]), 
+			RuntimeOrigin::signed(miner_addrs[1]),
 			MinerType::Cloud,
 			bounded_miner_ids[0].clone(),
 			OperationalStatus::Busy
@@ -573,17 +598,26 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 		let oracle_feeder_1: AccountId = 100;
 		let oracle_feeder_2: AccountId = 200;
 		let miner_addrs: Vec<AccountId> = [0, 1, 2].to_vec();
-		let miner_ids: Vec<Vec<u8>> = vec![
-			b"11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
-			b"22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
-			b"33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
-		];
+		// let miner_ids: Vec<Vec<u8>> = vec![
+		// 	b"ED-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec(),
+		// 	b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec(),
+		// 	b"ED-33333333-ffff-gggg-hhhh-abcdef123456".to_vec(),
+		// ];
 
 		// Corresponding BoundedVec<_, 64> for MinerId
 		let bounded_miner_ids: Vec<MinerId> = vec![
-			b"ED-11111111-aaaa-bbbb-cccc-1234567890ab".to_vec().try_into().unwrap(),
-			b"ED-22222222-dddd-eeee-ffff-0987654321cd".to_vec().try_into().unwrap(),
-			b"ED-33333333-ffff-gggg-hhhh-abcdef123456".to_vec().try_into().unwrap(),
+			b"ED-11111111-aaaa-bbbb-cccc-1234567890ab"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"ED-22222222-dddd-eeee-ffff-0987654321cd"
+				.to_vec()
+				.try_into()
+				.unwrap(),
+			b"ED-33333333-ffff-gggg-hhhh-abcdef123456"
+				.to_vec()
+				.try_into()
+				.unwrap(),
 		];
 
 		// basic miner spec
@@ -596,10 +630,15 @@ fn on_finalize_works_as_expected_for_executable_miners() {
 
 		// register miners
 		// register miners — one-to-one mapping
-		for (miner, id_bytes) in miner_addrs.iter().zip(miner_ids.iter()) {
+		for (miner, id_bytes) in miner_addrs.iter().zip(bounded_miner_ids.iter()) {
 			let domain_str = "some_api_domain.".to_owned() + &id_bytes.len().to_string() + ".com"; // you can keep your original domain logic
 			let domain_vec = domain_str.as_bytes().to_vec();
 			let domain: BoundedVec<u8, ConstU32<128>> = BoundedVec::try_from(domain_vec).unwrap();
+
+      assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+        RuntimeOrigin::root(), 
+        *miner
+      ));
 
 			assert_ok!(EdgeConnectModule::register_miner(
 				RuntimeOrigin::signed(*miner),
