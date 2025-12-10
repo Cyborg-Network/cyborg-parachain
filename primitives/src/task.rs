@@ -141,7 +141,7 @@ pub struct CyCloudVmTask {
 
 ///Detailed information about a specific task.
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
-pub struct TaskInfo<AccountId, BlockNumber, Balance> {
+pub struct TaskInfo<AccountId, BlockNumber, Asset, Balance> {
 	pub task_owner: AccountId,                  // Who scheduled the task.
 	pub create_block: BlockNumber,              // Block when created.
 	pub time_elapsed: Option<BlockNumber>,      // Time consumed.
@@ -149,7 +149,7 @@ pub struct TaskInfo<AccountId, BlockNumber, Balance> {
 	pub task_kind: TaskKind<BlockNumber>,       // New: Logical kind (NeuroZK or OpenInference).
 	pub result: Option<BoundedVec<u8, ConstU32<500>>>, // Final result (optional).
 	pub task_status: TaskStatusType,            // Current lifecycle status.
-    pub payment: PaymentDetails<BlockNumber, Balance>,
+    pub payment: PaymentDetails<BlockNumber, Asset, Balance>,
 }
 
 pub type ZkInput = BoundedVec<u8, ConstU32<5000>>;
@@ -193,7 +193,7 @@ pub struct NzkData<BlockNumber> {
 // 	pub resolver: Option<VerificationHashes<AccountId>>,
 // }
 
-pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber, Balance> {
-	fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumber, Balance>>;
-	fn update_nzk_task(task_id: TaskId, task: TaskInfo<AccountId, BlockNumber, Balance>);
+pub trait NzkTaskInfoHandler<AccountId, TaskId, BlockNumber, Asset, Balance> {
+	fn get_nzk_task(task_id: TaskId) -> Option<TaskInfo<AccountId, BlockNumber, Asset, Balance>>;
+	fn update_nzk_task(task_id: TaskId, task: TaskInfo<AccountId, BlockNumber, Asset, Balance>);
 }

@@ -1,11 +1,12 @@
 pub use crate as pallet_task_management;
 use cyborg_primitives::constants::{DAYS, HOURS};
-use frame_support::{derive_impl,
-	parameter_types, traits::{ConstU32, EnsureOriginWithArg}, weights::constants::RocksDbWeight, PalletId,
+use frame_support::{
+	derive_impl, parameter_types,
+	traits::{ConstU32, EnsureOriginWithArg},
+	weights::constants::RocksDbWeight,
+	PalletId,
 };
-use frame_system::EnsureRoot;
-use frame_system::EnsureRootWithSuccess;
-use frame_system::{mocking::MockBlock, GenesisConfig};
+use frame_system::{mocking::MockBlock, EnsureRoot, EnsureRootWithSuccess, GenesisConfig};
 use pallet_edge_connect;
 use pallet_payment;
 use sp_runtime::{traits::ConstU64, BuildStorage};
@@ -138,9 +139,9 @@ impl pallet_payment::Config for Test {
 	type MaxUserIdLength = MaxUserIdLength;
 
 	type AssetRegistry = Assets;
-    type AssetId = AssetId;
-    type AssetBalance = Balance;
-    type AssetAuthority = EnsureRootWithAccount;
+	type AssetId = AssetId;
+	type AssetBalance = Balance;
+	type AssetAuthority = EnsureRootWithAccount;
 }
 
 pub struct EnsureRootWithAccount;

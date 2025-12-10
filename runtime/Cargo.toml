@@ -27,6 +27,7 @@ docify = "0.2.8"
 # Orml 
 orml-oracle = { workspace = true }
 orml-traits = { workspace = true }
+orml-tokens = { workspace = true }
 
 # Local
 cyborg-primitives = { workspace = true }
@@ -123,6 +124,7 @@ std = [
 	"log/std",
 	"orml-oracle/std",
 	"orml-traits/std",
+    "orml-tokens/std",
 	"pallet-assets/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
@@ -176,6 +178,7 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"hex-literal",
 	"orml-oracle/runtime-benchmarks",
+    "orml-tokens/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",

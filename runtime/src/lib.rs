@@ -14,6 +14,7 @@ pub mod configs;
 mod oracle_router;
 pub mod weights;
 use oracle_router::OracleRouter;
+ use frame_support::traits::Nothing;
 
 extern crate alloc;
 use frame_support::traits::tokens::pay::{Pay, PaymentStatus};
@@ -32,6 +33,7 @@ use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use orml_traits::GetByKey;
 
 use frame_support::{
 	parameter_types,
@@ -55,6 +57,7 @@ pub use cyborg_primitives::{
 	miner::{MinerId, MinerType},
 	oracle::{DummyCombineData, OracleKey, OracleMinerFormat, OracleValue, ProcessStatus},
 	task::TaskId,
+    payment::{PaymentMode, PaymentRates},
 };
 
 pub use pallet_edge_connect;
@@ -371,15 +374,45 @@ impl pallet_task_management::Config for Runtime {
 parameter_types! {
 	pub const MaxKycHashLength: u32 = 64;
 	// pub const MaxPaymentIdLength: u32 = 128;
-	pub const MaxUserIdLength: u32 = 128;
+	//pub const MaxUserIdLength: u32 = 128;
     pub const PaymentPalletId: PalletId = PalletId(*b"py/paymt");
-    pub const OnDemandRate: Balance = 2;
-    pub const SubscriptionRate: Balance = 10;
+    //pub const OnDemandRate: Balance = 2;
+    //pub const SubscriptionRate: Balance = 10;
+    pub const NativeOnDemandRate: Balance = 2 * UNIT;
+    pub const NativeSubscriptionRate: Balance = 10 * UNIT;
+    pub const StablesOnDemandRate: Balance = 2 *  MICROUNIT;
+    pub const StablesSubscriptionRate: Balance = 10 *  MICROUNIT;
+    pub const DefaultOnDemandRate: Balance = 2;
+    pub const DefaultSubscriptionRate: Balance = 10;
 }
+
+
+// Payment Rates implementation for the runtime
+pub struct PaymentRatesImpl;
+
+impl PaymentRates<AssetId, Balance> for PaymentRatesImpl {
+    fn get_rate(asset_id: AssetId, mode: PaymentMode) -> Balance {
+        match asset_id {
+            0 => match mode {  // $BORG (Id == ?) 
+                PaymentMode::OnDemand => NativeOnDemandRate::get(),
+                PaymentMode::Subscription => NativeSubscriptionRate::get(),
+            },
+            1 | 2 => match mode {  // StableCoins (USDC == ?, USDT == ?)
+                PaymentMode::OnDemand => StablesOnDemandRate::get(),
+                PaymentMode::Subscription => StablesSubscriptionRate::get(),
+            },
+            _ => match mode {  // Default for other assets
+                PaymentMode::OnDemand => DefaultOnDemandRate::get(),
+                PaymentMode::Subscription => DefaultSubscriptionRate::get(),
+            },
+        }
+    }
+}
+
 
 impl pallet_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
+	//type Currency = Balances;
     // type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
 	// type MaxKycHashLength = MaxKycHashLength;
 	// type MaxPaymentIdLength = MaxPaymentIdLength;
@@ -388,17 +421,19 @@ impl pallet_payment::Config for Runtime {
     type SubscriptionPeriod = ConstU32<{ 30 * DAYS }>;
     type OnDemandPeriod = ConstU32<{ HOURS }>;
     type GracePeriod = ConstU32<{ 4 * DAYS }>;
-    type OnDemandRate = OnDemandRate;
-    type SubscriptionRate = SubscriptionRate;
+    //type OnDemandRate = OnDemandRate;
+    //type SubscriptionRate = SubscriptionRate;
+    type Rate = PaymentRatesImpl;
+    type Asset = Tokens;
 	//type TreasuryAccount = TreasuryAccount;
 	//type WeightInfo = weights::pallet_payment::SubstrateWeight<Runtime>;
-	type MaxKycHashLength = MaxKycHashLength;
+	// type MaxKycHashLength = MaxKycHashLength;
 	//type MaxPaymentIdLength = MaxPaymentIdLength;
-	type MaxUserIdLength = MaxUserIdLength;
-	type AssetRegistry = Assets;
-	type AssetId = AssetId;
-	type AssetBalance = Balance;
-	type AssetAuthority = EnsureRootWithAccount;
+	//type MaxUserIdLength = MaxUserIdLength;
+	//type AssetRegistry = Assets;
+	//type AssetId = AssetId;
+	//type AssetBalance = Balance;
+	//type AssetAuthority = EnsureRootWithAccount;
 }
 
 parameter_types! {
@@ -527,7 +562,7 @@ impl EnsureOriginWithArg<RuntimeOrigin, u32> for EnsureRootWithAccount {
 }
 
 pub type AssetId = u32;
-
+/*
 impl pallet_assets::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
@@ -548,6 +583,47 @@ impl pallet_assets::Config for Runtime {
 	type RemoveItemsLimit = ConstU32<1000>;
 	type CallbackHandle = ();
 	type Holder = ();
+}
+*/
+
+parameter_types! {
+    pub const MaxLocks: u32 = 50;
+    pub const MaxReserves: u32 = 50;
+}
+
+impl orml_tokens::Config for Runtime {
+    type RuntimeEvent = RuntimeEvent;
+    type Balance = Balance;
+    type Amount = i128;
+    type CurrencyId = AssetId;
+    type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    type CurrencyHooks = ();
+    type MaxLocks = MaxLocks;
+    type MaxReserves = MaxReserves;
+    type ReserveIdentifier = [u8; 8];
+    type DustRemovalWhitelist = Nothing;
+}
+
+parameter_types! {
+    // Native token existential deposit
+    pub const NativeExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
+    // USDC existential deposit (6 decimals)
+    pub const UsdcExistentialDeposit: Balance = 1_000; // 0.001 USDC
+    // Default for other assets
+    pub const DefaultExistentialDeposit: Balance = 1;
+}
+
+pub struct ExistentialDeposits;
+
+impl GetByKey<AssetId, Balance> for ExistentialDeposits {
+    fn get(k: &AssetId) -> Balance {
+        match k {
+            0 => NativeExistentialDeposit::get(), // Native token
+            1 => UsdcExistentialDeposit::get(),   // USDC
+            _ => DefaultExistentialDeposit::get(), // Other assets
+        }
+    }
 }
 
 #[sp_version::runtime_version]
@@ -712,8 +788,10 @@ mod runtime {
 	#[runtime::pallet_index(48)]
 	pub type Treasury = pallet_treasury;
 
-	#[runtime::pallet_index(49)]
-	pub type Assets = pallet_assets;
+	//#[runtime::pallet_index(49)]
+	//pub type Assets = pallet_assets;
+    #[runtime::pallet_index(49)]
+    pub type Tokens = orml_tokens;
 }
 
 cumulus_pallet_parachain_system::register_validate_block! {

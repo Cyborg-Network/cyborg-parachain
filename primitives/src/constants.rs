@@ -16,3 +16,9 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
+
+// Unit = the base number of indivisible units for balances
+// Assuming 12 decimal places for native token
+//pub const UNIT: Balance = 1_000_000_000_000;
+//pub const MILLIUNIT: Balance = 1_000_000_000;
+//pub const MICROUNIT: Balance = 1_000_000;

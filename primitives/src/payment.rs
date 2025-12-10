@@ -20,10 +20,11 @@ pub enum PaymentMode {
 }
 
 #[derive(Clone, Encode, Decode, TypeInfo, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
-pub struct PaymentDetails<BlockNumber, Balance> {
+pub struct PaymentDetails<BlockNumber, Asset, Balance> {
     pub begin: BlockNumber,
     pub expiry: BlockNumber,
-    pub reserved: Balance,
+    pub asset: Asset,
+    pub amount: Balance,
     pub mode: PaymentMode,
 }
 
@@ -32,4 +33,10 @@ pub enum PaymentPurpose {
     TaskExecution(TaskId), // Payment is for specific task execution
     #[default]
     Undefined,             // Default/unspecified payment purpose
+}
+
+/// Trait for getting payment rates based on asset ID	
+pub trait PaymentRates<Asset, Balance> {
+    /// Get a rate for a specific asset and payment mode	
+    fn get_rate(asset_id: Asset, mode: PaymentMode) -> Balance;	
 }

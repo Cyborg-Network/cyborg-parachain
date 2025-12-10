@@ -23,7 +23,9 @@ pub use cyborg_primitives::{
 use frame_support::traits::Get;
 use frame_support::{pallet_prelude::IsType, sp_runtime::RuntimeDebug, BoundedVec};
 use scale_info::TypeInfo;
-use pallet_payment::BalanceOf;
+use pallet_payment::{BalanceOf, AssetIdOf};
+use orml_traits::MultiCurrency;
+
 
 #[derive(PartialEq, Eq, Clone, RuntimeDebug, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct VerificationResult<BlockNumber> {
@@ -61,7 +63,7 @@ pub mod pallet {
 		type AggregateLength: Get<u32>;
 
 		/// Updates Task Status for Task Management
-		type NzkTaskInfoHandler: NzkTaskInfoHandler<Self::AccountId, TaskId, BlockNumberFor<Self>, BalanceOf<Self>>;
+		type NzkTaskInfoHandler: NzkTaskInfoHandler<Self::AccountId, TaskId, BlockNumberFor<Self>, AssetIdOf<Self>, BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -156,11 +158,11 @@ pub mod pallet {
 	// can call to interact with the pallet. Each function has a weight and requires the user
 	// to sign the transaction unless specified otherwise.
 	#[pallet::call]
-	impl<T: Config> Pallet<T>
-	where
-		<<T as pallet_payment::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance:
-			TryFrom<u64>,
-	{
+	impl<T: Config> Pallet<T> 
+        where
+        <<T as pallet_payment::Config>::Asset as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance:
+            TryFrom<u64>,
+    {
 		/// Requests a nzk proof from the given task
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::request_proof())]

@@ -39,7 +39,7 @@ base64 = { version = "0.21", default-features = false }
 # ORML
 orml-oracle = { path = "orml/oracle", default-features = false }
 orml-traits = { path = "orml/traits", default-features = false }
-
+orml-tokens = { path = "orml/tokens", default-features = false }
 # Codec
 codec = { package = "parity-scale-codec", version = "3.6.12", features = ["derive"], default-features = false }
 parity-scale-codec = { version = "3.6.12", features = ["max-encoded-len"], default-features = false }

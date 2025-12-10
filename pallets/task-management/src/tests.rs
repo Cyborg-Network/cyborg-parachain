@@ -1,12 +1,19 @@
-use crate::{mock::*, Error, NextTaskId, PaymentPurpose, ResetReason, TaskAllocations, Tasks, GatekeeperAccount, ModelHashes, TaskAssignmentBlock, PendingTaskConfirmations};
+use crate::{
+	mock1::*, Error, GatekeeperAccount, ModelHashes, NextTaskId, PaymentPurpose,
+	PendingTaskConfirmations, ResetReason, TaskAllocations, TaskAssignmentBlock, Tasks, PaymentDetailsOf, AssetIdOf
+};
 pub use cyborg_primitives::miner::*;
-use cyborg_primitives::task::{OnnxTask, TaskSubmissionData, NeuroZkTaskSubmissionDetails, OpenInferenceTask, TaskId, AzureTask};
+use cyborg_primitives::task::{
+	AzureTask, NeuroZkTaskSubmissionDetails, OnnxTask, OpenInferenceTask, TaskId,
+	TaskSubmissionData,
+};
 
-use frame_support::{assert_noop, assert_ok};
-use cyborg_primitives::payment::PaymentMode;
-pub use cyborg_primitives::task::{TaskStatusType, TaskKind};
-use frame_support::{pallet_prelude::DispatchError,
-	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo, DispatchResult},
+use cyborg_primitives::payment::{PaymentMode, PaymentRates};
+pub use cyborg_primitives::task::{TaskKind, TaskStatusType};
+use frame_support::{
+	assert_noop, assert_ok,
+	dispatch::{DispatchErrorWithPostInfo, DispatchResult, PostDispatchInfo},
+	pallet_prelude::DispatchError,
 	traits::{fungible::Mutate, OnInitialize},
 	BoundedVec,
 };
@@ -24,30 +31,29 @@ fn register_miner(
 	// Clear previous events
 	frame_system::Pallet::<Test>::reset_events();
 
-  
-    assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
-            RuntimeOrigin::root(), 
-            account
-    ));
+	assert_ok!(EdgeConnectModule::add_account_authorized_for_registration(
+		RuntimeOrigin::root(),
+		account
+	));
 
-    let mut miner_uuid_bytes = miner_id;
+	let mut miner_uuid_bytes = miner_id;
 
-    let prefix = match miner_type {
-        MinerType::Cloud => b"CL-",
-        MinerType::Edge => b"ED-",
-    };
+	let prefix = match miner_type {
+		MinerType::Cloud => b"CL-",
+		MinerType::Edge => b"ED-",
+	};
 
-    if !miner_uuid_bytes.starts_with(prefix) {
-        let mut prefixed = prefix.to_vec();
-        prefixed.extend_from_slice(&miner_uuid_bytes);
-        miner_uuid_bytes = prefixed;
-    }
+	if !miner_uuid_bytes.starts_with(prefix) {
+		let mut prefixed = prefix.to_vec();
+		prefixed.extend_from_slice(&miner_uuid_bytes);
+		miner_uuid_bytes = prefixed;
+	}
 
-    let bounded_miner_uuid: MinerId = BoundedVec::try_from(miner_uuid_bytes)
-        .expect("Out of bounds");
+	let bounded_miner_uuid: MinerId =
+		BoundedVec::try_from(miner_uuid_bytes).expect("Out of bounds");
 
-    let bounded_domain: Domain = BoundedVec::try_from(domain_str.as_bytes().to_vec())
-        .expect("Out of bounds");
+	let bounded_domain: Domain =
+		BoundedVec::try_from(domain_str.as_bytes().to_vec()).expect("Out of bounds");
 
 	let result = EdgeConnectModule::register_miner(
 		RuntimeOrigin::signed(account),
@@ -100,18 +106,20 @@ fn register_miner(
 }
 
 fn setup_treasury_account() {
-	let account = pallet_payment::Pallet::<Test>::pallet_account_id();
+	let escrow = pallet_payment::Pallet::<Test>::account_id();
 
 	let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
 
-	let _ = Balances::mint_into(&account, existential_deposit).unwrap();
+	let _ = Balances::mint_into(&escrow, existential_deposit).unwrap();
 }
 
-fn setup_user_with_active_payment(account: u64, mode: PaymentMode) {
-	let rate = match mode {
-		PaymentMode::OnDemand => <Test as pallet_payment::Config>::OnDemandRate::get(),
-		PaymentMode::Subscription => <Test as pallet_payment::Config>::SubscriptionRate::get(),
-	};
+fn setup_user_with_active_payment(account: u64, mode: PaymentMode, asset_id: AssetIdOf<Test>) {
+
+    let rate = <Test as pallet_payment::Config>::Rate::get_rate(asset_id, mode);
+	//let rate = match mode {
+	//	PaymentMode::OnDemand => <Test as pallet_payment::Config>::OnDemandRate::get(),
+	//	PaymentMode::Subscription => <Test as pallet_payment::Config>::SubscriptionRate::get(),
+	//};
 
 	let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
 	let required_balance = rate + existential_deposit;
@@ -148,104 +156,122 @@ fn scheduling() {
 
 		let alice = 1;
 		let bob = 2;
-        let charlie = 3;
+		let charlie = 3;
+        let asset_id = 13;
 
 		// Register alice as a miner
-		let alice_miner_id = register_miner(alice, MinerType::Edge, "alice.miner", b"alice-miner-id".to_vec()).unwrap().1;
+		let alice_miner_id =
+			register_miner(alice, MinerType::Edge, "alice.miner", b"alice-miner-id".to_vec())
+				.unwrap()
+				.1;
 
 		// Register a executor as a miner
-		let charlie_miner_id =
-			register_miner(charlie, MinerType::Edge, "executor.miner", b"executor-miner-id".to_vec())
-				.unwrap()
-				.1;
+		let charlie_miner_id = register_miner(
+			charlie,
+			MinerType::Edge,
+			"executor.miner",
+			b"executor-miner-id".to_vec(),
+		)
+		.unwrap()
+		.1;
 
 		// Register a second miner for executor
-		let another_charlie_miner_id =
-			register_miner(charlie, MinerType::Edge, "another.executor.miner", b"another-executor-miner-id".to_vec())
-				.unwrap()
-				.1;
+		let another_charlie_miner_id = register_miner(
+			charlie,
+			MinerType::Edge,
+			"another.executor.miner",
+			b"another-executor-miner-id".to_vec(),
+		)
+		.unwrap()
+		.1;
 
 		// Setup user with on-demand payment for bob
-		setup_user_with_active_payment(bob, PaymentMode::OnDemand);
+		setup_user_with_active_payment(bob, PaymentMode::OnDemand, asset_id);
 
-		let task_kind_inference = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_kind_inference =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
 		// Bob schedules first task - should succeed
 		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(bob),
 			task_kind_inference.clone(),
 			charlie_miner_id.clone(),
-			PaymentMode::OnDemand    
-        ));
+			PaymentMode::OnDemand
+            asset_id,
+		));
 
-        let bob_task_id = NextTaskId::<Test>::get() - 1;
+		let bob_task_id = NextTaskId::<Test>::get() - 1;
 
-        assert_eq!(bob_task_id, 0); 
+		assert_eq!(bob_task_id, 0);
 
-        assert_ok!(
-            TaskManagementModule::confirm_task_reception(
-                RuntimeOrigin::signed(charlie),
-                bob_task_id,
-        ));
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(charlie),
+			bob_task_id,
+		));
 
 		// Alice attempts to schedule first tasks - fails
-		assert_noop!(TaskManagementModule::schedule(
-			RuntimeOrigin::signed(alice),
-			task_kind_inference.clone(),
-			alice_miner_id.clone(),
-			PaymentMode::Subscription,
-		), TokenError::FundsUnavailable);
+		assert_noop!(
+			TaskManagementModule::schedule(
+				RuntimeOrigin::signed(alice),
+				task_kind_inference.clone(),
+				alice_miner_id.clone(),
+				PaymentMode::Subscription,
+			),
+			TokenError::FundsUnavailable
+		);
 
 		// Bob schedules second task with same miner - should fail
 		assert_noop!(
 			TaskManagementModule::schedule(
 				RuntimeOrigin::signed(bob),
 				task_kind_inference.clone(),
-                charlie_miner_id.clone(),
-                PaymentMode::OnDemand,
-        ), pallet_edge_connect::Error::<Test>::Busy);
-        
-        // Mint for Bob
-        setup_user_with_active_payment(bob, PaymentMode::OnDemand);
+				charlie_miner_id.clone(),
+				PaymentMode::OnDemand,
+			),
+			pallet_edge_connect::Error::<Test>::Busy
+		);
 
-        assert_ok!(TaskManagementModule::schedule(
-                RuntimeOrigin::signed(bob),
-                task_kind_inference.clone(),
-                another_charlie_miner_id.clone(),
-                PaymentMode::OnDemand,
-        ));
+		// Mint for Bob
+		setup_user_with_active_payment(bob, PaymentMode::OnDemand);
 
-        let bob_second_task_id = NextTaskId::<Test>::get() - 1; 
-        
-        assert_eq!(bob_second_task_id, 1);
+		assert_ok!(TaskManagementModule::schedule(
+			RuntimeOrigin::signed(bob),
+			task_kind_inference.clone(),
+			another_charlie_miner_id.clone(),
+			PaymentMode::OnDemand,
+		));
 
-        assert_ok!(
-            TaskManagementModule::confirm_task_reception(
-                RuntimeOrigin::signed(charlie),   
-                bob_second_task_id,
-          ));
+		let bob_second_task_id = NextTaskId::<Test>::get() - 1;
 
-        // Setup user with subscription payment
+		assert_eq!(bob_second_task_id, 1);
+
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(charlie),
+			bob_second_task_id,
+		));
+
+		// Setup user with subscription payment
 		setup_user_with_active_payment(alice, PaymentMode::Subscription);
 
-        // Alice schedules similar task as Bob to a their miner,
-        // with subscription payment
+		// Alice schedules similar task as Bob to a their miner,
+		// with subscription payment
 		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(alice),
 			task_kind_inference.clone(),
 			alice_miner_id.clone(),
 			PaymentMode::Subscription,
+            asset_id,
 		));
 
-        let alice_task_id = NextTaskId::<Test>::get() - 1;
+		let alice_task_id = NextTaskId::<Test>::get() - 1;
 
-        assert_eq!(alice_task_id, 2);
+		assert_eq!(alice_task_id, 2);
 
 		// Confirm reception of first task to move it to running state
 		assert_ok!(TaskManagementModule::confirm_task_reception(
@@ -259,11 +285,11 @@ fn scheduling() {
 			.collect();
 		assert_eq!(user_tasks.len(), 2);
 
-        let user_tasks: Vec<_> = Tasks::<Test>::iter()
-            .filter(|(_, task_info)| task_info.task_owner == alice)
-            .collect();
-        assert_eq!(user_tasks.len(), 1);
-    });
+		let user_tasks: Vec<_> = Tasks::<Test>::iter()
+			.filter(|(_, task_info)| task_info.task_owner == alice)
+			.collect();
+		assert_eq!(user_tasks.len(), 1);
+	});
 }
 
 #[test]
@@ -275,6 +301,7 @@ fn tasks_cancellation_works() {
 
 		let alice = 1;
 		let bob = 2;
+        let asset_id = 14;
 
 		// Register multiple miners
 		let bob_miner_id =
@@ -290,9 +317,9 @@ fn tasks_cancellation_works() {
 			triton_config: None,
 		}));
 
-		let on_demand_rate = <Test as pallet_payment::Config>::OnDemandRate::get();
-		let existential_deposit = <Test as pallet_balances::Config>::ExistentialDeposit::get();
-		let required_balance = on_demand_rate + existential_deposit;
+		let rate = <Test as pallet_payment::Config>::Rate::get_rates(asset_id, PaymentMode::OnDemand);
+		let existential_deposit = <Test as pallet_orml_tokens::Config>::ExistentialDeposit::get(14);
+		let required_balance = rate + existential_deposit;
 
 		// Setup user with  balance for a single payment
 		// current_balance + (on_demand_rate + existential_deposit)
@@ -314,7 +341,7 @@ fn tasks_cancellation_works() {
 
 		// User free balance after first task assignment
 		let alice_balance_after_scheduling = Balances::free_balance(&alice);
-		assert_eq!(alice_balance_after_scheduling, required_balance - on_demand_rate);
+		assert_eq!(alice_balance_after_scheduling, required_balance - rate);
 
 		let alice_task_id = NextTaskId::<Test>::get() - 1;
 
@@ -355,6 +382,7 @@ fn task_cleanup_after_payment_expiration() {
 
 		let alice = 1;
 		let bob = 2;
+        let asset_id = 1;
 
 		let bob_miner_id =
 			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
@@ -370,7 +398,7 @@ fn task_cleanup_after_payment_expiration() {
 		}));
 
 		// Setup user with on-demand payment
-		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand, asset_id);
 
 		// Schedule and confirm task
 		assert_ok!(TaskManagementModule::schedule(
@@ -378,6 +406,7 @@ fn task_cleanup_after_payment_expiration() {
 			task_kind.clone(),
 			bob_miner_id.clone(),
 			PaymentMode::OnDemand,
+            asset_id,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -408,7 +437,8 @@ fn task_cleanup_after_payment_expiration() {
 		assert!(!TaskAllocations::<Test>::contains_key(task_id));
 
 		// Verify miner is vacated
-		let miner_info = pallet_edge_connect::EdgeMiners::<Test>::get(bob_miner_id.clone()).unwrap();
+		let miner_info =
+			pallet_edge_connect::EdgeMiners::<Test>::get(bob_miner_id.clone()).unwrap();
 		assert_eq!(miner_info.operational_status, OperationalStatus::Available);
 		assert_eq!(miner_info.current_task, None);
 
@@ -433,15 +463,12 @@ fn task_termination_comprehensive() {
 
 		let alice = 1;
 		let bob = 2;
+        let asset_id = 3;
 
-		let bob_miner_id = register_miner(
-			bob,
-			MinerType::Edge,
-			"bob.miner",
-			b"bob-miner-id".to_vec(),
-		)
-		.unwrap()
-		.1;
+		let bob_miner_id =
+			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
 		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -452,7 +479,7 @@ fn task_termination_comprehensive() {
 		}));
 
 		// Setup user with sufficient balance
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand, asset_id);
 
 		// 1. Schedule and confirm task
 		assert_ok!(TaskManagementModule::schedule(
@@ -460,6 +487,7 @@ fn task_termination_comprehensive() {
 			task_kind.clone(),
 			bob_miner_id.clone(),
 			PaymentMode::OnDemand,
+            assset_id,
 		));
 
 		let task_id = NextTaskId::<Test>::get() - 1;
@@ -498,14 +526,10 @@ fn termination_with_subscription_payments() {
 		let alice = 1;
 		let bob = 2;
 
-		let bob_miner_id = register_miner(
-			bob,
-			MinerType::Edge,
-			"bob.miner",
-			b"bob-miner-id".to_vec(),
-		)
-		.unwrap()
-		.1;
+		let bob_miner_id =
+			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
 		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
@@ -516,7 +540,7 @@ fn termination_with_subscription_payments() {
 		}));
 
 		// Setup user with subscription payment
-        setup_user_with_active_payment(alice, PaymentMode::Subscription);
+		setup_user_with_active_payment(alice, PaymentMode::Subscription);
 
 		// Schedule with subscription payment
 		assert_ok!(TaskManagementModule::schedule(
@@ -538,8 +562,11 @@ fn termination_with_subscription_payments() {
 
 		let balance_before_termination = Balances::free_balance(&alice);
 
-        // Invalid task id - should fail
-        assert_noop!(TaskManagementModule::terminate(RuntimeOrigin::signed(alice), 9999), Error::<Test>::TaskNotFound);
+		// Invalid task id - should fail
+		assert_noop!(
+			TaskManagementModule::terminate(RuntimeOrigin::signed(alice), 9999),
+			Error::<Test>::TaskNotFound
+		);
 
 		assert_ok!(TaskManagementModule::terminate(RuntimeOrigin::signed(alice), alice_task_id));
 
@@ -558,34 +585,37 @@ fn termination_with_subscription_payments() {
 	});
 }
 
-
 #[test]
 fn confirm_task_reception_should_work_for_valid_assigned_miner() {
-    new_test_ext().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
-		
-        let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
 		// Bob register's miner
-		let bob_miner_id = register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
 		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
-        assert_ok!(TaskManagementModule::schedule(
+		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(alice),
 			task_inference_submission,
 			bob_miner_id.clone(),
-            PaymentMode::OnDemand,
+			PaymentMode::OnDemand,
 		));
 
 		let alice_task_id = NextTaskId::<Test>::get() - 1;
@@ -605,22 +635,26 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 fn confirm_task_reception_should_fail_if_already_running() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
-        System::set_block_number(1);
+		setup_treasury_account();
+		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-		let bob_miner_id = register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(alice),
@@ -676,30 +710,27 @@ fn test_register_model_hash_works() {
 fn reset_task_should_work_for_stuck_assigned_task() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 
 		let alice = 1;
 		let bob = 2;
 
-		let bob_miner_id = register_miner(
-			bob,
-			MinerType::Edge,
-			"bob.miner",
-			b"bob-miner-id".to_vec(),
-		)
-		.unwrap()
-		.1;
+		let bob_miner_id =
+			register_miner(bob, MinerType::Edge, "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		// 1. Schedule task
 		assert_ok!(TaskManagementModule::schedule(
@@ -707,7 +738,7 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 			task_inference_submission.clone(),
 			bob_miner_id.clone(),
 			PaymentMode::OnDemand,
-        ));
+		));
 
 		let alice_task_id = NextTaskId::<Test>::get() - 1;
 
@@ -716,7 +747,8 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		assert_eq!(alice_task_info.task_status, TaskStatusType::Assigned);
 
 		// Verify miner is assigned
-		let bob_miner = EdgeConnectModule::get_miner(&bob_miner_id.clone(), &MinerType::Edge).unwrap();
+		let bob_miner =
+			EdgeConnectModule::get_miner(&bob_miner_id.clone(), &MinerType::Edge).unwrap();
 		assert_eq!(bob_miner.operational_status, OperationalStatus::TaskAssigned);
 		assert_eq!(bob_miner.current_task, Some(alice_task_id));
 
@@ -732,11 +764,9 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 		assert!(TaskAllocations::<Test>::get(alice_task_id).is_none());
 
 		// Verify miner is reset to available
-		let updated_miner = EdgeConnectModule::get_miner(&bob_miner_id.clone(), &MinerType::Edge).unwrap();
-		assert_eq!(
-			updated_miner.operational_status,
-			OperationalStatus::Available
-		);
+		let updated_miner =
+			EdgeConnectModule::get_miner(&bob_miner_id.clone(), &MinerType::Edge).unwrap();
+		assert_eq!(updated_miner.operational_status, OperationalStatus::Available);
 		assert_eq!(updated_miner.current_task, None);
 
 		// Check event emission
@@ -755,24 +785,28 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 fn reset_task_should_work_for_stuck_running_task() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 		let miner_type = MinerType::Edge;
 
 		// Register miner
-		let bob_miner_id = register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		// Schedule task and confirm reception
 		assert_ok!(TaskManagementModule::schedule(
@@ -799,24 +833,22 @@ fn reset_task_should_work_for_stuck_running_task() {
 
 		System::set_block_number(2);
 
-        assert_noop!(  
-            TaskManagementModule::reset_task(  
-                RuntimeOrigin::signed(alice),  
-                alice_task_id,  
-                miner_type,  
-                ResetReason::ManualIntervention  
-            ),
-              DispatchError::BadOrigin
-          );
+		assert_noop!(
+			TaskManagementModule::reset_task(
+				RuntimeOrigin::signed(alice),
+				alice_task_id,
+				miner_type,
+				ResetReason::ManualIntervention
+			),
+			DispatchError::BadOrigin
+		);
 
-        // Reset the stuck task as root using the helper  
-        assert_ok!(
-            reset_task_as_root(
-                alice_task_id,
-                MinerType::Edge,
-                ResetReason::MinerUnresponsive
-          
-        ));
+		// Reset the stuck task as root using the helper
+		assert_ok!(reset_task_as_root(
+			alice_task_id,
+			MinerType::Edge,
+			ResetReason::MinerUnresponsive
+		));
 	});
 }
 
@@ -824,24 +856,28 @@ fn reset_task_should_work_for_stuck_running_task() {
 fn reset_task_should_fail_for_non_root_caller() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 		let miner_type = MinerType::Edge;
 
 		// Register miner and create a task
-		let bob_miner_id = register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(alice),
@@ -872,11 +908,7 @@ fn reset_task_should_fail_for_nonexistent_task() {
 		let miner_type = MinerType::Edge;
 
 		assert_noop!(
-			reset_task_as_root(
-				nonexistent_task_id,
-				miner_type,
-				ResetReason::ManualIntervention
-			),
+			reset_task_as_root(nonexistent_task_id, miner_type, ResetReason::ManualIntervention),
 			Error::<Test>::TaskNotFound
 		);
 	});
@@ -886,24 +918,28 @@ fn reset_task_should_fail_for_nonexistent_task() {
 fn reset_task_should_fail_for_terminated_tasks() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 		let miner_type = MinerType::Edge;
 
 		// Register miner
-		let bob_miner_id = register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-         setup_user_with_active_payment(alice, PaymentMode::Subscription);
+		setup_user_with_active_payment(alice, PaymentMode::Subscription);
 
 		assert_ok!(TaskManagementModule::schedule(
 			RuntimeOrigin::signed(alice),
@@ -919,7 +955,7 @@ fn reset_task_should_fail_for_terminated_tasks() {
 			alice_task_id
 		));
 
-        assert_ok!(TaskManagementModule::terminate(RuntimeOrigin::signed(alice), alice_task_id));
+		assert_ok!(TaskManagementModule::terminate(RuntimeOrigin::signed(alice), alice_task_id));
 
 		assert_noop!(
 			reset_task_as_root(alice_task_id, miner_type, ResetReason::ManualIntervention),
@@ -932,24 +968,28 @@ fn reset_task_should_fail_for_terminated_tasks() {
 fn reset_task_should_handle_suspended_miner() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 		let miner_type = MinerType::Edge;
 
 		// Register miner
-		let bob_miner_id = register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-        setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::schedule(
@@ -975,18 +1015,12 @@ fn reset_task_should_handle_suspended_miner() {
 		assert_eq!(bob_miner.operational_status, OperationalStatus::Suspended);
 
 		// Reset the task - should unsuspend the miner using root
-		assert_ok!(reset_task_as_root(
-			alice_task_id,
-			miner_type.clone(),
-			ResetReason::SystemError
-		));
+		assert_ok!(reset_task_as_root(alice_task_id, miner_type.clone(), ResetReason::SystemError));
 
 		// Verify miner is no longer suspended and is available
-		let updated_miner = EdgeConnectModule::get_miner(&bob_miner_id.clone(), &miner_type).unwrap();
-		assert_eq!(
-			updated_miner.operational_status,
-			OperationalStatus::Available
-		);
+		let updated_miner =
+			EdgeConnectModule::get_miner(&bob_miner_id.clone(), &miner_type).unwrap();
+		assert_eq!(updated_miner.operational_status, OperationalStatus::Available);
 		assert_eq!(updated_miner.current_task, None);
 	});
 }
@@ -995,24 +1029,28 @@ fn reset_task_should_handle_suspended_miner() {
 fn reset_task_should_clean_up_pending_confirmations() {
 	new_test_ext().execute_with(|| {
 		setup_gatekeeper();
-        setup_treasury_account();
+		setup_treasury_account();
 		System::set_block_number(1);
 		let alice = 1;
 		let bob = 2;
 		let miner_type = MinerType::Edge;
 
 		// Register miner
-		let bob_miner_id = register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec()).unwrap().1;
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
 
-		let task_inference_submission = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-			storage_location_identifier: BoundedVec::try_from(
-				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-			)
-			.unwrap(),
-			triton_config: None,
-		}));
+		let task_inference_submission =
+			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+				storage_location_identifier: BoundedVec::try_from(
+					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+				)
+				.unwrap(),
+				triton_config: None,
+			}));
 
-         setup_user_with_active_payment(alice, PaymentMode::OnDemand);
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand);
 
 		// Schedule task
 		assert_ok!(TaskManagementModule::schedule(
@@ -1034,17 +1072,10 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		println!("Timeout block: {}", timeout_block);
 		println!("Pending tasks at timeout block: {:?}", pending_tasks);
 
-        assert!(
-			pending_tasks.contains(&alice_task_id),
-			"Task should be in pending confirmations"
-		);
+		assert!(pending_tasks.contains(&alice_task_id), "Task should be in pending confirmations");
 
 		// Reset the task using root
-		assert_ok!(reset_task_as_root(
-			alice_task_id,
-			miner_type,
-			ResetReason::ManualIntervention
-		));
+		assert_ok!(reset_task_as_root(alice_task_id, miner_type, ResetReason::ManualIntervention));
 
 		// Verify task is removed from pending confirmations
 		let pending_tasks_after = PendingTaskConfirmations::<Test>::get(timeout_block);
@@ -1054,4 +1085,3 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		);
 	});
 }
-
