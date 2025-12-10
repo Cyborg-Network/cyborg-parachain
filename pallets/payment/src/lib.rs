@@ -210,8 +210,8 @@ pub mod pallet {
 			// Return funds to user
 			T::Asset::transfer(
 				details.asset,
-				who,
 				&escrow,
+				who,
 				details.amount,
 				ExistenceRequirement::KeepAlive,
 			)?;
@@ -236,8 +236,8 @@ pub mod pallet {
 			// Transfer cashback to user
 			T::Asset::transfer(
 				details.asset,
-				who,
 				&escrow,
+				who,
 				amount,
 				ExistenceRequirement::KeepAlive,
 			)?;

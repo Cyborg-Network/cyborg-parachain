@@ -365,22 +365,22 @@ pub mod pallet {
 
 			let refund_amount = match task_info.payment.mode {
 				PaymentMode::Subscription => {
-					let on_demand_rate =
+					let rate =
 						T::Rate::get_rate(task_info.payment.asset.clone(), PaymentMode::OnDemand);
 					let on_demand_period = <T as pallet_payment::Config>::OnDemandPeriod::get();
 
 					let execution_cost = if time_elapsed <= on_demand_period {
 						// If used less than or equal to on-demand period, pay just the on-demand
 						// rate
-						on_demand_rate
+						rate
 					} else {
 						// If used more than base period, pay: on_demand_rate * additional_blocks
 						let mut block_count = time_elapsed.saturating_sub(on_demand_period);
 
-						let mut total_cost = on_demand_rate;
+						let mut total_cost = rate;
 
 						while block_count > Zero::zero() {
-							total_cost = total_cost.saturating_add(on_demand_rate);
+							total_cost = total_cost.saturating_add(rate);
 							block_count = block_count.saturating_sub(on_demand_period);
 						}
 						total_cost
