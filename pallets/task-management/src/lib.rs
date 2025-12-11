@@ -96,7 +96,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		TaskScheduled {
 			assigned_miner: MinerId,
-			task_kind: TaskKind<BlockNumberFor<T>>,
+			task_kind: TaskKind,
 			task_owner: T::AccountId,
 			task_id: TaskId,
 		},
@@ -104,6 +104,13 @@ pub mod pallet {
 			task_id: TaskId,
 			who: T::AccountId,
 		},
+		/// A miner confirmed the task reception, but failed to run the task
+		TaskReceptionFailed {
+			task_id: TaskId,
+			who: T::AccountId,
+		},
+
+		/// Controller/admin requested to stop a running task.
 		TaskStopRequested {
 			task_id: TaskId,
 		},
@@ -219,17 +226,15 @@ pub mod pallet {
 		#[pallet::weight({<T as pallet::Config>::WeightInfo::task_scheduler_nzk(500)})]
 		pub fn schedule(
 			origin: OriginFor<T>,
-			submission: TaskSubmissionData,
+			submission: TaskKind,
 			miner_id: MinerId, // TODO: Randomize miner selection
 			mode: PaymentMode,
 			asset: AssetIdOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin.clone())?;
 			let miner_type = match submission {
-				TaskSubmissionData::NeuroZK(_) |
-				TaskSubmissionData::OpenInference(_) |
-				TaskSubmissionData::FlashInfer(_) => MinerType::Edge,
-				TaskSubmissionData::CyCloud(_) => MinerType::Cloud,
+				TaskKind::OpenInference(_) | TaskKind::FlashInfer(_) => MinerType::Edge,
+				TaskKind::CyCloud(_) => MinerType::Cloud,
 			};
 
 			pallet_edge_connect::Pallet::<T>::check_miner_available(&miner_id, &miner_type)?;
@@ -246,7 +251,6 @@ pub mod pallet {
 				amount: Zero::zero(),
 				mode,
 			};
-
 			// Reserve task execution cost
 			let details = pallet_payment::Pallet::<T>::reserve(
 				&who,
@@ -261,14 +265,14 @@ pub mod pallet {
 				tasks.try_push(task_id).map_err(|_| Error::<T>::RateLimitExceeded)
 			})?;
 
-			let task_kind = TaskKind::from_submission(submission);
+			//let task_kind = TaskKind::from_submission(submission);
 
 			let task_info = TaskInfoOf::<T> {
 				task_owner: who.clone(),
 				create_block: now,
 				time_elapsed: None,
 				average_cpu_percentage_use: None,
-				task_kind: task_kind.clone(),
+				task_kind: submission.clone(),
 				result: None,
 				task_status: TaskStatusType::Assigned,
 				payment: details.clone(),
@@ -299,7 +303,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::TaskScheduled {
 				assigned_miner: miner_id,
-				task_kind,
+				task_kind: submission,
 				task_owner: who,
 				task_id,
 			});
@@ -410,56 +414,79 @@ pub mod pallet {
 
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::confirm_task_reception())]
-		pub fn confirm_task_reception(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+		pub fn confirm_task_reception(
+			origin: OriginFor<T>,
+			task_id: TaskId,
+			has_failed: bool,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			// add helper function for checking if task is running
+
+			// Load task
 			let mut task_info = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
 
+			// If task is already running, return specific error
 			if task_info.task_status == TaskStatusType::Running {
 				return Err(Error::<T>::TaskReceptionAlreadyConfirmed.into());
 			}
 
+			let miner_id =
+				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotAllocated)?;
+
+			// Task must currently be `Assigned`
 			ensure!(
 				task_info.task_status == TaskStatusType::Assigned,
 				Error::<T>::RequireAssignedTask
 			);
 
-			let miner_id =
-				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotAllocated)?;
-
 			let miner_type = match task_info.task_kind {
-				TaskKind::NeuroZK(_) |
-				TaskKind::OpenInference(_) |
-				TaskKind::FlashInferInfer(_) => MinerType::Edge,
+				TaskKind::OpenInference(_) | TaskKind::FlashInfer(_) => MinerType::Edge,
 				TaskKind::CyCloud(_) => MinerType::Cloud,
 			};
 
 			let miner = pallet_edge_connect::Pallet::<T>::get_miner(&miner_id, &miner_type)
 				.ok_or(Error::<T>::MinerDoesNotExist)?;
 
-			ensure!(miner.owner == who, Error::<T>::NotAssignedMiner);
+			if has_failed {
+				task_info.task_status = TaskStatusType::Failed;
+				// TaskStatus::<T>::insert(task_id, TaskStatusType::Failed);
+				Tasks::<T>::insert(task_id, task_info);
 
-			let payment_details = pallet_payment::Pallet::<T>::set_active(
-				&task_info.task_owner,
-				PaymentPurpose::TaskExecution(task_id.clone()),
-				task_info.payment.clone(),
-			)?;
+				// Update the miner status back to active
+				pallet_edge_connect::Pallet::<T>::put_miner_under_maintenance(
+					&miner_id,
+					&miner_type,
+				)?;
 
-			// Create updated miner with new status
-			let updated_miner = Miner {
-				operational_status: OperationalStatus::Busy,
-				status_last_updated: frame_system::Pallet::<T>::block_number(),
-				..miner
-			};
+				Self::deposit_event(Event::TaskReceptionFailed { task_id, who });
+			} else {
+				ensure!(miner.owner == who, Error::<T>::NotAssignedMiner);
 
-			pallet_edge_connect::Pallet::<T>::update_miner(&miner_id, &miner_type, updated_miner);
+				let payment_details = pallet_payment::Pallet::<T>::set_active(
+					&task_info.task_owner,
+					PaymentPurpose::TaskExecution(task_id.clone()),
+					task_info.payment.clone(),
+				)?;
 
-			task_info.task_status = TaskStatusType::Running;
-			task_info.payment = payment_details;
-			//TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
-			Tasks::<T>::insert(task_id, task_info);
+				// Create updated miner with new status
+				let updated_miner = Miner {
+					operational_status: OperationalStatus::Busy,
+					status_last_updated: frame_system::Pallet::<T>::block_number(),
+					..miner
+				};
 
-			Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
+				pallet_edge_connect::Pallet::<T>::update_miner(
+					&miner_id,
+					&miner_type,
+					updated_miner,
+				);
+
+				task_info.task_status = TaskStatusType::Running;
+				task_info.payment = payment_details;
+				//TaskStatus::<T>::insert(task_id, TaskStatusType::Running);
+				Tasks::<T>::insert(task_id, task_info);
+
+				Self::deposit_event(Event::TaskReceptionConfirmed { task_id, who });
+			}
 
 			// Remove from pending confirmations
 			if let Some(assigned_block) = TaskAssignmentBlock::<T>::get(task_id) {
@@ -474,6 +501,45 @@ pub mod pallet {
 
 			Ok(())
 		}
+		/*
+		/// Signals the miner to exit task execution and reset itself
+		/// Running -> Stopped
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::stop_task_and_vacate_miner())]
+		pub fn stop_task_and_vacate_miner(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let mut task = Tasks::<T>::get(task_id).ok_or(Error::<T>::TaskNotFound)?;
+
+			// Ensure task is owned by caller.
+			ensure!(
+				task.task_owner == who,
+				Error::<T>::InvalidTaskOwner
+			);
+
+			// Ensure task is running.
+			ensure!(
+				task.task_status == TaskStatusType::Running,
+				Error::<T>::InvalidTaskState
+			);
+
+			// Change task state to Stopped.
+			task.task_status = TaskStatusType::Stopped;
+			Tasks::<T>::insert(task_id, task);
+
+			// Mark end of compute aggregation.
+			ComputeAggregations::<T>::mutate(task_id, |record| {
+				if let Some((start, _)) = record {
+					*record = Some((*start, Some(<frame_system::Pallet<T>>::block_number())));
+				}
+			});
+
+			// Emit event.
+			Self::deposit_event(Event::TaskStopRequested { task_id });
+
+			Ok(())
+		}
+		*/
 
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_gatekeeper())]
@@ -695,9 +761,7 @@ pub mod pallet {
 			let miner_id =
 				TaskAllocations::<T>::get(task_id).ok_or(Error::<T>::TaskNotAllocated)?;
 			let miner_type = match task_info.task_kind {
-				TaskKind::NeuroZK(_) |
-				TaskKind::OpenInference(_) |
-				TaskKind::FlashInferInfer(_) => MinerType::Edge,
+				TaskKind::OpenInference(_) | TaskKind::FlashInfer(_) => MinerType::Edge,
 				TaskKind::CyCloud(_) => MinerType::Cloud,
 			};
 
@@ -765,9 +829,7 @@ pub mod pallet {
 			if let Some(assigned_miner) = TaskAllocations::<T>::get(task_id) {
 				// Determine miner type from task kind
 				let miner_type = match info.task_kind {
-					TaskKind::NeuroZK(_) |
-					TaskKind::OpenInference(_) |
-					TaskKind::FlashInferInfer(_) => MinerType::Edge,
+					TaskKind::OpenInference(_) | TaskKind::FlashInfer(_) => MinerType::Edge,
 					TaskKind::CyCloud(_) => MinerType::Cloud,
 				};
 
@@ -822,9 +884,7 @@ pub mod pallet {
 			let miner_id = TaskAllocations::<T>::get(id).ok_or(Error::<T>::TaskNotAllocated)?;
 
 			let miner_type = match info.task_kind {
-				TaskKind::NeuroZK(_) |
-				TaskKind::OpenInference(_) |
-				TaskKind::FlashInferInfer(_) => MinerType::Edge,
+				TaskKind::OpenInference(_) | TaskKind::FlashInfer(_) => MinerType::Edge,
 				TaskKind::CyCloud(_) => MinerType::Cloud,
 			};
 

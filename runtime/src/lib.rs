@@ -61,7 +61,6 @@ pub use cyborg_primitives::{
 };
 
 pub use pallet_edge_connect;
-pub use pallet_neuro_zk;
 pub use pallet_payment;
 pub use pallet_status_aggregator;
 pub use pallet_task_management;
@@ -449,14 +448,6 @@ impl pallet_status_aggregator::Config for Runtime {
 	type MinerInfoHandler = EdgeConnect;
 }
 
-impl pallet_neuro_zk::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_neuro_zk::SubstrateWeight<Runtime>;
-	type AcceptanceThreshold = ConstU8<75>;
-	type AggregateLength = ConstU32<1>;
-	type NzkTaskInfoHandler = TaskManagement;
-}
-
 parameter_types! {
 	pub const MaxPublicInputsLength: u32 = 9;
 	pub const MaxVerificationKeyLength: u32 = 4143;
@@ -783,9 +774,6 @@ mod runtime {
 	pub type ZKVerifier = pallet_zk_verifier;
 
 	#[runtime::pallet_index(47)]
-	pub type NeuroZk = pallet_neuro_zk;
-
-	#[runtime::pallet_index(48)]
 	pub type Treasury = pallet_treasury;
 
 	//#[runtime::pallet_index(49)]

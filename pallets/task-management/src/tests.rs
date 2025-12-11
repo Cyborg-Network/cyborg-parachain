@@ -9,10 +9,7 @@ pub use cyborg_primitives::{
 };
 use cyborg_primitives::{
 	payment::{PaymentMode, PaymentRates},
-	task::{
-		AzureTask, NeuroZkTaskSubmissionDetails, OnnxTask, OpenInferenceTask, TaskId,
-		TaskSubmissionData,
-	},
+	task::{AzureTask, OnnxTask, OpenInferenceTask, TaskId},
 };
 use frame_support::{
 	assert_noop, assert_ok,
@@ -23,6 +20,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use orml_traits::{GetByKey, MultiCurrency};
+use sp_core::ConstU32;
 use sp_runtime::{traits::Get, TokenError};
 
 use sp_std::convert::TryFrom;
@@ -207,14 +205,13 @@ fn scheduling() {
 		// Setup user with on-demand payment for bob
 		setup_user_with_active_payment(bob, PaymentMode::OnDemand, asset_id);
 
-		let task_kind_inference =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
-				storage_location_identifier: BoundedVec::try_from(
-					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
-				)
-				.unwrap(),
-				triton_config: None,
-			}));
+		let task_kind_inference = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
 
 		// Bob schedules first task - should succeed
 		assert_ok!(TaskManagementModule::schedule(
@@ -232,9 +229,8 @@ fn scheduling() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(charlie),
 			bob_task_id,
+			false
 		));
-
-		/*
 
 		// Alice attempts to schedule first tasks - fails
 		assert_noop!(
@@ -245,9 +241,8 @@ fn scheduling() {
 				PaymentMode::Subscription,
 				asset_id,
 			),
-			TokenError::BalanceTooLow
+			orml_tokens::Error::<Test>::BalanceTooLow
 		);
-		*/
 
 		// Bob schedules second task with same miner - should fail
 		assert_noop!(
@@ -279,6 +274,7 @@ fn scheduling() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(charlie),
 			bob_second_task_id,
+			false
 		));
 
 		// Setup user with subscription payment
@@ -302,6 +298,7 @@ fn scheduling() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(alice),
 			alice_task_id,
+			false,
 		));
 
 		// Verify both tasks exists for this user
@@ -335,7 +332,7 @@ fn tasks_cancellation_works() {
 				.unwrap()
 				.1;
 
-		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+		let task_kind = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
@@ -419,7 +416,7 @@ fn task_cleanup_after_payment_expiration() {
 				.unwrap()
 				.1;
 
-		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+		let task_kind = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
@@ -444,6 +441,7 @@ fn task_cleanup_after_payment_expiration() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			task_id,
+			false,
 		));
 
 		// Verify task is running and payment is active
@@ -502,7 +500,7 @@ fn task_termination_comprehensive() {
 				.unwrap()
 				.1;
 
-		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+		let task_kind = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
@@ -527,6 +525,7 @@ fn task_termination_comprehensive() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			task_id,
+			false,
 		),);
 
 		// Verify task is running
@@ -565,7 +564,7 @@ fn termination_with_subscription_payments() {
 				.unwrap()
 				.1;
 
-		let task_kind = TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+		let task_kind = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 			storage_location_identifier: BoundedVec::try_from(
 				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 			)
@@ -590,6 +589,7 @@ fn termination_with_subscription_payments() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			alice_task_id,
+			false,
 		));
 
 		// Execute for some time
@@ -633,7 +633,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		setup_treasury_account(asset_id);
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -662,6 +662,7 @@ fn confirm_task_reception_should_work_for_valid_assigned_miner() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			alice_task_id,
+			false
 		));
 
 		// Task status should be updated to Running
@@ -682,7 +683,7 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		setup_treasury_account(asset_id);
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -711,11 +712,16 @@ fn confirm_task_reception_should_fail_if_already_running() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			alice_task_id,
+			false
 		));
 
 		// Second time (should fail - already running)
 		assert_noop!(
-			TaskManagementModule::confirm_task_reception(RuntimeOrigin::signed(bob), alice_task_id),
+			TaskManagementModule::confirm_task_reception(
+				RuntimeOrigin::signed(bob),
+				alice_task_id,
+				false
+			),
 			Error::<Test>::TaskReceptionAlreadyConfirmed
 		);
 	});
@@ -766,7 +772,7 @@ fn reset_task_should_work_for_stuck_assigned_task() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -846,7 +852,7 @@ fn reset_task_should_work_for_stuck_running_task() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -870,6 +876,7 @@ fn reset_task_should_work_for_stuck_running_task() {
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
 			alice_task_id,
+			false
 		));
 
 		// Verify task is running
@@ -920,7 +927,7 @@ fn reset_task_should_fail_for_non_root_caller() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -985,7 +992,7 @@ fn reset_task_should_fail_for_terminated_tasks() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -1007,7 +1014,8 @@ fn reset_task_should_fail_for_terminated_tasks() {
 
 		assert_ok!(TaskManagementModule::confirm_task_reception(
 			RuntimeOrigin::signed(bob),
-			alice_task_id
+			alice_task_id,
+			false
 		));
 
 		assert_ok!(TaskManagementModule::terminate(RuntimeOrigin::signed(alice), alice_task_id));
@@ -1037,7 +1045,7 @@ fn reset_task_should_handle_suspended_miner() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -1101,7 +1109,7 @@ fn reset_task_should_clean_up_pending_confirmations() {
 				.1;
 
 		let task_inference_submission =
-			TaskSubmissionData::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
 				storage_location_identifier: BoundedVec::try_from(
 					b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
 				)
@@ -1127,11 +1135,6 @@ fn reset_task_should_clean_up_pending_confirmations() {
 		let timeout_block = assigned_block.saturating_add(75);
 		let pending_tasks = PendingTaskConfirmations::<Test>::get(timeout_block);
 
-		// Debug output to help diagnose
-		println!("Assigned block: {}", assigned_block);
-		println!("Timeout block: {}", timeout_block);
-		println!("Pending tasks at timeout block: {:?}", pending_tasks);
-
 		assert!(pending_tasks.contains(&alice_task_id), "Task should be in pending confirmations");
 
 		// Reset the task using root
@@ -1143,5 +1146,56 @@ fn reset_task_should_clean_up_pending_confirmations() {
 			!pending_tasks_after.contains(&alice_task_id),
 			"Task should be removed from pending confirmations"
 		);
+	});
+}
+
+#[test]
+fn miner_should_be_under_maintenance_if_task_reception_fails() {
+	new_test_ext().execute_with(|| {
+		setup_gatekeeper();
+		System::set_block_number(1);
+		let alice = 1;
+		let bob = 2;
+		let miner_type = MinerType::Edge;
+
+		let asset_id = 69;
+
+		setup_user_with_active_payment(alice, PaymentMode::OnDemand, asset_id);
+
+		setup_treasury_account(asset_id);
+
+		// Register miner
+		let bob_miner_id =
+			register_miner(bob, miner_type.clone(), "bob.miner", b"bob-miner-id".to_vec())
+				.unwrap()
+				.1;
+
+		let task_kind = TaskKind::OpenInference(OpenInferenceTask::Onnx(OnnxTask {
+			storage_location_identifier: BoundedVec::try_from(
+				b"Qmf9v8VbJ6WFGbakeWEXFhUc91V1JG26grakv3dTj8rERh".to_vec(),
+			)
+			.unwrap(),
+			triton_config: None,
+		}));
+
+		// Create task and go through full lifecycle to Vacated state
+		assert_ok!(TaskManagementModule::schedule(
+			RuntimeOrigin::signed(alice),
+			task_kind,
+			bob_miner_id.clone(),
+			PaymentMode::OnDemand,
+			asset_id
+		));
+
+		let task_id = NextTaskId::<Test>::get() - 1;
+
+		// Complete the task lifecycle to reach Vacated state
+		assert_ok!(TaskManagementModule::confirm_task_reception(
+			RuntimeOrigin::signed(bob),
+			task_id,
+			true,
+		));
+
+		assert_eq!(EdgeConnectModule::miners_under_maintenance(bob_miner_id.clone()), Some(1))
 	});
 }
