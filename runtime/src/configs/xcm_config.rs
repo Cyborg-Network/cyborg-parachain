@@ -25,12 +25,16 @@ use xcm_builder::{
 use xcm_executor::XcmExecutor;
 
 parameter_types! {
-	pub const RelayLocation: Location = Location::parent();
-	pub const RelayNetwork: Option<NetworkId> = None;
-	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-	// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
-	// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
-	pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+		pub const RelayLocation: Location = Location::parent();
+		pub const RelayNetwork: Option<NetworkId> = None;
+		pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+		// For the real deployment, it is recommended to set `RelayNetwork` according to the relay chain
+		// and prepend `UniversalLocation` with `GlobalConsensus(RelayNetwork::get())`.
+		pub UniversalLocation: InteriorLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+}
+
+parameter_types! {
+		pub const AssetHubId: u32 = 1000; // AssetHub parachain ID
 }
 
 /// Type for specifying how a `Location` can be converted into an `AccountId`. This is used
@@ -81,10 +85,10 @@ pub type XcmOriginToTransactDispatchOrigin = (
 );
 
 parameter_types! {
-	// One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
-	pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
-	pub const MaxInstructions: u32 = 100;
-	pub const MaxAssetsIntoHolding: u32 = 64;
+		// One XCM operation is 1_000_000_000 weight - almost certainly a conservative estimate.
+		pub UnitWeightCost: Weight = Weight::from_parts(1_000_000_000, 64 * 1024);
+		pub const MaxInstructions: u32 = 100;
+		pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
 pub struct ParentOrParentsExecutivePlurality;
@@ -104,6 +108,13 @@ impl Contains<Location> for ParentOrParentsExecutivePlurality {
 	}
 }
 
+pub struct AssetHubParachain;
+impl Contains<Location> for AssetHubParachain {
+	fn contains(location: &Location) -> bool {
+		matches!(location.unpack(), (1, [Parachain(id)]) if *id == AssetHubId::get())
+	}
+}
+
 pub type Barrier = TrailingSetTopicAsId<
 	DenyThenTry<
 		DenyReserveTransferToRelayChain,
@@ -114,6 +125,7 @@ pub type Barrier = TrailingSetTopicAsId<
 					AllowTopLevelPaidExecutionFrom<Everything>,
 					AllowExplicitUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
 					// ^^^ Parent and its exec plurality get free execution
+					AllowTopLevelPaidExecutionFrom<AssetHubParachain>,
 				),
 				UniversalLocation,
 				ConstU32<8>,
@@ -122,10 +134,18 @@ pub type Barrier = TrailingSetTopicAsId<
 	>,
 >;
 
+pub struct SafeCallFilter;
+impl Contains<(Location, Xcm<RuntimeCall>)> for SafeCallFilter {
+	fn contains((origin, _xcm): &(Location, Xcm<RuntimeCall>)) -> bool {
+		// Allow XCM execution only from specific locations
+		matches!(origin.unpack(), (1, [Parachain(id)]) if *id == AssetHubId::get())
+	}
+}
+
 // Define the account to which the fees will be sent
 parameter_types! {
-	pub TreasuryAccount: AccountId =
-				pallet_treasury::Pallet::<Runtime>::account_id();
+		pub TreasuryAccount: AccountId =
+								pallet_treasury::Pallet::<Runtime>::account_id();
 }
 
 pub struct XcmConfig;
@@ -183,9 +203,7 @@ impl pallet_xcm::Config for Runtime {
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Nothing;
-	// ^ Disable dispatchable execute on the XCM pallet.
-	// Needs to be `Everything` for local testing.
+	type XcmExecuteFilter = SafeCallFilter; 
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmTeleportFilter = Everything;
 	type XcmReserveTransferFilter = Nothing;
