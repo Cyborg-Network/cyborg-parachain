@@ -24,6 +24,7 @@
 // For more information, please refer to <http://unlicense.org>
 
 pub mod xcm_config;
+pub use xcm_config::*;
 
 // Substrate and Polkadot dependencies
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
@@ -51,7 +52,6 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_runtime::Perbill;
 use sp_version::RuntimeVersion;
 use xcm::latest::prelude::BodyId;
-use xcm_config::{RelayLocation, XcmOriginToTransactDispatchOrigin};
 
 // Local module imports
 use super::{
